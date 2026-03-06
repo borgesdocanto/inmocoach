@@ -1,0 +1,22 @@
+# deps
+/node_modules
+/.pnp
+.pnp.js
+
+# build
+/.next/
+/out/
+/build
+
+# env — NUNCA subir al repo
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# misc
+npm-debug.log*
+.DS_Store
+*.pem
+.vercel
