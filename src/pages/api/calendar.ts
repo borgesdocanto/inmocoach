@@ -96,7 +96,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         title: e.summary!,
         start: e.start?.dateTime || e.start?.date || "",
         end: e.end?.dateTime || e.end?.date || "",
-        colorId: e.colorId,
+        colorId: e.colorId ?? undefined,
         isGreen: isGreenEvent(e),
         type: detectType(e.summary!),
         attendees: (e.attendees || [])
