@@ -77,35 +77,22 @@ function CoachPanel({ data }: { data: CalendarData }) {
   const analyze = async () => {
     setLoading(true);
     setAdvice("");
-    const { totals, productivityRate, productiveDays, totalDays } = data;
-    const prompt = `Sos un coach de ventas inmobiliarias de alto rendimiento. Analizá este embudo y dá un consejo concreto, directo y accionable en 3-4 oraciones. Solo párrafos, sin listas. Hablá en segunda persona, motivá a actuar HOY.
-
-DATOS:
-- Tasaciones: ${totals.tasaciones}
-- Visitas: ${totals.visitas}
-- Propuestas de valor: ${totals.propuestas}
-- Reuniones: ${totals.reuniones}
-- Total eventos productivos (verdes): ${totals.totalGreen}
-- Días productivos (≥${PRODUCTIVITY_GOAL} eventos verdes): ${productiveDays} de ${totalDays} (${productivityRate}%)
-- Meta diaria de eventos verdes: ${PRODUCTIVITY_GOAL}
-
-Identificá el cuello de botella más crítico y dá el consejo más valioso.`;
-
     try {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
+      const res = await fetch("/api/coach", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
-          max_tokens: 1000,
-          messages: [{ role: "user", content: prompt }],
+          totals: data.totals,
+          productivityRate: data.productivityRate,
+          productiveDays: data.productiveDays,
+          totalDays: data.totalDays,
+          productivityGoal: data.productivityGoal,
         }),
       });
       const json = await res.json();
-      const text = json.content?.map((b: any) => b.text || "").join("") || "Sin respuesta.";
-      setAdvice(text);
+      setAdvice(json.advice || "No se pudo obtener el análisis. Intentá de nuevo.");
     } catch {
-      setAdvice("Error al conectar con el Coach IA.");
+      setAdvice("Error al conectar. Intentá de nuevo.");
     }
     setLoading(false);
   };
@@ -114,17 +101,17 @@ Identificá el cuello de botella más crítico y dá el consejo más valioso.`;
     <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 animate-fade-up" style={{ animationDelay: "300ms" }}>
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: "#f9e6e6" }}>
-            <Brain size={15} style={{ color: GALAS_RED }} />
+          <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: "#e0f2fe" }}>
+            <Brain size={15} style={{ color: "#0ea5e9" }} />
           </div>
           <div>
-            <div className="font-black text-sm text-slate-800">Coach IA</div>
+            <div className="font-black text-sm text-slate-800">Insta Coach</div>
             <div className="text-xs text-slate-400">basado en tu Calendar</div>
           </div>
         </div>
         <button onClick={analyze} disabled={loading}
           className="flex items-center gap-1.5 px-4 py-2 rounded-2xl text-xs font-black text-white transition-all hover:scale-105 disabled:opacity-60"
-          style={{ background: `linear-gradient(135deg, #1e293b, #334155)` }}>
+          style={{ background: "linear-gradient(135deg, #0ea5e9, #0369a1)" }}>
           {loading ? <Loader2 size={12} className="animate-spin" /> : <Zap size={12} />}
           {loading ? "Analizando..." : "Analizar"}
         </button>
@@ -134,7 +121,7 @@ Identificá el cuello de botella más crítico y dá el consejo más valioso.`;
         <p className="text-slate-700 text-sm leading-relaxed font-medium">{advice}</p>
       ) : (
         <p className="text-slate-400 text-sm font-medium">
-          Presioná "Analizar" para que el Coach lea tus números y te dé el consejo más importante del día.
+          Presioná "Analizar" para que el Insta Coach lea tus números y te dé el consejo más importante del día.
         </p>
       )}
     </div>
