@@ -1,68 +1,102 @@
 import { NextApiRequest, NextApiResponse } from "next";
-import MercadoPagoConfig, { Payment } from "mercadopago";
 import { upgradePlan } from "../../../lib/subscription";
 import { supabaseAdmin } from "../../../lib/supabase";
 import { PlanId } from "../../../lib/plans";
 import { getOrCreateTeam } from "../../../lib/teams";
 
-const client = new MercadoPagoConfig({
-  accessToken: process.env.MP_ACCESS_TOKEN!,
-});
+async function getMPData(url: string) {
+  const res = await fetch(url, {
+    headers: { "Authorization": `Bearer ${process.env.MP_ACCESS_TOKEN}` },
+  });
+  return res.json();
+}
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") return res.status(405).end();
 
   const { type, data } = req.body;
-
-  if (type !== "payment") return res.status(200).json({ ok: true });
+  if (!type || !data?.id) return res.status(200).json({ ok: true });
 
   try {
-    const payment = new Payment(client);
-    const paymentData = await payment.get({ id: data.id });
+    // ── Pago individual (legacy o cobro mensual automático) ───────────────────
+    if (type === "payment") {
+      const payment = await getMPData(`https://api.mercadopago.com/v1/payments/${data.id}`);
+      if (payment.status !== "approved") return res.status(200).json({ ok: true });
 
-    if (paymentData.status !== "approved") {
-      return res.status(200).json({ ok: true, status: paymentData.status });
+      const [email, planId] = (payment.external_reference ?? "").split("|");
+      if (!email || !planId) return res.status(200).json({ ok: true });
+
+      await activatePlan(email, planId as PlanId, String(payment.id), String(payment.payer?.id ?? ""), payment);
+      return res.status(200).json({ ok: true });
     }
 
-    const [email, planId] = (paymentData.external_reference ?? "").split("|");
-    if (!email || !planId) return res.status(400).json({ error: "Referencia inválida" });
+    // ── Suscripción autorizada / renovada ─────────────────────────────────────
+    if (type === "subscription_preapproval") {
+      const sub = await getMPData(`https://api.mercadopago.com/preapproval/${data.id}`);
 
-    // Actualizar plan
-    await upgradePlan(email, planId as PlanId, String(paymentData.id), String(paymentData.payer?.id ?? ""));
+      if (!["authorized", "active"].includes(sub.status)) {
+        // Suscripción cancelada o suspendida — bajar plan a free
+        if (sub.status === "cancelled" || sub.status === "paused") {
+          const [email] = (sub.external_reference ?? "").split("|");
+          if (email) {
+            await supabaseAdmin
+              .from("subscriptions")
+              .update({ plan: "free", status: "cancelled", mp_subscription_id: null })
+              .eq("email", email);
+          }
+        }
+        return res.status(200).json({ ok: true });
+      }
 
-    // Si compró Teams → asignar owner + crear equipo automáticamente
-    if (planId === "teams") {
-      // Obtener nombre del usuario
-      const { data: sub } = await supabaseAdmin
-        .from("subscriptions")
-        .select("name")
-        .eq("email", email)
-        .single();
+      const [email, planId] = (sub.external_reference ?? "").split("|");
+      if (!email || !planId) return res.status(200).json({ ok: true });
 
-      const brokerName = sub?.name || email.split("@")[0];
-
-      // Crear equipo y asignar rol owner
-      const team = await getOrCreateTeam(email, `Equipo de ${brokerName}`);
-
-      await supabaseAdmin
-        .from("subscriptions")
-        .update({ team_id: team.id, team_role: "owner" })
-        .eq("email", email);
+      await activatePlan(email, planId as PlanId, String(sub.id), String(sub.payer_id ?? ""), sub);
+      return res.status(200).json({ ok: true });
     }
-
-    // Registrar pago
-    await supabaseAdmin.from("payments").insert({
-      email,
-      mp_payment_id: String(paymentData.id),
-      plan: planId,
-      amount: paymentData.transaction_amount,
-      currency: paymentData.currency_id,
-      status: paymentData.status,
-    });
 
     return res.status(200).json({ ok: true });
   } catch (err: any) {
     console.error("Webhook error:", err);
     return res.status(500).json({ error: err.message });
   }
+}
+
+async function activatePlan(
+  email: string,
+  planId: PlanId,
+  mpId: string,
+  mpPayerId: string,
+  mpData: any
+) {
+  await upgradePlan(email, planId, mpId, mpPayerId);
+
+  // Si compró Teams → owner + equipo automático
+  if (planId === "teams") {
+    const { data: sub } = await supabaseAdmin
+      .from("subscriptions")
+      .select("name, team_role")
+      .eq("email", email)
+      .single();
+
+    // Solo crear equipo si no es ya owner
+    if (sub?.team_role !== "owner") {
+      const brokerName = sub?.name || email.split("@")[0];
+      const team = await getOrCreateTeam(email, `Equipo de ${brokerName}`);
+      await supabaseAdmin
+        .from("subscriptions")
+        .update({ team_id: team.id, team_role: "owner" })
+        .eq("email", email);
+    }
+  }
+
+  // Registrar pago
+  await supabaseAdmin.from("payments").insert({
+    email,
+    mp_payment_id: mpId,
+    plan: planId,
+    amount: mpData.transaction_amount || mpData.auto_recurring?.transaction_amount || 0,
+    currency: mpData.currency_id || mpData.auto_recurring?.currency_id || "ARS",
+    status: "approved",
+  });
 }

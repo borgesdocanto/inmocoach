@@ -59,7 +59,7 @@ function PlanCard({ plan, current, onSelect, loading }: {
           ? { background: "#111827", color: "#fff" }
           : { background: "#f3f4f6", color: "#374151" }}>
         {isLoading && <Loader2 size={13} className="animate-spin" />}
-        {isCurrent ? "Plan actual" : plan.price === 0 ? "Empezar gratis" : `Activar ${plan.name}`}
+        {isCurrent ? "Plan actual" : plan.price === 0 ? "Empezar gratis" : `Suscribirse — USD ${plan.price}/mes`}
       </button>
     </div>
   );
@@ -111,7 +111,7 @@ export default function PricingPage() {
             Elegí tu plan
           </h1>
           <p className="text-sm text-gray-400 max-w-md mx-auto">
-            7 días de acceso completo para vivir la experiencia. Después, elegís si seguís. Sin contratos, cancelás cuando querés.
+            7 días de acceso completo para vivir la experiencia. Después suscribite y se renueva automáticamente cada mes. Cancelás cuando querés.
           </p>
         </div>
 
@@ -137,7 +137,7 @@ export default function PricingPage() {
         </div>
 
         <p className="text-center text-xs text-gray-300 mt-6">
-          Pagos procesados por MercadoPago · Los emails @galas.com.ar tienen acceso Individual gratuito permanente
+          Suscripción mensual automática procesada por MercadoPago · Cancelás cuando querés desde tu cuenta MP · Los emails @galas.com.ar tienen acceso Individual gratuito permanente
         </p>
       </main>
     </div>
