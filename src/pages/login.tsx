@@ -72,6 +72,11 @@ export default function LoginPage() {
         <p className="text-center text-xs text-gray-300 mt-6">
           Al ingresar autorizás la lectura de tu Google Calendar.<br />No almacenamos ni modificamos tus eventos.
         </p>
+        <div className="flex justify-center gap-4 mt-4">
+          <a href="/privacidad" className="text-xs text-gray-400 hover:text-gray-600">Privacidad</a>
+          <a href="/terminos" className="text-xs text-gray-400 hover:text-gray-600">Términos</a>
+          <a href="/home" className="text-xs text-gray-400 hover:text-gray-600">¿Qué es InstaCoach?</a>
+        </div>
       </div>
     </div>
   );
