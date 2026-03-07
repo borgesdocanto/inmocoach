@@ -4,7 +4,7 @@ import { useEffect, useState, useMemo } from "react";
 import Head from "next/head";
 import Link from "next/link";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LineChart, Line } from "recharts";
-import { LogOut, RefreshCw, AlertTriangle, Calendar, Target, Eye, Zap, TrendingUp, Brain, ChevronDown, ChevronLeft, ChevronRight, Award, Loader2, DollarSign } from "lucide-react";
+import { LogOut, RefreshCw, AlertTriangle, Calendar, Target, Eye, Zap, TrendingUp, Brain, ChevronDown, ChevronLeft, ChevronRight, Award, Loader2, DollarSign, Mail, CheckCircle } from "lucide-react";
 
 const RED = "#aa0000";
 const GREEN = "#16a34a";
@@ -231,6 +231,8 @@ function MonthlyView({ summaries, monthOffset, onPrev, onNext }: {
 function InstaCoacPanel({ data }: { data: CalendarData }) {
   const [advice, setAdvice] = useState("");
   const [loading, setLoading] = useState(false);
+  const [emailSending, setEmailSending] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
 
   const analyze = async () => {
     setLoading(true);
@@ -254,6 +256,17 @@ function InstaCoacPanel({ data }: { data: CalendarData }) {
     setLoading(false);
   };
 
+  const sendTestEmail = async () => {
+    setEmailSending(true);
+    try {
+      const res = await fetch("/api/send-test-email", { method: "POST" });
+      const json = await res.json();
+      if (json.ok) { setEmailSent(true); setTimeout(() => setEmailSent(false), 4000); }
+      else alert("Error: " + json.error);
+    } catch { alert("Error al enviar el mail."); }
+    setEmailSending(false);
+  };
+
   return (
     <div className="bg-white border border-gray-100 rounded-2xl p-5">
       <div className="flex items-center justify-between mb-4">
@@ -266,12 +279,20 @@ function InstaCoacPanel({ data }: { data: CalendarData }) {
             <div className="text-xs text-gray-400">análisis de tu semana</div>
           </div>
         </div>
-        <button onClick={analyze} disabled={loading}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white transition-all hover:opacity-90 disabled:opacity-50"
-          style={{ background: RED }}>
-          {loading ? <Loader2 size={11} className="animate-spin" /> : <Zap size={11} />}
-          {loading ? "Analizando..." : "Analizar"}
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={sendTestEmail} disabled={emailSending || emailSent}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all border border-gray-200 hover:bg-gray-50 disabled:opacity-50"
+            style={{ color: emailSent ? "#16a34a" : "#6b7280" }}>
+            {emailSending ? <Loader2 size={11} className="animate-spin" /> : emailSent ? <CheckCircle size={11} /> : <Mail size={11} />}
+            {emailSent ? "Enviado!" : emailSending ? "Enviando..." : "Mail de prueba"}
+          </button>
+          <button onClick={analyze} disabled={loading}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white transition-all hover:opacity-90 disabled:opacity-50"
+            style={{ background: RED }}>
+            {loading ? <Loader2 size={11} className="animate-spin" /> : <Zap size={11} />}
+            {loading ? "Analizando..." : "Analizar"}
+          </button>
+        </div>
       </div>
       {advice ? (
         <p className="text-sm text-gray-600 leading-relaxed">{advice}</p>
