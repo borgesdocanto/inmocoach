@@ -231,23 +231,32 @@ function MonthlyView({ summaries, monthOffset, onPrev, onNext }: {
 function InstaCoacPanel({ data }: { data: CalendarData }) {
   const [advice, setAdvice] = useState("");
   const [profile, setProfile] = useState("");
+  const [weekTotals, setWeekTotals] = useState<any>(null);
   const [emailSending, setEmailSending] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  // Calcular métricas de los últimos 7 días para mostrar antes de analizar
+  const today = new Date();
+  const sevenDaysAgo = new Date(today);
+  sevenDaysAgo.setDate(today.getDate() - 6);
+  const sevenDaysAgoStr = sevenDaysAgo.toISOString().slice(0, 10);
+  const weekSummaries = data.dailySummaries.filter(d => d.date >= sevenDaysAgoStr);
+  const weekGreen = weekSummaries.flatMap(d => d.events).filter(e => e.isGreen).length;
+  const weekDays = weekSummaries.length;
+  const weekProductiveDays = weekSummaries.filter(d => d.greenCount >= 2).length;
 
   const analyze = async () => {
     setLoading(true);
     setAdvice("");
     setProfile("");
+    setWeekTotals(null);
     try {
       const res = await fetch("/api/coach", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          totals: data.totals,
-          productivityRate: data.productivityRate,
-          productiveDays: data.productiveDays,
-          totalDays: data.totalDays,
+          dailySummaries: data.dailySummaries,
           productivityGoal: data.productivityGoal,
           userName: data.user.name,
         }),
@@ -255,6 +264,7 @@ function InstaCoacPanel({ data }: { data: CalendarData }) {
       const json = await res.json();
       setAdvice(json.advice || "No se pudo obtener el análisis.");
       setProfile(json.profile || "");
+      setWeekTotals(json.weekTotals || null);
     } catch { setAdvice("Error al conectar. Intentá de nuevo."); }
     setLoading(false);
   };
@@ -270,7 +280,6 @@ function InstaCoacPanel({ data }: { data: CalendarData }) {
     setEmailSending(false);
   };
 
-  // Parse the 3 blocks + número crítico
   const blocks = advice ? advice.split(/\n\n+/).filter(b => b.trim()) : [];
   const lastBlock = blocks[blocks.length - 1] || "";
   const isNumeroCritico = lastBlock.toLowerCase().startsWith("número crítico");
@@ -311,7 +320,7 @@ function InstaCoacPanel({ data }: { data: CalendarData }) {
             <div className="text-xs text-gray-400">
               {profile ? (
                 <span className="font-semibold" style={{ color: profileColor[profile] || "#6b7280" }}>
-                  {profileLabel[profile] || "análisis de tu semana"}
+                  {profileLabel[profile]}
                 </span>
               ) : "análisis de tu semana"}
             </div>
@@ -333,7 +342,35 @@ function InstaCoacPanel({ data }: { data: CalendarData }) {
         </div>
       </div>
 
-      {advice ? (
+      {/* Preview de lo que va a analizar — visible ANTES de hacer clic */}
+      {!advice && (
+        <div className="bg-gray-50 rounded-xl p-4 mb-0">
+          <div className="text-xs font-black text-gray-400 uppercase tracking-widest mb-3">Últimos 7 días — lo que se va a analizar</div>
+          <div className="grid grid-cols-3 gap-3 mb-3">
+            <div className="text-center">
+              <div className="text-2xl font-black text-gray-900" style={{ fontFamily: "Georgia, serif" }}>{weekGreen}</div>
+              <div className="text-xs text-gray-400 font-medium">reuniones comerciales</div>
+            </div>
+            <div className="text-center border-x border-gray-200">
+              <div className="text-2xl font-black text-gray-900" style={{ fontFamily: "Georgia, serif" }}>{weekProductiveDays}</div>
+              <div className="text-xs text-gray-400 font-medium">días con actividad</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-black" style={{ fontFamily: "Georgia, serif", color: weekGreen >= 15 ? "#16a34a" : RED }}>15</div>
+              <div className="text-xs text-gray-400 font-medium">meta semanal</div>
+            </div>
+          </div>
+          <div className="h-1.5 rounded-full bg-gray-200 overflow-hidden">
+            <div className="h-full rounded-full transition-all" style={{
+              width: `${Math.min(100, Math.round((weekGreen / 15) * 100))}%`,
+              background: weekGreen >= 15 ? "#16a34a" : weekGreen >= 8 ? "#b45309" : RED
+            }} />
+          </div>
+          <div className="text-xs text-gray-400 mt-1.5 text-right">{Math.min(100, Math.round((weekGreen / 15) * 100))}% del objetivo semanal</div>
+        </div>
+      )}
+
+      {advice && (
         <div className="space-y-3">
           {sections.map((block, i) => {
             const cfg = sectionConfig[i] || { label: "", color: "#374151", bg: "#f9fafb" };
@@ -347,15 +384,15 @@ function InstaCoacPanel({ data }: { data: CalendarData }) {
             );
           })}
           {numeroCritico && (
-            <div className="border-t border-gray-100 pt-3 mt-1">
+            <div className="border-t border-gray-100 pt-3">
               <p className="text-xs font-semibold text-gray-400">{numeroCritico}</p>
             </div>
           )}
+          <button onClick={() => { setAdvice(""); setProfile(""); setWeekTotals(null); }}
+            className="text-xs text-gray-300 hover:text-gray-500 transition-colors mt-1">
+            ← Volver al resumen
+          </button>
         </div>
-      ) : (
-        <p className="text-sm text-gray-400">
-          Presioná "Analizar" para recibir el diagnóstico de tu semana y la acción concreta para mejorar.
-        </p>
       )}
     </div>
   );
