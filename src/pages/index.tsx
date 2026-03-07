@@ -522,6 +522,13 @@ export default function HomePage() {
                 {subPlan}
               </span>
             </Link>
+            {subPlan === "teams" && (
+              <Link href="/equipo">
+                <span className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors cursor-pointer flex items-center gap-1">
+                  <Users size={11} /> Mi equipo
+                </span>
+              </Link>
+            )}
           </div>
 
           <div className="relative hidden sm:block">
