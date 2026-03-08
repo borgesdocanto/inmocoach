@@ -61,7 +61,7 @@ function KpiCard({ label, value, sub, accent, delay = 0, tooltip }: any) {
       <div className="text-4xl font-black leading-none" style={{ color: accent ? RED : "#111827", fontFamily: "Georgia, serif" }}>{value}</div>
       {sub && <div className="text-xs text-gray-400 mt-2">{sub}</div>}
       {tooltip && show && (
-        <div className="absolute left-0 right-0 bottom-full mb-2 z-50 px-1">
+        <div className="absolute left-0 right-0 top-full mt-2 z-50 px-1">
           <div className="bg-gray-900 text-white text-xs rounded-xl px-3 py-2.5 leading-relaxed shadow-xl">
             {tooltip}
           </div>
@@ -692,9 +692,18 @@ export default function HomePage() {
                 const iacBg = iacPeriod >= 100 ? "#f0fdf4" : iacPeriod >= 67 ? "#fffbeb" : "#fef2f2";
                 return (
                   <div className="flex flex-col items-end">
-                    <div className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold"
-                      style={{ background: iacBg, color: iacColor }}>
-                      IAC {iacPeriod}%
+                    <div className="relative group">
+                      <div className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold cursor-default"
+                        style={{ background: iacBg, color: iacColor }}>
+                        IAC {iacPeriod}%
+                        <span className="w-4 h-4 rounded-full border flex items-center justify-center text-xs font-bold opacity-60"
+                          style={{ borderColor: iacColor, color: iacColor, fontSize: "9px" }}>?</span>
+                      </div>
+                      <div className="absolute right-0 top-full mt-2 z-50 w-64 hidden group-hover:block">
+                        <div className="bg-gray-900 text-white text-xs rounded-xl px-3 py-2.5 leading-relaxed shadow-xl">
+                          <strong>Índice de Actividad Comercial</strong><br/>Tu nivel de actividad comparado con lo esperable para convertirte en Top Producer. 100% = 15 reuniones cara a cara por semana.
+                        </div>
+                      </div>
                     </div>
                     <div className="text-xs text-gray-400 mt-1 text-right">
                       {data.totals.totalGreen} reuniones · {days}d
@@ -723,7 +732,7 @@ export default function HomePage() {
                 label="Tasaciones · Propuestas"
                 value={`${data.totals.tasaciones} · ${data.totals.propuestas}`}
                 sub="captaciones + presentaciones"
-                tooltip={`Tasaciones: captaciones nuevas, el inicio de un proceso de venta (${data.totals.tasaciones} en el período). Propuestas: presentaciones de tu servicio para captar en exclusiva (${data.totals.propuestas}).`}
+                tooltip={`Se muestran eventos con las palabras "tasación" o "captación" (${data.totals.tasaciones}) y eventos con "propuesta" o "presentación" (${data.totals.propuestas}). La propuesta de valor es la segunda fase de la captación: el momento donde te diferenciás para lograr captar en exclusiva.`}
               />
               <KpiCard
                 label="Firmas"
