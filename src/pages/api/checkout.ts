@@ -25,30 +25,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     if (planMPId) {
-      // ── Modo correcto: adherir al plan compartido ────────────────────────
-      // El usuario se suscribe al plan existente — precio centralizado en MP
-      const response = await fetch("https://api.mercadopago.com/preapproval", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${process.env.MP_ACCESS_TOKEN}`,
-        },
-        body: JSON.stringify({
-          preapproval_plan_id: planMPId,
-          payer_email: session.user.email,
-          external_reference: `${session.user.email}|${planId}`,
-          back_url: `${process.env.NEXTAUTH_URL}/pago/exito?plan=${planId}`,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok || !data.init_point) {
-        console.error("MP preapproval error:", JSON.stringify(data));
-        return res.status(500).json({ error: data.message || "Error al crear la suscripción" });
-      }
-
-      return res.status(200).json({ checkoutUrl: data.init_point });
+      // ── Modo correcto: redirigir al init_point del plan compartido ────────
+      // El init_point del preapproval_plan es fijo y permanente — no hay que crear nada
+      const checkoutUrl = `https://www.mercadopago.com.ar/subscriptions/checkout?preapproval_plan_id=${planMPId}`;
+      return res.status(200).json({ checkoutUrl });
 
     } else {
       // ── Fallback: crear plan individual (mientras no estén configurados los IDs) ──
