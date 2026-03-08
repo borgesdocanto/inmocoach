@@ -35,6 +35,58 @@ const ROLE_COLOR: Record<TeamRole, string> = {
   member: "#16a34a",
 };
 
+function PendingRow({ inv, onAction }: { inv: Pending; onAction: () => void }) {
+  const [loading, setLoading] = useState<"resend" | "cancel" | null>(null);
+  const [msg, setMsg] = useState("");
+
+  const act = async (action: "resend" | "cancel") => {
+    setLoading(action);
+    setMsg("");
+    try {
+      const res = await fetch("/api/teams/invitation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, token: inv.token }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        if (action === "cancel") { onAction(); return; }
+        setMsg("Mail reenviado");
+      } else {
+        setMsg(data.error || "Error");
+      }
+    } catch { setMsg("Error de conexión"); }
+    setLoading(null);
+  };
+
+  return (
+    <div className="flex items-center gap-3 px-5 py-3 flex-wrap">
+      <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-xs font-black text-gray-400 shrink-0">
+        {inv.email[0].toUpperCase()}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="text-sm font-semibold text-gray-600 truncate">{inv.email}</div>
+        <div className="text-xs text-gray-400">
+          Invitado el {new Date(inv.created_at).toLocaleDateString("es-AR", { day: "numeric", month: "short" })}
+          {msg && <span className="ml-2 text-green-600 font-medium">{msg}</span>}
+        </div>
+      </div>
+      <div className="flex items-center gap-2 shrink-0">
+        <button onClick={() => act("resend")} disabled={!!loading}
+          className="flex items-center gap-1 text-xs font-semibold text-gray-500 hover:text-gray-800 bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50">
+          {loading === "resend" ? <Loader2 size={11} className="animate-spin" /> : <Mail size={11} />}
+          Reenviar
+        </button>
+        <button onClick={() => act("cancel")} disabled={!!loading}
+          className="flex items-center gap-1 text-xs font-semibold text-red-400 hover:text-red-600 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50">
+          {loading === "cancel" ? <Loader2 size={11} className="animate-spin" /> : <span>✕</span>}
+          Cancelar
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function BrokerDashboard() {
   const { data: session, status } = useSession();
   const router = useRouter();
@@ -264,21 +316,7 @@ export default function BrokerDashboard() {
             </div>
             <div className="divide-y divide-gray-50">
               {pending.map(p => (
-                <div key={p.token} className="flex items-center gap-3 px-5 py-3">
-                  <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-xs font-black text-gray-400">
-                    {p.email[0].toUpperCase()}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-semibold text-gray-600 truncate">{p.email}</div>
-                    <div className="text-xs text-gray-400">
-                      Invitado el {new Date(p.created_at).toLocaleDateString("es-AR", { day: "numeric", month: "short" })}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1 text-xs font-medium text-amber-500">
-                    <Clock size={11} />
-                    Pendiente
-                  </div>
-                </div>
+                <PendingRow key={p.token} inv={p} onAction={loadTeam} />
               ))}
             </div>
           </div>
