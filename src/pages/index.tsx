@@ -566,12 +566,16 @@ export default function HomePage() {
 
   const trendData = useMemo(() => {
     if (!data) return [];
-    return data.dailySummaries.slice(-14).map(d => ({
-      date: d.date.slice(5),
-      verdes: d.greenCount,
-      meta: PRODUCTIVITY_GOAL,
-    }));
-  }, [data]);
+    const sliceDays = Math.min(days, 30);
+    return data.dailySummaries.slice(-sliceDays).map(d => {
+      const dt = new Date(d.date + "T12:00:00");
+      return {
+        dateLabel: `${dt.getDate()}/${dt.getMonth() + 1}`,
+        verdes: d.greenCount,
+        meta: PRODUCTIVITY_GOAL,
+      };
+    });
+  }, [data, days]);
 
   if (status === "loading" || (!data && !error && loading)) {
     return (
@@ -714,7 +718,7 @@ export default function HomePage() {
             </div>
 
             {/* KPIs */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 relative z-10">
               <KpiCard
                 label="Eventos verdes"
                 value={data.totals.totalGreen}
@@ -744,12 +748,12 @@ export default function HomePage() {
 
             {/* Productividad + Trend */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className="bg-white border border-gray-100 rounded-2xl p-5 sm:col-span-2">
+              <div className="bg-white border border-gray-100 rounded-2xl p-5 sm:col-span-2" style={{ position: "relative", zIndex: 0 }}>
                 <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">Tendencia — eventos verdes</div>
                 <ResponsiveContainer width="100%" height={140}>
                   <LineChart data={trendData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
-                    <XAxis dataKey="date" tick={{ fontSize: 9, fill: "#d1d5db", fontWeight: 600 }} axisLine={false} tickLine={false}
+                    <XAxis dataKey="dateLabel" tick={{ fontSize: 9, fill: "#d1d5db", fontWeight: 600 }} axisLine={false} tickLine={false}
                       tickFormatter={(v) => { const d = new Date(v + "T12:00:00"); return `${d.getDate()}/${d.getMonth()+1}`; }} />
                     <YAxis tick={{ fontSize: 9, fill: "#d1d5db" }} axisLine={false} tickLine={false} />
                     <Tooltip contentStyle={{ borderRadius: 10, border: "none", fontSize: 11, fontWeight: 600, boxShadow: "0 4px 20px rgba(0,0,0,0.08)" }} />
