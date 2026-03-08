@@ -3,14 +3,28 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "../../lib/auth";
 import { google } from "googleapis";
 import { startOfDay, endOfDay, subDays, formatISO } from "date-fns";
-import { syncAndPersist } from "../../lib/calendarSync";
+import { syncAndPersist, IAC_GOAL, PROCESOS_GOAL, calcIAC } from "../../lib/calendarSync";
 import { supabaseAdmin } from "../../lib/supabase";
 
 const GREEN_COLOR_IDS = new Set(["2", "10"]);
-const PRODUCTIVE_KEYWORDS = [
-  "tasacion", "tasación", "visita", "propuesta", "reunion", "reunión",
-  "meeting", "seguimiento", "cierre", "entrevista",
+
+// Tipos que son siempre cara a cara (verde por keyword)
+const ALWAYS_GREEN_KEYWORDS: [string[], string][] = [
+  [["tasac", "captac"], "tasacion"],
+  [["primera visita", "1ra visita", "1° visita"], "primera_visita"],
+  [["foto", "video", "creacion de contenido", "creación de contenido"], "fotos_video"],
+  [["propuesta", "presentacion", "presentación"], "propuesta"],
+  [["firma", "escritura"], "firma"],
+  [["conocer propiedad", "conocer prop"], "conocer"],
+  [["visita"], "visita"],
+  [["reuni", "meeting"], "reunion"],
 ];
+
+// Solo verde si fue pintado por el usuario
+const USER_ONLY_GREEN_KEYWORDS = ["prospecc", "prospección"];
+
+// Siempre amarillo
+const YELLOW_KEYWORDS = ["llamada", "call", "meet", "zoom", "teams", "videollamada", "capacitac", "entrena", "formac", "curso"];
 
 export interface CalendarEvent {
   id: string;
@@ -19,33 +33,58 @@ export interface CalendarEvent {
   end: string;
   colorId?: string;
   isGreen: boolean;
-  type: "tasacion" | "visita" | "propuesta" | "cierre" | "reunion" | "seguimiento" | "entrevista" | "otro";
+  isProceso: boolean;
+  isCierre: boolean;
+  isUserColored: boolean;
+  type: string;
   attendees: string[];
 }
 
 export interface DailySummary {
   date: string;
   greenCount: number;
+  procesosCount: number;
   events: CalendarEvent[];
   isProductive: boolean;
 }
 
-function detectType(title: string): CalendarEvent["type"] {
-  const t = title.toLowerCase();
-  if (t.includes("tasac")) return "tasacion";
-  if (t.includes("visit")) return "visita";
-  if (t.includes("propuesta")) return "propuesta";
-  if (t.includes("cierr")) return "cierre";
-  if (t.includes("seguim")) return "seguimiento";
-  if (t.includes("entrevist")) return "entrevista";
-  if (t.includes("reuni") || t.includes("meeting")) return "reunion";
+function normalize(s: string) {
+  return s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+
+function detectType(title: string): string {
+  const t = normalize(title);
+  for (const [keywords, type] of ALWAYS_GREEN_KEYWORDS) {
+    if (keywords.some(kw => t.includes(kw))) return type;
+  }
+  if (USER_ONLY_GREEN_KEYWORDS.some(kw => t.includes(kw))) return "prospeccion";
+  if (YELLOW_KEYWORDS.some(kw => t.includes(kw))) return "amarillo";
   return "otro";
 }
 
-function isGreenEvent(event: any): boolean {
-  if (event.colorId && GREEN_COLOR_IDS.has(event.colorId)) return true;
-  const title = (event.summary || "").toLowerCase();
-  return PRODUCTIVE_KEYWORDS.some(kw => title.includes(kw));
+function processEvent(e: any): CalendarEvent {
+  const type = detectType(e.summary || "");
+  const isUserColored = !!(e.colorId && GREEN_COLOR_IDS.has(e.colorId));
+
+  const alwaysGreenTypes = new Set(["tasacion", "primera_visita", "fotos_video", "propuesta", "firma", "conocer", "visita", "reunion"]);
+  const isGreen = isUserColored || alwaysGreenTypes.has(type);
+
+  const procesoTypes = new Set(["tasacion", "primera_visita", "fotos_video"]);
+  const cierreTypes = new Set(["firma"]);
+
+  return {
+    id: e.id!,
+    title: e.summary!,
+    start: e.start?.dateTime || e.start?.date || "",
+    end: e.end?.dateTime || e.end?.date || "",
+    colorId: e.colorId ?? undefined,
+    isGreen,
+    isProceso: isGreen && procesoTypes.has(type),
+    isCierre: isGreen && cierreTypes.has(type),
+    isUserColored,
+    type,
+    attendees: (e.attendees || []).filter((a: any) => !a.self).map((a: any) => a.email || a.displayName || ""),
+  };
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -78,21 +117,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
 
     const items = response.data.items || [];
-
     const mappedEvents: CalendarEvent[] = items
       .filter(e => e.status !== "cancelled" && e.summary)
-      .map(e => ({
-        id: e.id!,
-        title: e.summary!,
-        start: e.start?.dateTime || e.start?.date || "",
-        end: e.end?.dateTime || e.end?.date || "",
-        colorId: e.colorId ?? undefined,
-        isGreen: isGreenEvent(e),
-        type: detectType(e.summary!),
-        attendees: (e.attendees || []).filter((a: any) => !a.self).map((a: any) => a.email || a.displayName || ""),
-      }));
+      .map(processEvent);
 
-    // Persistir en background sin bloquear la respuesta
+    // Persistir en background
     const { data: sub } = await supabaseAdmin
       .from("subscriptions")
       .select("team_id")
@@ -110,26 +139,36 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       byDay[day].push(ev);
     });
 
-    const productivityGoal = parseInt(process.env.NEXT_PUBLIC_PRODUCTIVITY_GOAL || "10");
+    const productivityGoal = parseInt(process.env.NEXT_PUBLIC_PRODUCTIVITY_GOAL || "2");
 
     const dailySummaries: DailySummary[] = Object.entries(byDay)
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([date, events]) => {
         const greenCount = events.filter(e => e.isGreen).length;
-        return { date, greenCount, events, isProductive: greenCount >= productivityGoal };
+        const procesosCount = events.filter(e => e.isProceso).length;
+        return { date, greenCount, procesosCount, events, isProductive: greenCount >= productivityGoal };
       });
 
     const greenEvents = mappedEvents.filter(e => e.isGreen);
+
+    // Calcular semanas en el período para el IAC
+    const semanas = Math.max(1, Math.ceil(days / 7));
+    const avgPorSemana = greenEvents.length / semanas;
+
     const totals = {
       tasaciones: greenEvents.filter(e => e.type === "tasacion").length,
-      visitas: greenEvents.filter(e => e.type === "visita").length,
+      primerasVisitas: greenEvents.filter(e => e.type === "primera_visita").length,
+      fotosVideo: greenEvents.filter(e => e.type === "fotos_video").length,
+      visitas: greenEvents.filter(e => ["visita", "conocer", "primera_visita"].includes(e.type)).length,
       propuestas: greenEvents.filter(e => e.type === "propuesta").length,
-      cierres: greenEvents.filter(e => e.type === "cierre").length,
+      firmas: greenEvents.filter(e => e.isCierre).length,
       reuniones: greenEvents.filter(e => e.type === "reunion").length,
-      seguimientos: greenEvents.filter(e => e.type === "seguimiento").length,
-      entrevistas: greenEvents.filter(e => e.type === "entrevista").length,
+      procesosNuevos: greenEvents.filter(e => e.isProceso).length,
       totalGreen: greenEvents.length,
       totalEvents: mappedEvents.length,
+      iac: calcIAC(avgPorSemana),
+      iacGoal: IAC_GOAL,
+      procesosGoal: PROCESOS_GOAL,
     };
 
     const productiveDays = dailySummaries.filter(d => d.isProductive).length;

@@ -83,13 +83,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   );
 
   // Totales del equipo
-  const teamTotals = memberStats.reduce((acc, m) => ({
+  const teamTotals = memberStats.reduce((acc: {total:number;tasaciones:number;visitas:number;propuestas:number;firmas:number}, m) => ({
     total: acc.total + m.stats.total,
     tasaciones: acc.tasaciones + m.stats.tasaciones,
     visitas: acc.visitas + m.stats.visitas,
     propuestas: acc.propuestas + m.stats.propuestas,
-    cierres: acc.cierres + m.stats.cierres,
-  }), { total: 0, tasaciones: 0, visitas: 0, propuestas: 0, cierres: 0 });
+    firmas: acc.firmas + (m.stats.firmas ?? 0),
+  }), { total: 0, tasaciones: 0, visitas: 0, propuestas: 0, firmas: 0 });
 
   const greenCount = memberStats.filter(m => m.signal === "green").length;
   const yellowCount = memberStats.filter(m => m.signal === "yellow").length;

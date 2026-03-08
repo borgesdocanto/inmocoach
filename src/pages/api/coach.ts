@@ -2,30 +2,26 @@ import { NextApiRequest, NextApiResponse } from "next";
 import { getServerSession } from "next-auth";
 import { authOptions } from "../../lib/auth";
 import { supabaseAdmin } from "../../lib/supabase";
+import { IAC_GOAL, PROCESOS_GOAL, CARTERA_GOAL, EFECTIVIDAD, calcIAC, proyectarOperaciones } from "../../lib/calendarSync";
 
-const WEEKLY_GOAL = 15;
-
-function diagnose(greenTotal: number, goal: number, productiveDays: number, totalDays: number): string {
-  if (greenTotal === 0) return "semana_sin_actividad";
-  if (greenTotal >= goal) return "semana_productiva";
-  if (greenTotal >= goal * 0.5) return "semana_ocupada";
-  if (productiveDays <= 1) return "semana_reactiva";
-  return "semana_riesgo";
-}
-
-// Genera la clave única del período: "week:2025-W04" o "month:2025-01"
 function buildPeriodKey(calView: string, periodStart: string): string {
-  if (calView === "month") {
-    return `month:${periodStart.slice(0, 7)}`; // "month:2025-01"
-  }
-  // Para semana usamos la fecha de inicio de la semana
-  return `week:${periodStart}`; // "week:2025-01-27"
+  if (calView === "month") return `month:${periodStart.slice(0, 7)}`;
+  return `week:${periodStart}`;
 }
 
-// Un período está cerrado si su fecha de fin es anterior a hoy
 function isClosed(periodEnd: string): boolean {
   const today = new Date().toISOString().slice(0, 10);
   return periodEnd < today;
+}
+
+function diagnose(iac: number, procesosNuevos: number): string {
+  if (iac === 0) return "sin_actividad";
+  if (iac >= 100 && procesosNuevos >= PROCESOS_GOAL) return "motor_encendido";
+  if (iac >= 100) return "activo_sin_procesos";
+  if (iac >= 67 && procesosNuevos >= PROCESOS_GOAL) return "buen_ritmo";
+  if (iac >= 67) return "activo_falta_enfoque";
+  if (iac >= 33) return "ritmo_insuficiente";
+  return "riesgo_pipeline";
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -46,14 +42,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   const userEmail = session.user.email;
-  const effectiveGoal = goal || WEEKLY_GOAL;
   const isMonthly = calView === "month";
   const start = periodStart || (() => { const d = new Date(); d.setDate(d.getDate() - 6); return d.toISOString().slice(0, 10); })();
   const end = periodEnd || new Date().toISOString().slice(0, 10);
   const periodKey = buildPeriodKey(calView, start);
   const closed = isClosed(end);
 
-  // ── Buscar informe guardado ───────────────────────────────────────────────
+  // ── Cache ────────────────────────────────────────────────────────────────
   const { data: cached } = await supabaseAdmin
     .from("coach_reports")
     .select("*")
@@ -61,29 +56,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     .eq("period_key", periodKey)
     .single();
 
-  // Si solo queremos verificar cache (carga automática al cambiar período)
   if (checkCacheOnly) {
-    if (cached) {
-      return res.status(200).json({
-        advice: cached.advice,
-        profile: cached.profile,
-        weekTotals: cached.week_totals,
-        fromCache: true,
-        isClosed: closed,
-      });
-    }
+    if (cached) return res.status(200).json({ advice: cached.advice, profile: cached.profile, weekTotals: cached.week_totals, fromCache: true, isClosed: closed });
     return res.status(200).json({ fromCache: false });
   }
 
-  // Si existe y el período está cerrado (y no se forzó regenerar) → devolver cache
   if (cached && (closed || !forceRegenerate)) {
-    return res.status(200).json({
-      advice: cached.advice,
-      profile: cached.profile,
-      weekTotals: cached.week_totals,
-      fromCache: true,
-      isClosed: closed,
-    });
+    return res.status(200).json({ advice: cached.advice, profile: cached.profile, weekTotals: cached.week_totals, fromCache: true, isClosed: closed });
   }
 
   // ── Calcular métricas ─────────────────────────────────────────────────────
@@ -91,72 +70,115 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const allEvents = periodSummaries.flatMap((d: any) => d.events || []);
   const greenEvents = allEvents.filter((e: any) => e.isGreen);
 
+  const efectiveGoal = goal || IAC_GOAL;
+  const semanas = isMonthly ? 4 : 1;
+
   const totals = {
     totalGreen: greenEvents.length,
+    iac: calcIAC(greenEvents.length / semanas),
+    procesosNuevos: greenEvents.filter((e: any) => e.isProceso).length,
     tasaciones: greenEvents.filter((e: any) => e.type === "tasacion").length,
-    visitas: greenEvents.filter((e: any) => e.type === "visita").length,
+    primerasVisitas: greenEvents.filter((e: any) => e.type === "primera_visita").length,
+    fotosVideo: greenEvents.filter((e: any) => e.type === "fotos_video").length,
+    visitas: greenEvents.filter((e: any) => ["visita", "conocer", "primera_visita"].includes(e.type)).length,
     propuestas: greenEvents.filter((e: any) => e.type === "propuesta").length,
+    firmas: greenEvents.filter((e: any) => e.isCierre || e.type === "firma").length,
     reuniones: greenEvents.filter((e: any) => e.type === "reunion").length,
   };
 
-  const productiveDays = periodSummaries.filter((d: any) => d.greenCount >= (productivityGoal || 2)).length;
+  const perfil = diagnose(totals.iac, totals.procesosNuevos / semanas);
+  const procesosXSemana = Math.round((totals.procesosNuevos / semanas) * 10) / 10;
+  const operacionesProyectadas = proyectarOperaciones(procesosXSemana, 1);
+  const iacGoalPeriodo = isMonthly ? IAC_GOAL * 4 : IAC_GOAL;
+  const faltanReuniones = Math.max(0, iacGoalPeriodo - totals.totalGreen);
+  const faltanProcesos = Math.max(0, PROCESOS_GOAL * semanas - totals.procesosNuevos);
+
+  const productiveDays = periodSummaries.filter((d: any) => (d.greenCount || 0) >= (productivityGoal || 2)).length;
   const totalDays = periodSummaries.length || 1;
-  const productivityRate = Math.round((productiveDays / totalDays) * 100);
-  const faltaron = Math.max(0, effectiveGoal - totals.totalGreen);
-  const perfil = diagnose(totals.totalGreen, effectiveGoal, productiveDays, totalDays);
 
   const firstName = (userName || "").split(" ")[0] || "";
-  const nombreStr = firstName ? `El nombre del usuario es ${firstName}.` : "";
+  const nombreStr = firstName ? `El nombre del agente es ${firstName}.` : "";
 
+  // Listado de eventos por día
   const eventLines = periodSummaries.map((d: any) => {
     const fecha = new Date(d.date + "T12:00:00").toLocaleDateString("es-AR", { weekday: "short", day: "numeric", month: "short" });
-    const evs = (d.events || []).map((e: any) => `    ${e.isGreen ? "🟢" : "⚪"} ${e.title}`).join("\n");
-    return `  ${fecha} (${d.greenCount} verdes):\n${evs || "    Sin eventos"}`;
+    const evs = (d.events || []).filter((e: any) => e.isGreen).map((e: any) => {
+      const tag = e.isProceso ? "🔵PROCESO" : e.isCierre ? "🏆CIERRE" : "🟢";
+      return `    ${tag} ${e.title}`;
+    }).join("\n");
+    return `  ${fecha} (${d.greenCount} verdes):\n${evs || "    Sin actividad comercial"}`;
   }).join("\n");
 
   const perfilDescripcion: Record<string, string> = {
-    semana_sin_actividad: "SIN ACTIVIDAD COMERCIAL — no hubo ningún evento productivo.",
-    semana_productiva: "PERÍODO PRODUCTIVO — superó la meta de referencia.",
-    semana_ocupada: "OCUPADO PERO INSUFICIENTE — actividad por debajo de la meta.",
-    semana_reactiva: "PERÍODO REACTIVO — actividad concentrada en muy pocos días.",
-    semana_riesgo: "RIESGO COMERCIAL — nivel insuficiente que compromete resultados futuros.",
+    sin_actividad: "SIN ACTIVIDAD — no hubo reuniones comerciales cara a cara.",
+    motor_encendido: "MOTOR ENCENDIDO — IAC ≥ 100% y procesos nuevos en objetivo. El pipeline está activo.",
+    activo_sin_procesos: "ACTIVO PERO SIN NUEVOS PROCESOS — muchas reuniones pero sin entrada de nuevos clientes al embudo.",
+    buen_ritmo: "BUEN RITMO — IAC ≥ 67% y procesos en objetivo. Sostenible si se mantiene.",
+    activo_falta_enfoque: "ACTIVO SIN FOCO — suficientes reuniones pero sin generar procesos nuevos concretos.",
+    ritmo_insuficiente: "RITMO INSUFICIENTE — el volumen de actividad no sostiene el pipeline a largo plazo.",
+    riesgo_pipeline: "RIESGO DE PIPELINE SECO — actividad mínima. Sin intervención, no hay operaciones en 60-90 días.",
   };
 
   const periodoStr = isMonthly
-    ? `el mes de ${periodLabel} (meta: ${effectiveGoal} reuniones = 15/semana × 4 semanas)`
-    : `los últimos 7 días (meta: ${effectiveGoal} reuniones semanales)`;
-  const accionLabel = isMonthly ? "LA ACCIÓN PARA EL PRÓXIMO MES" : "LA ACCIÓN PARA ESTA SEMANA";
+    ? `el mes de ${periodLabel} (objetivo: ${iacGoalPeriodo} reuniones = ${IAC_GOAL}/semana × 4 semanas, ${PROCESOS_GOAL * 4} procesos nuevos)`
+    : `la semana del ${periodLabel} (objetivo: ${IAC_GOAL} reuniones cara a cara, ${PROCESOS_GOAL} procesos nuevos)`;
 
-  const prompt = `Sos InstaCoach, entrenador de productividad comercial que analiza agendas reales. ${nombreStr}
+  const prompt = `Sos InstaCoach, entrenador de productividad comercial inmobiliaria. Analizás agendas reales con un modelo estadístico probado. ${nombreStr}
 
-Hablás en segunda persona, tono directo, claro y constructivo. Nunca juzgás, siempre orientás. Español rioplatense (vos, tenés, hacés). Usás el nombre cuando corresponde.
+PRINCIPIO DEL MODELO:
+No hay carga horaria en el negocio inmobiliario — hay cantidad de reuniones cara a cara.
+Una persona puede trabajar 10 horas y no generar negocio. Otra puede tener 6 reuniones y mover todo el pipeline.
+
+LAS 3 VARIABLES QUE MIDEN EL NEGOCIO:
+1. IAC (Índice de Actividad Comercial) = reuniones cara a cara / ${IAC_GOAL} por semana
+   Objetivo: 100% = ${IAC_GOAL} reuniones/semana
+2. Procesos nuevos = personas que entran realmente al embudo (tasaciones, primeras visitas, inicio de fotos/video)
+   Objetivo: ${PROCESOS_GOAL} por semana
+3. Cartera activa vendible: ${CARTERA_GOAL} propiedades a precio justo (no medible por agenda, pero es el sustento)
+
+LÓGICA ESTADÍSTICA:
+- Efectividad promedio del mercado: ${EFECTIVIDAD * 100}%
+- 6 procesos = 1 transacción
+- ${PROCESOS_GOAL} procesos/semana sostenidos → operaciones predecibles
+- Sin ${CARTERA_GOAL} propiedades activas, el agente prospecta desde cero constantemente
+
+DIFERENCIA VERDE vs AMARILLO:
+- Verde (produce dinero): reuniones, visitas, tasaciones, propuestas, fotos/video, firmas — cara a cara con personas reales
+- Amarillo (no produce dinero): mails, redes, marketing, tareas admin, llamadas sin resultado comercial
 
 PERÍODO ANALIZADO: ${periodoStr}
 
-EVENTOS REALES:
+EVENTOS REALES DEL PERÍODO:
 ${eventLines}
 
 MÉTRICAS:
-- Reuniones comerciales (verdes): ${totals.totalGreen} de ${effectiveGoal} de referencia
-- Tasaciones: ${totals.tasaciones}
-- Visitas: ${totals.visitas}
+- Reuniones cara a cara (verdes): ${totals.totalGreen} de ${iacGoalPeriodo} objetivo
+- IAC: ${totals.iac}% (${totals.iac >= 100 ? "✓ En objetivo" : `faltan ${faltanReuniones} reuniones`})
+- Procesos nuevos: ${totals.procesosNuevos} de ${PROCESOS_GOAL * semanas} objetivo (${faltanProcesos > 0 ? `faltan ${faltanProcesos}` : "✓ En objetivo"})
+  - Tasaciones/captaciones: ${totals.tasaciones}
+  - Primeras visitas: ${totals.primerasVisitas}
+  - Fotos y video: ${totals.fotosVideo}
+- Visitas totales: ${totals.visitas}
 - Propuestas de valor: ${totals.propuestas}
-- Días con actividad: ${productiveDays} de ${totalDays} (${productivityRate}%)
+- Cierres/firmas: ${totals.firmas}
+- Reuniones genéricas: ${totals.reuniones}
+- Días con actividad comercial: ${productiveDays} de ${totalDays}
+- Procesos/semana: ${procesosXSemana} → proyección: ${operacionesProyectadas} operación(es) potencial(es) si se mantiene
 - Diagnóstico: ${perfilDescripcion[perfil]}
-- Reuniones que faltaron: ${faltaron}
 
-EMBUDO (mayor a menor importancia): Tasaciones → Propuestas → Visitas → Reuniones en total
+RESPONDÉ en español rioplatense (vos, tenés, hacés). Tono directo, claro, sin juicios — siempre orientado a acción.
+Usá el nombre cuando corresponda. Nunca inventes datos que no están en los eventos reales.
 
-RESPONDÉ con exactamente 3 bloques separados por línea en blanco. Sin títulos ni bullets:
+ESTRUCTURA — exactamente 3 bloques separados por línea en blanco, sin títulos ni bullets:
 
-BLOQUE 1 — LO QUE HICISTE BIEN: Algo real y concreto de este período. Máximo 2 oraciones.
+BLOQUE 1 — QUÉ HICISTE BIEN: algo real y concreto de este período. Máximo 2 oraciones.
 
-BLOQUE 2 — DÓNDE PERDÉS OPORTUNIDADES: El cuello de botella principal con números reales. 2-3 oraciones.
+BLOQUE 2 — EL CUELLO DE BOTELLA: dónde se frena el negocio, con números reales. Mencioná el IAC y los procesos. 2-3 oraciones.
 
-BLOQUE 3 — ${accionLabel}: Una sola acción específica y ejecutable. Basada en los eventos reales. Máximo 2 oraciones.
+BLOQUE 3 — LA ACCIÓN CONCRETA: una sola acción ejecutable esta ${isMonthly ? "semana" : "semana"}, basada en lo que se ve en la agenda. Máximo 2 oraciones.
 
-Después, en línea separada:
-"Número crítico: en ${periodLabel} tuviste ${totals.totalGreen} reuniones comerciales. ${faltaron > 0 ? `Te faltaron ${faltaron} para alcanzar el objetivo de ${effectiveGoal}.` : `Superaste el objetivo de ${effectiveGoal}. El desafío ahora es sostenerlo.`}"`;
+Después, en línea separada, el número crítico:
+"IAC ${periodLabel}: ${totals.iac}% — ${totals.totalGreen} reuniones cara a cara, ${totals.procesosNuevos} proceso${totals.procesosNuevos !== 1 ? "s" : ""} nuevo${totals.procesosNuevos !== 1 ? "s" : ""}. ${totals.iac >= 100 ? `Motor encendido. El desafío ahora es sostenerlo.` : `Para llegar al 100% necesitás ${faltanReuniones} reunión${faltanReuniones !== 1 ? "es" : ""} más.`}"`;
 
   try {
     const response = await fetch("https://api.anthropic.com/v1/messages", {
@@ -168,7 +190,7 @@ Después, en línea separada:
       },
       body: JSON.stringify({
         model: "claude-sonnet-4-5",
-        max_tokens: 600,
+        max_tokens: 700,
         messages: [{ role: "user", content: prompt }],
       }),
     });
@@ -182,7 +204,6 @@ Después, en línea separada:
     const text = data.content?.map((b: any) => b.text || "").join("") || "";
     if (!text) return res.status(500).json({ error: "Sin respuesta del coach" });
 
-    // ── Guardar en Supabase ───────────────────────────────────────────────
     await supabaseAdmin
       .from("coach_reports")
       .upsert({
@@ -202,7 +223,6 @@ Después, en línea separada:
     return res.status(200).json({
       advice: text,
       profile: perfil,
-      faltaron,
       weekTotals: totals,
       productiveDays,
       totalDays,

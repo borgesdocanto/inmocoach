@@ -143,6 +143,8 @@ export async function getAgentPeriodStats(
     .gte("start_at", from.toISOString())
     .lte("start_at", to.toISOString());
 
+  const procesoTypes = new Set(["tasacion", "primera_visita", "fotos_video"]);
+  const cierreTypes = new Set(["firma"]);
   const events: SyncedEvent[] = (data || []).map(r => ({
     id: r.google_event_id,
     title: r.title,
@@ -150,6 +152,9 @@ export async function getAgentPeriodStats(
     end: r.end_at,
     type: r.event_type as EventType,
     isGreen: true,
+    isProceso: r.is_proceso ?? procesoTypes.has(r.event_type),
+    isCierre: r.is_cierre ?? cierreTypes.has(r.event_type),
+    isUserColored: r.is_user_colored ?? false,
     durationMinutes: r.duration_minutes ?? 60,
     attendeesCount: r.attendees_count ?? 1,
   }));

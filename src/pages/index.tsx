@@ -15,7 +15,12 @@ interface DaySummary { date: string; greenCount: number; isProductive: boolean; 
 interface CalendarData {
   user: { name: string; email: string; image?: string };
   syncedAt: string;
-  totals: { tasaciones: number; visitas: number; propuestas: number; reuniones: number; otros: number; totalGreen: number; totalEvents: number; };
+  totals: {
+    tasaciones: number; primerasVisitas: number; fotosVideo: number;
+    visitas: number; propuestas: number; firmas: number; reuniones: number;
+    procesosNuevos: number; totalGreen: number; totalEvents: number;
+    iac: number; iacGoal: number; procesosGoal: number;
+  };
   productivityGoal: number;
   productiveDays: number;
   totalDays: number;
@@ -664,19 +669,41 @@ export default function HomePage() {
                   Última sincronización: {new Date(data.syncedAt).toLocaleString("es-AR", { weekday: "long", hour: "2-digit", minute: "2-digit" })}
                 </p>
               </div>
-              <div className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold"
-                style={{ background: data.productivityRate >= 50 ? "#f0fdf4" : "#fef2f2", color: data.productivityRate >= 50 ? GREEN : RED }}>
-                {data.productivityRate}% días productivos
+              <div className="flex flex-col items-end">
+                <div className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold"
+                  style={{ background: (data.totals.iac ?? 0) >= 100 ? "#f0fdf4" : (data.totals.iac ?? 0) >= 67 ? "#fffbeb" : "#fef2f2", color: (data.totals.iac ?? 0) >= 100 ? GREEN : (data.totals.iac ?? 0) >= 67 ? "#d97706" : RED }}>
+                  IAC {data.totals.iac ?? 0}%
+                </div>
+                <div className="text-xs text-gray-400 mt-1 text-right">{data.totals.procesosNuevos ?? 0} proceso{(data.totals.procesosNuevos ?? 0) !== 1 ? "s" : ""} nuevo{(data.totals.procesosNuevos ?? 0) !== 1 ? "s" : ""}</div>
               </div>
             </div>
 
-            {/* KPIs */}
+            {/* KPIs — IAC model */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <KpiCard label="Tasaciones" value={data.totals.tasaciones} accent delay={0} />
-              <KpiCard label="Visitas" value={data.totals.visitas} delay={60} />
-              <KpiCard label="Propuestas" value={data.totals.propuestas} delay={120} />
-              <KpiCard label="Eventos verdes" value={data.totals.totalGreen} accent delay={180}
-                sub={`de ${data.totals.totalEvents} totales`} />
+              {/* IAC */}
+              <div className="bg-white border border-gray-100 rounded-2xl p-5 flex flex-col gap-2">
+                <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest">IAC semanal</div>
+                <div className="text-4xl font-black" style={{ fontFamily: "Georgia, serif", color: (data.totals.iac ?? 0) >= 100 ? GREEN : (data.totals.iac ?? 0) >= 67 ? "#d97706" : RED }}>
+                  {data.totals.iac ?? 0}%
+                </div>
+                <div className="h-1.5 rounded-full bg-gray-100 overflow-hidden">
+                  <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(100, data.totals.iac ?? 0)}%`, background: (data.totals.iac ?? 0) >= 100 ? GREEN : (data.totals.iac ?? 0) >= 67 ? "#d97706" : RED }} />
+                </div>
+                <div className="text-xs text-gray-400">{data.totals.totalGreen} de {data.totals.iacGoal ?? 15} reuniones/sem</div>
+              </div>
+              {/* Procesos nuevos */}
+              <div className="bg-white border border-gray-100 rounded-2xl p-5 flex flex-col gap-2">
+                <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Procesos nuevos</div>
+                <div className="text-4xl font-black" style={{ fontFamily: "Georgia, serif", color: (data.totals.procesosNuevos ?? 0) >= (data.totals.procesosGoal ?? 3) ? GREEN : RED }}>
+                  {data.totals.procesosNuevos ?? 0}
+                </div>
+                <div className="h-1.5 rounded-full bg-gray-100 overflow-hidden">
+                  <div className="h-full rounded-full" style={{ width: `${Math.min(100, ((data.totals.procesosNuevos ?? 0) / (data.totals.procesosGoal ?? 3)) * 100)}%`, background: (data.totals.procesosNuevos ?? 0) >= (data.totals.procesosGoal ?? 3) ? GREEN : RED }} />
+                </div>
+                <div className="text-xs text-gray-400">objetivo: {data.totals.procesosGoal ?? 3} / semana</div>
+              </div>
+              <KpiCard label="Tasaciones" value={data.totals.tasaciones} accent delay={60} sub={`+ ${data.totals.primerasVisitas ?? 0} prim. visitas`} />
+              <KpiCard label="Propuestas" value={data.totals.propuestas} delay={120} sub={`${data.totals.firmas ?? 0} firma${(data.totals.firmas ?? 0) !== 1 ? "s" : ""}`} />
             </div>
 
             {/* Productividad + Trend */}
@@ -696,17 +723,17 @@ export default function HomePage() {
               </div>
               <div className="bg-white border border-gray-100 rounded-2xl p-5 flex flex-col justify-center gap-4">
                 <div>
-                  <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1">Días productivos</div>
-                  <div className="text-4xl font-black" style={{ color: RED, fontFamily: "Georgia, serif" }}>{data.productiveDays}</div>
-                  <div className="text-xs text-gray-400 mt-1">de {data.totalDays} analizados</div>
+                  <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1">Reuniones / semana</div>
+                  <div className="text-4xl font-black" style={{ color: RED, fontFamily: "Georgia, serif" }}>{data.totals.totalGreen}</div>
+                  <div className="text-xs text-gray-400 mt-1">objetivo: {data.totals.iacGoal ?? 15} cara a cara</div>
                   <div className="mt-3 h-1.5 rounded-full bg-gray-100 overflow-hidden">
-                    <div className="h-full rounded-full" style={{ width: `${data.productivityRate}%`, background: RED }} />
+                    <div className="h-full rounded-full" style={{ width: `${Math.min(100, data.totals.iac ?? 0)}%`, background: (data.totals.iac ?? 0) >= 100 ? GREEN : RED }} />
                   </div>
                 </div>
                 <div>
-                  <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1">Meta diaria</div>
-                  <div className="text-4xl font-black text-gray-900" style={{ fontFamily: "Georgia, serif" }}>{PRODUCTIVITY_GOAL}</div>
-                  <div className="text-xs text-gray-400 mt-1">eventos 1 a 1 cara a cara</div>
+                  <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1">Procesos / semana</div>
+                  <div className="text-4xl font-black text-gray-900" style={{ fontFamily: "Georgia, serif" }}>{data.totals.procesosNuevos ?? 0}</div>
+                  <div className="text-xs text-gray-400 mt-1">objetivo: {data.totals.procesosGoal ?? 3} por semana</div>
                 </div>
               </div>
             </div>
