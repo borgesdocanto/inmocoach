@@ -617,7 +617,7 @@ export default function HomePage() {
             {subPlan === "teams" && (
               <Link href="/equipo">
                 <span className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors cursor-pointer flex items-center gap-1">
-                  <Users size={11} /> Mi equipo
+                  <Users size={11} /><span className="hidden sm:inline"> Mi equipo</span>
                 </span>
               </Link>
             )}
@@ -669,6 +669,18 @@ export default function HomePage() {
           )}
         </div>
       </header>
+
+      {/* Days selector — mobile only, scrollable strip below header */}
+      <div className="sm:hidden bg-white border-b border-gray-100 px-4 py-2 flex gap-1 overflow-x-auto">
+        {([7, 14, 30, 60, 90] as const).map(d => (
+          <button key={d} onClick={() => setDays(d)}
+            style={days === d
+              ? { background: "#111827", color: "#fff", borderRadius: "8px", padding: "4px 12px", fontSize: "12px", fontWeight: 700, border: "none", cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0 }
+              : { color: "#9ca3af", borderRadius: "8px", padding: "4px 12px", fontSize: "12px", fontWeight: 700, border: "1px solid #e5e7eb", cursor: "pointer", background: "transparent", whiteSpace: "nowrap", flexShrink: 0 }}>
+            {d}d
+          </button>
+        ))}
+      </div>
 
       <main className="max-w-6xl mx-auto px-5 py-6 pb-16 space-y-5">
 
@@ -749,7 +761,7 @@ export default function HomePage() {
 
             {/* Productividad + Trend */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className="bg-white border border-gray-100 rounded-2xl p-5 sm:col-span-2" style={{ position: "relative", zIndex: 0 }}>
+              <div className="bg-white border border-gray-100 rounded-2xl p-5 col-span-1 sm:col-span-2" style={{ position: "relative", zIndex: 0 }}>
                 <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">Tendencia — eventos verdes</div>
                 <ResponsiveContainer width="100%" height={140}>
                   <LineChart data={trendData}>
@@ -769,7 +781,7 @@ export default function HomePage() {
                 const avgSem = Math.round((data.totals.totalGreen / semanas) * 10) / 10;
                 const goalPeriod = Math.round((data.totals.iacGoal ?? 15) * semanas);
                 return (
-                  <div className="bg-white border border-gray-100 rounded-2xl p-5 flex flex-col justify-center gap-4">
+                  <div className="bg-white border border-gray-100 rounded-2xl p-5 flex flex-row sm:flex-col justify-between sm:justify-center gap-4">
                     <div>
                       <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1">
                         IAC · {days}d
