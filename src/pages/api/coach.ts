@@ -38,6 +38,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     dailySummaries, productivityGoal, userName,
     periodStart, periodEnd, calView, goal, periodLabel,
     forceRegenerate = false,
+    checkCacheOnly = false,
   } = req.body;
 
   if (!dailySummaries || !Array.isArray(dailySummaries)) {
@@ -59,6 +60,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     .eq("user_email", userEmail)
     .eq("period_key", periodKey)
     .single();
+
+  // Si solo queremos verificar cache (carga automática al cambiar período)
+  if (checkCacheOnly) {
+    if (cached) {
+      return res.status(200).json({
+        advice: cached.advice,
+        profile: cached.profile,
+        weekTotals: cached.week_totals,
+        fromCache: true,
+        isClosed: closed,
+      });
+    }
+    return res.status(200).json({ fromCache: false });
+  }
 
   // Si existe y el período está cerrado (y no se forzó regenerar) → devolver cache
   if (cached && (closed || !forceRegenerate)) {

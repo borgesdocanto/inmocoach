@@ -228,7 +228,7 @@ function MonthlyView({ summaries, monthOffset, onPrev, onNext }: {
 }
 
 // ─── Insta Coach Panel ────────────────────────────────────────────────────────
-function InstaCoacPanel({ data, calView, monthOffset }: { data: CalendarData; calView: "week" | "month"; monthOffset: number }) {
+function InstaCoacPanel({ data, calView, monthOffset, weekOffset }: { data: CalendarData; calView: "week" | "month"; monthOffset: number; weekOffset: number }) {
   const [advice, setAdvice] = useState("");
   const [profile, setProfile] = useState("");
   const [weekTotals, setWeekTotals] = useState<any>(null);
@@ -239,18 +239,25 @@ function InstaCoacPanel({ data, calView, monthOffset }: { data: CalendarData; ca
   const [isClosed, setIsClosed] = useState(false);
 
   // Reset cuando cambia la vista o el mes
-  useEffect(() => { setAdvice(""); setProfile(""); setWeekTotals(null); setFromCache(false); setIsClosed(false); }, [calView, monthOffset]);
+  useEffect(() => { setAdvice(""); setProfile(""); setWeekTotals(null); setFromCache(false); setIsClosed(false); }, [calView, monthOffset, weekOffset]);
 
   const today = new Date();
 
   const { periodStart, periodEnd, periodLabel, goal, goalLabel } = useMemo(() => {
     if (calView === "week") {
-      const start = new Date(today);
-      start.setDate(today.getDate() - 6);
+      // Calcular lunes de la semana según weekOffset
+      const monday = new Date(today);
+      monday.setDate(today.getDate() - ((today.getDay() + 6) % 7) + weekOffset * 7);
+      monday.setHours(0, 0, 0, 0);
+      const sunday = new Date(monday);
+      sunday.setDate(monday.getDate() + 6);
+      const weekLabel = weekOffset === 0
+        ? "esta semana"
+        : `semana del ${monday.toLocaleDateString("es-AR", { day: "numeric", month: "short" })}`;
       return {
-        periodStart: start.toISOString().slice(0, 10),
-        periodEnd: today.toISOString().slice(0, 10),
-        periodLabel: "últimos 7 días",
+        periodStart: monday.toISOString().slice(0, 10),
+        periodEnd: sunday.toISOString().slice(0, 10),
+        periodLabel: weekLabel,
         goal: 15,
         goalLabel: "meta semanal",
       };
@@ -267,13 +274,50 @@ function InstaCoacPanel({ data, calView, monthOffset }: { data: CalendarData; ca
         goalLabel: "meta mensual (15×4)",
       };
     }
-  }, [calView, monthOffset]);
+  }, [calView, monthOffset, weekOffset]);
 
   const periodSummaries = data.dailySummaries.filter(d => d.date >= periodStart && d.date <= periodEnd);
   const periodGreen = periodSummaries.flatMap(d => d.events).filter(e => e.isGreen).length;
   const periodActiveDays = periodSummaries.filter(d => d.greenCount > 0).length;
   const periodPct = Math.min(100, Math.round((periodGreen / goal) * 100));
   const barColor = periodPct >= 100 ? "#16a34a" : periodPct >= 50 ? "#b45309" : RED;
+
+  // Auto-fetch informe guardado al cambiar de período
+  useEffect(() => {
+    if (!periodStart) return;
+    let cancelled = false;
+    const fetchCached = async () => {
+      try {
+        const res = await fetch("/api/coach", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            dailySummaries: data.dailySummaries,
+            productivityGoal: data.productivityGoal,
+            userName: data.user.name,
+            periodStart,
+            periodEnd,
+            calView,
+            goal,
+            periodLabel,
+            forceRegenerate: false,
+            checkCacheOnly: true,
+          }),
+        });
+        const json = await res.json();
+        if (cancelled) return;
+        if (json.fromCache && json.advice) {
+          setAdvice(json.advice);
+          setProfile(json.profile || "");
+          setWeekTotals(json.weekTotals || null);
+          setFromCache(true);
+          setIsClosed(json.isClosed || false);
+        }
+      } catch { /* silencioso */ }
+    };
+    fetchCached();
+    return () => { cancelled = true; };
+  }, [periodStart, periodEnd]);
 
   const analyze = async (forceRegenerate = false) => {
     setLoading(true);
@@ -367,7 +411,7 @@ function InstaCoacPanel({ data, calView, monthOffset }: { data: CalendarData; ca
         <div className="flex items-center gap-2">
           {fromCache && (
             <span className="text-xs font-semibold px-2 py-1 rounded-lg bg-gray-100 text-gray-400 flex items-center gap-1">
-              Guardado
+              ✓ Guardado
               {!isClosed && (
                 <button onClick={() => analyze(true)} className="ml-1 underline hover:text-gray-600 transition-colors">
                   actualizar
@@ -381,12 +425,15 @@ function InstaCoacPanel({ data, calView, monthOffset }: { data: CalendarData; ca
             {emailSending ? <Loader2 size={11} className="animate-spin" /> : emailSent ? <CheckCircle size={11} /> : <Mail size={11} />}
             {emailSent ? "Enviado!" : emailSending ? "Enviando..." : "Mail de prueba"}
           </button>
-          <button onClick={() => analyze(false)} disabled={loading}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white transition-all hover:opacity-90 disabled:opacity-50"
-            style={{ background: RED }}>
-            {loading ? <Loader2 size={11} className="animate-spin" /> : <Zap size={11} />}
-            {loading ? "Analizando..." : "Analizar"}
-          </button>
+          {/* Solo mostrar "Analizar" si no hay informe guardado, o si el período sigue abierto */}
+          {(!fromCache || !isClosed) && (
+            <button onClick={() => analyze(false)} disabled={loading || (fromCache && isClosed)}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white transition-all hover:opacity-90 disabled:opacity-50"
+              style={{ background: RED }}>
+              {loading ? <Loader2 size={11} className="animate-spin" /> : <Zap size={11} />}
+              {loading ? "Analizando..." : fromCache ? "Re-analizar" : "Analizar"}
+            </button>
+          )}
         </div>
       </div>
 
@@ -709,7 +756,7 @@ export default function HomePage() {
             </div>
 
             {/* Insta Coach */}
-            <InstaCoacPanel data={data} calView={calView} monthOffset={monthOffset} />
+            <InstaCoacPanel data={data} calView={calView} monthOffset={monthOffset} weekOffset={weekOffset} />
           </>
         )}
       </main>
