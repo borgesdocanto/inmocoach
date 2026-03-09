@@ -2,92 +2,92 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
 import Head from "next/head";
-import { ArrowLeft, UserPlus, Loader2, Mail, Users, CheckCircle, Clock, TrendingUp, TrendingDown, Minus, AlertTriangle, BarChart2, ChevronRight } from "lucide-react";
+import {
+  ArrowLeft, UserPlus, Loader2, Mail, Users, Clock,
+  TrendingUp, TrendingDown, Minus, AlertTriangle,
+  BarChart2, ChevronRight, Flame, RefreshCw, Shield
+} from "lucide-react";
 
 const RED = "#aa0000";
+const IAC_GOAL = 15;
 
 type TeamRole = "owner" | "team_leader" | "member";
 
 interface AgentSummary {
-  email: string;
-  name?: string;
-  avatar?: string;
-  teamRole: TeamRole;
-  weekTotal: number;
-  weekProductiveDays: number;
-  monthTotal: number;
-  trend: "up" | "down" | "stable";
-  trendPct: number;
-  status: "green" | "yellow" | "red";
+  email: string; name?: string; avatar?: string; teamRole: TeamRole;
+  weekTotal: number; weekProductiveDays: number; iac: number;
+  monthTotal: number; trend: "up" | "down" | "stable"; trendPct: number;
+  status: "green" | "yellow" | "red"; sparkline: number[]; streak: number;
 }
-
 interface TeamOverview {
-  totalAgents: number;
-  weekTotalMeetings: number;
-  greenAgents: number;
-  yellowAgents: number;
-  redAgents: number;
-  topAgent: string | null;
-  needsAttention: string | null;
+  totalAgents: number; weekTotalMeetings: number;
+  greenAgents: number; yellowAgents: number; redAgents: number;
+  topAgent: string | null; needsAttention: string | null;
 }
-
-interface Pending {
-  email: string;
-  created_at: string;
-  token: string;
-}
+interface Pending { email: string; created_at: string; token: string; }
 
 const ROLE_LABEL: Record<TeamRole, string> = { owner: "Broker", team_leader: "Team Leader", member: "Agente" };
 const ROLE_COLOR: Record<TeamRole, string> = { owner: RED, team_leader: "#7c3aed", member: "#16a34a" };
-const STATUS_COLOR = { green: "#16a34a", yellow: "#d97706", red: "#aa0000" };
-const STATUS_BG = { green: "#f0fdf4", yellow: "#fffbeb", red: "#fff1f1" };
-const STATUS_LABEL = { green: "Productivo", yellow: "Ocupado", red: "Riesgo" };
 
-function TrendIcon({ trend, pct }: { trend: string; pct: number }) {
-  if (trend === "up") return <span className="flex items-center gap-0.5 text-xs font-bold text-green-600"><TrendingUp size={11} />+{pct}%</span>;
-  if (trend === "down") return <span className="flex items-center gap-0.5 text-xs font-bold text-red-500"><TrendingDown size={11} />{pct}%</span>;
-  return <span className="flex items-center gap-0.5 text-xs font-medium text-gray-400"><Minus size={11} />estable</span>;
+function Sparkline({ data, color }: { data: number[]; color: string }) {
+  const max = Math.max(...data, 1);
+  const days = ["L", "M", "X", "J", "V", "S", "D"];
+  return (
+    <div className="flex items-end gap-0.5 h-8">
+      {data.map((v, i) => (
+        <div key={i} className="flex flex-col items-center gap-0.5 flex-1">
+          <div className="w-full rounded-sm transition-all"
+            style={{ height: `${Math.max(2, (v / max) * 28)}px`, background: v > 0 ? color : "#e5e7eb", opacity: v === 0 ? 0.4 : 1 }} />
+          <span className="text-gray-300" style={{ fontSize: 7 }}>{days[i]}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function IACBar({ iac, color }: { iac: number; color: string }) {
+  return (
+    <div className="flex items-center gap-2">
+      <div className="flex-1 bg-gray-100 rounded-full h-2 overflow-hidden">
+        <div className="h-full rounded-full transition-all duration-500"
+          style={{ width: `${iac}%`, background: color }} />
+      </div>
+      <span className="text-xs font-black w-9 text-right" style={{ color }}>{iac}%</span>
+    </div>
+  );
+}
+
+function TrendBadge({ trend, pct }: { trend: string; pct: number }) {
+  if (trend === "up") return <span className="flex items-center gap-0.5 text-xs font-bold text-green-600"><TrendingUp size={10} />+{pct}%</span>;
+  if (trend === "down") return <span className="flex items-center gap-0.5 text-xs font-bold text-red-500"><TrendingDown size={10} />{pct}%</span>;
+  return <span className="flex items-center gap-0.5 text-xs text-gray-400"><Minus size={10} />estable</span>;
 }
 
 function PendingRow({ inv, onAction }: { inv: Pending; onAction: () => void }) {
   const [loading, setLoading] = useState<"resend" | "cancel" | null>(null);
   const [msg, setMsg] = useState("");
-
   const act = async (action: "resend" | "cancel") => {
-    setLoading(action);
-    setMsg("");
+    setLoading(action); setMsg("");
     try {
-      const res = await fetch("/api/teams/invitation", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action, token: inv.token }),
-      });
+      const res = await fetch("/api/teams/invitation", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action, token: inv.token }) });
       const data = await res.json();
       if (data.ok) { if (action === "cancel") { onAction(); return; } setMsg("Mail reenviado"); }
       else setMsg(data.error || "Error");
     } catch { setMsg("Error"); }
     setLoading(null);
   };
-
   return (
     <div className="flex items-center gap-3 px-5 py-3 flex-wrap">
-      <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-xs font-black text-gray-400 shrink-0">
-        {inv.email[0].toUpperCase()}
-      </div>
+      <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-xs font-black text-gray-400 shrink-0">{inv.email[0].toUpperCase()}</div>
       <div className="flex-1 min-w-0">
         <div className="text-sm font-semibold text-gray-600 truncate">{inv.email}</div>
-        <div className="text-xs text-gray-400">
-          Invitado el {new Date(inv.created_at).toLocaleDateString("es-AR", { day: "numeric", month: "short" })}
-          {msg && <span className="ml-2 text-green-600 font-medium">{msg}</span>}
-        </div>
+        <div className="text-xs text-gray-400">Invitado el {new Date(inv.created_at).toLocaleDateString("es-AR", { day: "numeric", month: "short" })}{msg && <span className="ml-2 text-green-600 font-medium">{msg}</span>}</div>
       </div>
       <div className="flex items-center gap-2 shrink-0">
-        <button onClick={() => act("resend")} disabled={!!loading}
-          className="flex items-center gap-1 text-xs font-semibold text-gray-500 hover:text-gray-800 bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50">
+        <button onClick={() => act("resend")} disabled={!!loading} className="flex items-center gap-1 text-xs font-semibold text-gray-500 hover:text-gray-800 bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50">
           {loading === "resend" ? <Loader2 size={11} className="animate-spin" /> : <Mail size={11} />} Reenviar
         </button>
-        <button onClick={() => act("cancel")} disabled={!!loading}
-          className="flex items-center gap-1 text-xs font-semibold text-red-400 hover:text-red-600 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50">
+        <button onClick={() => act("cancel")} disabled={!!loading} className="flex items-center gap-1 text-xs font-semibold text-red-400 hover:text-red-600 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50">
           {loading === "cancel" ? <Loader2 size={11} className="animate-spin" /> : <span>✕</span>} Cancelar
         </button>
       </div>
@@ -115,6 +115,7 @@ export default function BrokerDashboard() {
   const [agencyInput, setAgencyInput] = useState("");
   const [agencySaving, setAgencySaving] = useState(false);
   const [agencyMsg, setAgencyMsg] = useState("");
+  const [sortBy, setSortBy] = useState<"iac" | "trend" | "streak">("iac");
 
   useEffect(() => { if (status === "unauthenticated") router.replace("/login"); }, [status, router]);
   useEffect(() => { if (status === "authenticated") { loadTeam(); loadAnalytics(); } }, [status]);
@@ -128,10 +129,9 @@ export default function BrokerDashboard() {
       setPending(data.pending || []);
       setRequesterRole(data.requesterRole);
       setBrokerPlan(data.brokerPlan || "free");
-      // Cargar nombre de inmobiliaria
       const agRes = await fetch("/api/teams/agency");
       if (agRes.ok) { const ag = await agRes.json(); setAgencyName(ag.agencyName || ""); setAgencyInput(ag.agencyName || ""); }
-    } catch { }
+    } catch {}
     setLoading(false);
   };
 
@@ -139,12 +139,8 @@ export default function BrokerDashboard() {
     setAnalyticsLoading(true);
     try {
       const res = await fetch("/api/analytics/team");
-      if (res.ok) {
-        const data = await res.json();
-        setAgents(data.agents || []);
-        setOverview(data.overview || null);
-      }
-    } catch { }
+      if (res.ok) { const data = await res.json(); setAgents(data.agents || []); setOverview(data.overview || null); }
+    } catch {}
     setAnalyticsLoading(false);
   };
 
@@ -152,16 +148,10 @@ export default function BrokerDashboard() {
     if (!newEmail.includes("@")) { setInviteMsg("Email inválido"); return; }
     setInviting(true); setInviteMsg("");
     try {
-      const res = await fetch("/api/teams/invite", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: newEmail }),
-      });
+      const res = await fetch("/api/teams/invite", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: newEmail }) });
       const data = await res.json();
-      if (data.ok) {
-        setInviteMsg(`Invitación enviada a ${newEmail}`); setNewEmail(""); loadTeam();
-      } else {
-        setInviteMsg(data.error || "Error al invitar");
-      }
+      if (data.ok) { setInviteMsg(`Invitación enviada a ${newEmail}`); setNewEmail(""); loadTeam(); }
+      else setInviteMsg(data.error || "Error al invitar");
     } catch { setInviteMsg("Error de conexión"); }
     setInviting(false);
   };
@@ -169,10 +159,7 @@ export default function BrokerDashboard() {
   const changeRole = async (memberEmail: string, newRole: "team_leader" | "member") => {
     setRoleLoading(memberEmail);
     try {
-      const res = await fetch("/api/teams/role", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ memberEmail, newRole }),
-      });
+      const res = await fetch("/api/teams/role", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ memberEmail, newRole }) });
       const data = await res.json();
       if (data.ok) loadAnalytics(); else alert(data.error);
     } catch { alert("Error al cambiar rol"); }
@@ -182,10 +169,7 @@ export default function BrokerDashboard() {
   const saveAgency = async () => {
     setAgencySaving(true); setAgencyMsg("");
     try {
-      const res = await fetch("/api/teams/agency", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ agencyName: agencyInput }),
-      });
+      const res = await fetch("/api/teams/agency", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ agencyName: agencyInput }) });
       const data = await res.json();
       if (data.ok) { setAgencyName(agencyInput); setAgencyMsg("Guardado"); setTimeout(() => setAgencyMsg(""), 2000); }
       else setAgencyMsg(data.error || "Error");
@@ -197,13 +181,9 @@ export default function BrokerDashboard() {
     if (removeConfirm !== memberEmail) { setRemoveConfirm(memberEmail); return; }
     setRemoveLoading(memberEmail); setRemoveConfirm(null);
     try {
-      const res = await fetch("/api/teams/remove", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ memberEmail }),
-      });
+      const res = await fetch("/api/teams/remove", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ memberEmail }) });
       const data = await res.json();
-      if (data.ok) loadTeam();
-      else alert(data.error);
+      if (data.ok) { loadTeam(); loadAnalytics(); } else alert(data.error);
     } catch { alert("Error al remover agente"); }
     setRemoveLoading(null);
   };
@@ -211,9 +191,22 @@ export default function BrokerDashboard() {
   const isOwner = requesterRole === "owner";
   const isFreemium = brokerPlan === "free";
 
+  // Sorted agents
+  const sortedAgents = [...agents].sort((a, b) => {
+    if (sortBy === "iac") return b.iac - a.iac;
+    if (sortBy === "trend") return b.trendPct - a.trendPct;
+    if (sortBy === "streak") return b.streak - a.streak;
+    return 0;
+  });
+
+  const needsAttention = agents.filter(a => a.status === "red");
+  const onStreak = agents.filter(a => a.streak >= 3);
+
   if (status === "loading" || loading) {
     return <div className="min-h-screen bg-white flex items-center justify-center"><Loader2 size={24} className="animate-spin" style={{ color: RED }} /></div>;
   }
+
+  const iacColor = (iac: number) => iac >= 70 ? "#16a34a" : iac >= 40 ? "#d97706" : "#aa0000";
 
   return (
     <div className="min-h-screen bg-gray-50" style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" }}>
@@ -226,51 +219,14 @@ export default function BrokerDashboard() {
             <ArrowLeft size={13} /> Volver
           </button>
           <div className="font-black text-lg tracking-tight" style={{ fontFamily: "Georgia, serif" }}>
-            Inmo<span style={{ color: RED }}>Coach</span>
+            {agencyName || "Mi Equipo"} · <span style={{ color: RED }}>InmoCoach</span>
           </div>
         </div>
       </header>
 
       <main className="max-w-5xl mx-auto px-5 py-8 space-y-5">
 
-        {/* Header */}
-        <div className="flex items-start justify-between gap-4 flex-wrap">
-          <div>
-            <h1 className="text-2xl font-black text-gray-900" style={{ fontFamily: "Georgia, serif" }}>Mi Equipo</h1>
-            <p className="text-sm text-gray-400 mt-0.5">{agents.length} agente{agents.length !== 1 ? "s" : ""} · {10 - agents.length} lugar{10 - agents.length !== 1 ? "es" : ""} disponible{10 - agents.length !== 1 ? "s" : ""}</p>
-          </div>
-          <div className="text-xs font-bold px-3 py-1.5 rounded-xl"
-            style={{ background: isFreemium ? "#f3f4f6" : "#f0fdf4", color: isFreemium ? "#9ca3af" : "#16a34a" }}>
-            {isFreemium ? "Trial — 7 días" : "Teams activo"}
-          </div>
-        </div>
-
-        {/* Nombre de inmobiliaria — solo owner */}
-        {isOwner && (
-          <div className="bg-white border border-gray-100 rounded-2xl p-5">
-            <div className="flex items-center gap-2 mb-3">
-              <span className="font-black text-sm text-gray-900">Nombre de la inmobiliaria</span>
-              <span className="text-xs text-gray-400">(aparece en mails e invitaciones)</span>
-            </div>
-            <div className="flex gap-2">
-              <input
-                value={agencyInput}
-                onChange={e => setAgencyInput(e.target.value)}
-                onKeyDown={e => e.key === "Enter" && saveAgency()}
-                placeholder="Ej: GALAS Propiedades"
-                className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-gray-400 transition-colors"
-              />
-              <button onClick={saveAgency} disabled={agencySaving || agencyInput === agencyName}
-                className="px-4 py-2 rounded-xl text-xs font-bold text-white disabled:opacity-40 transition-all hover:opacity-90"
-                style={{ background: RED }}>
-                {agencySaving ? "..." : "Guardar"}
-              </button>
-            </div>
-            {agencyMsg && <p className="text-xs mt-2 font-medium text-green-600">{agencyMsg}</p>}
-          </div>
-        )}
-
-        {/* Banner freemium */}
+        {/* Freemium banner */}
         {isFreemium && (
           <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-start gap-3">
             <AlertTriangle size={15} className="text-amber-500 shrink-0 mt-0.5" />
@@ -282,131 +238,193 @@ export default function BrokerDashboard() {
           </div>
         )}
 
-        {/* Overview del equipo */}
+        {/* KPIs del equipo */}
         {overview && overview.totalAgents > 0 && (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {[
-              { label: "Reuniones esta semana", value: overview.weekTotalMeetings, icon: <BarChart2 size={14} className="text-gray-400" /> },
-              { label: "Productivos", value: overview.greenAgents, icon: <div className="w-2.5 h-2.5 rounded-full bg-green-500" /> },
-              { label: "Ocupados", value: overview.yellowAgents, icon: <div className="w-2.5 h-2.5 rounded-full bg-amber-400" /> },
-              { label: "En riesgo", value: overview.redAgents, icon: <div className="w-2.5 h-2.5 rounded-full" style={{ background: RED }} /> },
+              { label: "Reuniones esta semana", value: overview.weekTotalMeetings, sub: `equipo · meta ${overview.totalAgents * IAC_GOAL}`, color: "#111827" },
+              { label: "Productivos", value: overview.greenAgents, sub: "IAC ≥ 70%", color: "#16a34a" },
+              { label: "En construcción", value: overview.yellowAgents, sub: "IAC 40–70%", color: "#d97706" },
+              { label: "En riesgo", value: overview.redAgents, sub: "IAC < 40%", color: RED },
             ].map((s, i) => (
               <div key={i} className="bg-white border border-gray-100 rounded-2xl p-4">
-                <div className="flex items-center gap-2 mb-1">{s.icon}<span className="text-xs text-gray-400">{s.label}</span></div>
-                <div className="text-2xl font-black text-gray-900" style={{ fontFamily: "Georgia, serif" }}>{s.value}</div>
+                <div className="text-xs text-gray-400 mb-1">{s.label}</div>
+                <div className="text-3xl font-black" style={{ fontFamily: "Georgia, serif", color: s.color }}>{s.value}</div>
+                <div className="text-xs text-gray-400 mt-1">{s.sub}</div>
               </div>
             ))}
           </div>
         )}
-        {overview?.topAgent && (
-          <div className="bg-white border border-gray-100 rounded-2xl p-4 flex items-center gap-3 flex-wrap">
-            <div className="text-xs text-gray-400">Mejor semana: <strong className="text-gray-700">{overview.topAgent}</strong></div>
-            {overview.needsAttention && overview.needsAttention !== overview.topAgent && (
-              <div className="text-xs text-gray-400 ml-auto flex items-center gap-1">
-                <AlertTriangle size={11} className="text-amber-500" />
-                Necesita atención: <strong className="text-gray-700 ml-1">{overview.needsAttention}</strong>
+
+        {/* Alertas: necesitan atención + en racha */}
+        {agents.length > 0 && (
+          <div className="grid sm:grid-cols-2 gap-4">
+            {/* Necesitan atención */}
+            <div className="bg-white border border-gray-100 rounded-2xl p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <AlertTriangle size={14} style={{ color: RED }} />
+                <span className="text-xs font-black text-gray-700 uppercase tracking-wide">Necesitan atención</span>
+                <span className="ml-auto text-xs font-black px-2 py-0.5 rounded-full" style={{ background: "#fff1f1", color: RED }}>{needsAttention.length}</span>
               </div>
-            )}
+              {needsAttention.length === 0 ? (
+                <p className="text-xs text-gray-400">¡Todos por encima del 40% esta semana! 🎉</p>
+              ) : (
+                <div className="space-y-2">
+                  {needsAttention.map(a => (
+                    <button key={a.email} onClick={() => router.push(`/equipo/agente?email=${encodeURIComponent(a.email)}`)}
+                      className="w-full flex items-center gap-3 p-2.5 rounded-xl bg-red-50 hover:bg-red-100 transition-colors text-left">
+                      <div className="w-7 h-7 rounded-full bg-red-100 flex items-center justify-center text-xs font-black shrink-0" style={{ color: RED }}>
+                        {(a.name || a.email)[0].toUpperCase()}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-xs font-bold text-gray-800 truncate">{a.name || a.email}</div>
+                        <div className="text-xs font-black" style={{ color: RED }}>IAC {a.iac}% · {a.weekTotal} reuniones</div>
+                      </div>
+                      <ChevronRight size={12} className="text-red-300 shrink-0" />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* En racha */}
+            <div className="bg-white border border-gray-100 rounded-2xl p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <Flame size={14} className="text-orange-500" />
+                <span className="text-xs font-black text-gray-700 uppercase tracking-wide">En racha</span>
+                <span className="ml-auto text-xs font-black px-2 py-0.5 rounded-full bg-orange-50 text-orange-600">{onStreak.length}</span>
+              </div>
+              {onStreak.length === 0 ? (
+                <p className="text-xs text-gray-400">Nadie con racha activa ≥ 3 días aún.</p>
+              ) : (
+                <div className="space-y-2">
+                  {onStreak.sort((a, b) => b.streak - a.streak).map(a => (
+                    <button key={a.email} onClick={() => router.push(`/equipo/agente?email=${encodeURIComponent(a.email)}`)}
+                      className="w-full flex items-center gap-3 p-2.5 rounded-xl bg-orange-50 hover:bg-orange-100 transition-colors text-left">
+                      <div className="w-7 h-7 rounded-full bg-orange-100 flex items-center justify-center text-xs font-black text-orange-600 shrink-0">
+                        {(a.name || a.email)[0].toUpperCase()}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-xs font-bold text-gray-800 truncate">{a.name || a.email}</div>
+                        <div className="text-xs font-black text-orange-600">{a.streak >= 5 ? "🔥" : "⚡"} {a.streak} días consecutivos</div>
+                      </div>
+                      <ChevronRight size={12} className="text-orange-300 shrink-0" />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
 
-        {/* Agentes con analytics */}
+        {/* Ranking visual */}
         <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
-          <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-2">
+          <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-3 flex-wrap">
             <Users size={13} className="text-gray-400" />
-            <span className="text-xs font-black text-gray-500 uppercase tracking-widest">Actividad del equipo</span>
-            <button onClick={loadAnalytics} className="ml-auto text-xs text-gray-400 hover:text-gray-600 flex items-center gap-1">
-              {analyticsLoading ? <Loader2 size={11} className="animate-spin" /> : "↻"} Actualizar
-            </button>
+            <span className="text-xs font-black text-gray-500 uppercase tracking-widest">Ranking del equipo</span>
+            <div className="ml-auto flex items-center gap-1.5">
+              {(["iac", "trend", "streak"] as const).map(s => (
+                <button key={s} onClick={() => setSortBy(s)}
+                  className="text-xs font-bold px-2.5 py-1 rounded-lg transition-all"
+                  style={{ background: sortBy === s ? RED : "#f3f4f6", color: sortBy === s ? "white" : "#9ca3af" }}>
+                  {s === "iac" ? "IAC" : s === "trend" ? "Tendencia" : "Racha"}
+                </button>
+              ))}
+              <button onClick={loadAnalytics} className="ml-1 text-gray-400 hover:text-gray-600">
+                {analyticsLoading ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
+              </button>
+            </div>
           </div>
 
           {analyticsLoading ? (
-            <div className="flex items-center justify-center py-12"><Loader2 size={20} className="animate-spin text-gray-300" /></div>
+            <div className="flex items-center justify-center py-16"><Loader2 size={20} className="animate-spin text-gray-300" /></div>
           ) : agents.length === 0 ? (
-            <div className="px-5 py-8 text-center text-sm text-gray-400">Todavía no tenés agentes en el equipo. Invitá al primero abajo.</div>
+            <div className="px-5 py-10 text-center text-sm text-gray-400">Todavía no tenés agentes. Invitá al primero abajo.</div>
           ) : (
             <div className="divide-y divide-gray-50">
-              {agents.map(agent => (
-                <div key={agent.email} className="flex items-center gap-3 px-5 py-4 hover:bg-gray-50 transition-colors">
-                  {/* Avatar */}
-                  {agent.avatar ? (
-                    <img src={agent.avatar} alt="" className="w-9 h-9 rounded-full shrink-0" />
-                  ) : (
-                    <div className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center text-xs font-black text-gray-400 shrink-0">
-                      {(agent.name || agent.email)[0].toUpperCase()}
-                    </div>
-                  )}
+              {sortedAgents.map((agent, idx) => {
+                const color = iacColor(agent.iac);
+                return (
+                  <div key={agent.email} className="px-5 py-4 hover:bg-gray-50 transition-colors">
+                    <div className="flex items-center gap-3 mb-3">
+                      {/* Posición */}
+                      <div className="w-6 text-xs font-black text-gray-300 shrink-0 text-center">#{idx + 1}</div>
 
-                  {/* Info */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-sm font-semibold text-gray-800 truncate">{agent.name || agent.email}</span>
-                      <span className="text-xs font-bold px-1.5 py-0.5 rounded-md" style={{ background: `${ROLE_COLOR[agent.teamRole]}15`, color: ROLE_COLOR[agent.teamRole] }}>
-                        {ROLE_LABEL[agent.teamRole]}
-                      </span>
-                    </div>
-                    {agent.name && <div className="text-xs text-gray-400 truncate">{agent.email}</div>}
-                  </div>
-
-                  {/* Stats */}
-                  <div className="hidden sm:flex items-center gap-5 shrink-0">
-                    <div className="text-center">
-                      <div className="text-lg font-black text-gray-900" style={{ fontFamily: "Georgia, serif" }}>{agent.weekTotal}</div>
-                      <div className="text-xs text-gray-400">esta semana</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-lg font-black text-gray-900" style={{ fontFamily: "Georgia, serif" }}>{agent.monthTotal}</div>
-                      <div className="text-xs text-gray-400">30 días</div>
-                    </div>
-                    <div className="text-center">
-                      <TrendIcon trend={agent.trend} pct={agent.trendPct} />
-                      <div className="text-xs text-gray-400 mt-0.5">vs sem. ant.</div>
-                    </div>
-                  </div>
-
-                  {/* Semáforo */}
-                  <div className="text-xs font-bold px-2.5 py-1 rounded-xl shrink-0"
-                    style={{ background: STATUS_BG[agent.status], color: STATUS_COLOR[agent.status] }}>
-                    {STATUS_LABEL[agent.status]}
-                  </div>
-
-                  {/* Cambio de rol — solo owner */}
-                  {isOwner && agent.teamRole !== "owner" && (
-                    <div className="shrink-0">
-                      {roleLoading === agent.email ? (
-                        <Loader2 size={13} className="animate-spin text-gray-400" />
+                      {/* Avatar */}
+                      {agent.avatar ? (
+                        <img src={agent.avatar} alt="" className="w-9 h-9 rounded-full shrink-0" />
                       ) : (
-                        <select value={agent.teamRole} onChange={e => changeRole(agent.email, e.target.value as "team_leader" | "member")}
-                          className="text-xs font-semibold text-gray-500 bg-gray-100 border-0 rounded-lg px-2 py-1 cursor-pointer focus:outline-none appearance-none">
-                          <option value="member">Agente</option>
-                          <option value="team_leader">Team Leader</option>
-                        </select>
+                        <div className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-black shrink-0"
+                          style={{ background: `${color}15`, color }}>
+                          {(agent.name || agent.email)[0].toUpperCase()}
+                        </div>
                       )}
+
+                      {/* Nombre + rol */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-sm font-bold text-gray-900 truncate">{agent.name || agent.email}</span>
+                          <span className="text-xs font-bold px-1.5 py-0.5 rounded-md"
+                            style={{ background: `${ROLE_COLOR[agent.teamRole]}15`, color: ROLE_COLOR[agent.teamRole] }}>
+                            {ROLE_LABEL[agent.teamRole]}
+                          </span>
+                          {agent.streak >= 3 && (
+                            <span className="text-xs font-black text-orange-500">{agent.streak >= 5 ? "🔥" : "⚡"} {agent.streak}d</span>
+                          )}
+                        </div>
+                        {agent.name && <div className="text-xs text-gray-400 truncate">{agent.email}</div>}
+                      </div>
+
+                      {/* Stats compactos */}
+                      <div className="hidden sm:flex items-center gap-4 shrink-0 text-right">
+                        <div>
+                          <div className="text-base font-black text-gray-900" style={{ fontFamily: "Georgia, serif" }}>{agent.weekTotal}<span className="text-xs font-normal text-gray-400">/{IAC_GOAL}</span></div>
+                          <div className="text-xs text-gray-400">esta semana</div>
+                        </div>
+                        <div>
+                          <TrendBadge trend={agent.trend} pct={Math.abs(agent.trendPct)} />
+                          <div className="text-xs text-gray-400 mt-0.5">vs ant.</div>
+                        </div>
+                      </div>
+
+                      {/* Acciones owner */}
+                      {isOwner && agent.teamRole !== "owner" && (
+                        <div className="flex items-center gap-1 shrink-0">
+                          {roleLoading === agent.email ? <Loader2 size={12} className="animate-spin text-gray-300" /> : (
+                            <select value={agent.teamRole} onChange={e => changeRole(agent.email, e.target.value as "team_leader" | "member")}
+                              className="text-xs font-semibold text-gray-500 bg-gray-100 border-0 rounded-lg px-2 py-1 cursor-pointer focus:outline-none appearance-none">
+                              <option value="member">Agente</option>
+                              <option value="team_leader">Team Leader</option>
+                            </select>
+                          )}
+                          <button onClick={() => removeAgent(agent.email)} disabled={removeLoading === agent.email}
+                            className={`text-xs font-bold px-2 py-1 rounded-lg transition-all ${removeConfirm === agent.email ? "bg-red-100 text-red-600" : "text-gray-300 hover:text-red-400"}`}>
+                            {removeLoading === agent.email ? <Loader2 size={11} className="animate-spin" /> : removeConfirm === agent.email ? "¿Ok?" : "✕"}
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Ver detalle */}
+                      <button onClick={() => router.push(`/equipo/agente?email=${encodeURIComponent(agent.email)}`)}
+                        className="shrink-0 text-gray-300 hover:text-gray-600 transition-colors">
+                        <ChevronRight size={15} />
+                      </button>
                     </div>
-                  )}
 
-                  {/* Remover agente — solo owner */}
-                  {isOwner && agent.teamRole !== "owner" && (
-                    <button
-                      onClick={() => removeAgent(agent.email)}
-                      disabled={removeLoading === agent.email}
-                      title={removeConfirm === agent.email ? "Clic de nuevo para confirmar" : "Remover del equipo"}
-                      className={`shrink-0 text-xs font-bold px-2 py-1 rounded-lg transition-all ${
-                        removeConfirm === agent.email
-                          ? "bg-red-100 text-red-600"
-                          : "text-gray-300 hover:text-red-400"
-                      }`}>
-                      {removeLoading === agent.email ? <Loader2 size={12} className="animate-spin" /> : removeConfirm === agent.email ? "¿Confirmar?" : "✕"}
-                    </button>
-                  )}
-
-                  {/* Ver detalle */}
-                  <button onClick={() => router.push(`/equipo/agente?email=${encodeURIComponent(agent.email)}`)}
-                    className="shrink-0 text-gray-300 hover:text-gray-600 transition-colors">
-                    <ChevronRight size={15} />
-                  </button>
-                </div>
-              ))}
+                    {/* IAC bar + sparkline */}
+                    <div className="ml-9 pl-3 grid grid-cols-2 sm:grid-cols-3 gap-4 items-center">
+                      <div className="col-span-2 sm:col-span-2">
+                        <div className="text-xs text-gray-400 mb-1">IAC esta semana</div>
+                        <IACBar iac={agent.iac} color={color} />
+                      </div>
+                      <div className="hidden sm:block">
+                        <div className="text-xs text-gray-400 mb-1">Últimos 7 días</div>
+                        <Sparkline data={agent.sparkline} color={color} />
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
@@ -430,7 +448,6 @@ export default function BrokerDashboard() {
               </button>
             </div>
             {inviteMsg && <p className={`text-xs mt-2 font-medium ${inviteMsg.includes("nviada") ? "text-green-600" : "text-red-500"}`}>{inviteMsg}</p>}
-
           </div>
         )}
 
@@ -444,6 +461,27 @@ export default function BrokerDashboard() {
             <div className="divide-y divide-gray-50">
               {pending.map(p => <PendingRow key={p.token} inv={p} onAction={loadTeam} />)}
             </div>
+          </div>
+        )}
+
+        {/* Config del equipo — solo owner */}
+        {isOwner && (
+          <div className="bg-white border border-gray-100 rounded-2xl p-5">
+            <div className="flex items-center gap-2 mb-3">
+              <Shield size={14} className="text-gray-400" />
+              <span className="font-black text-sm text-gray-900">Nombre de la inmobiliaria</span>
+              <span className="text-xs text-gray-400">(aparece en mails)</span>
+            </div>
+            <div className="flex gap-2">
+              <input value={agencyInput} onChange={e => setAgencyInput(e.target.value)} onKeyDown={e => e.key === "Enter" && saveAgency()}
+                placeholder="Ej: GALAS Propiedades"
+                className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-gray-400 transition-colors" />
+              <button onClick={saveAgency} disabled={agencySaving || agencyInput === agencyName}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-white disabled:opacity-40 transition-all hover:opacity-90" style={{ background: RED }}>
+                {agencySaving ? "..." : "Guardar"}
+              </button>
+            </div>
+            {agencyMsg && <p className="text-xs mt-2 font-medium text-green-600">{agencyMsg}</p>}
           </div>
         )}
 

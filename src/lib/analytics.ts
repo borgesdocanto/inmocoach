@@ -9,6 +9,7 @@ export interface AgentSummary {
   // Esta semana
   weekTotal: number;
   weekProductiveDays: number;
+  iac: number;           // 0-100 basado en 15 reuniones
   // Últimos 30 días
   monthTotal: number;
   // Tendencia: comparación últimos 7 días vs 7 anteriores
@@ -16,6 +17,10 @@ export interface AgentSummary {
   trendPct: number;
   // Semáforo
   status: "green" | "yellow" | "red";
+  // Sparkline: últimos 7 días con count de reuniones verdes
+  sparkline: number[];
+  // Racha
+  streak: number;
   lastSyncAt?: string;
 }
 
@@ -88,12 +93,32 @@ export async function getAgentSummary(email: string): Promise<Omit<AgentSummary,
     trend = "up"; trendPct = 100;
   }
 
-  // Semáforo basado en semana actual
-  let status: "green" | "yellow" | "red" = "red";
-  if (weekTotal >= 10) status = "green";
-  else if (weekTotal >= 5) status = "yellow";
+  // IAC: weekTotal / 15 * 100
+  const iac = Math.min(100, Math.round((weekTotal / 15) * 100));
 
-  return { email, weekTotal, weekProductiveDays, monthTotal, trend, trendPct, status };
+  // Semáforo basado en IAC
+  let status: "green" | "yellow" | "red" = "red";
+  if (iac >= 70) status = "green";
+  else if (iac >= 40) status = "yellow";
+
+  // Sparkline: reuniones verdes por día, últimos 7 días
+  const sparkline: number[] = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(now);
+    d.setDate(d.getDate() - i);
+    const key = d.toISOString().slice(0, 10);
+    sparkline.push(byDay[key] || 0);
+  }
+
+  // Streak desde subscriptions
+  const { data: subData } = await supabaseAdmin
+    .from("subscriptions")
+    .select("streak_current")
+    .eq("email", email)
+    .single();
+  const streak = subData?.streak_current || 0;
+
+  return { email, weekTotal, weekProductiveDays, iac, monthTotal, trend, trendPct, status, sparkline, streak };
 }
 
 // ── Overview del equipo ───────────────────────────────────────────────────────
