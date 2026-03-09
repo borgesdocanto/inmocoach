@@ -3,6 +3,7 @@ import { upgradePlan } from "../../../lib/subscription";
 import { supabaseAdmin } from "../../../lib/supabase";
 import { PlanId } from "../../../lib/plans";
 import { getOrCreateTeam } from "../../../lib/teams";
+import { applyPendingUpgrade } from "../../../lib/teamsSubscription";
 
 async function getMPData(url: string) {
   const res = await fetch(url, {
@@ -72,6 +73,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
 
       await activatePlan(email, planId as PlanId, String(sub.id), String(sub.payer_id ?? ""), sub);
+
+      // Si hay agentes extra pendientes de cobrar, aplicar el upgrade ahora
+      await applyPendingUpgrade(email).catch(e => console.error("applyPendingUpgrade error:", e));
+
       return res.status(200).json({ ok: true });
     }
 
