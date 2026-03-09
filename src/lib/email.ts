@@ -17,7 +17,7 @@ export function emailWrapper(content: string): string {
     <div style="font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;max-width:560px;margin:0 auto;padding:40px 24px;background:#ffffff;">
       <div style="height:3px;background:#aa0000;margin-bottom:32px;border-radius:2px;"></div>
       <div style="margin-bottom:24px;">
-        <span style="font-family:Georgia,serif;font-size:22px;font-weight:900;color:#111827;">Insta</span><span style="font-family:Georgia,serif;font-size:22px;font-weight:900;color:#aa0000;">Coach</span>
+        <span style="font-family:Georgia,serif;font-size:22px;font-weight:900;color:#111827;">Inmo</span><span style="font-family:Georgia,serif;font-size:22px;font-weight:900;color:#aa0000;">Coach</span>
       </div>
       ${content}
       ${EMAIL_FOOTER}
