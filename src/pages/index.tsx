@@ -534,14 +534,16 @@ export default function HomePage() {
   const [data, setData] = useState<CalendarData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [days, setDays] = useState<number>(() => {
-    if (typeof window === "undefined") return 7;
-    return parseInt(localStorage.getItem("inmocoach_days") || "7", 10);
-  });
+  const [days, setDays] = useState<number>(7);
+
+  useEffect(() => {
+    const saved = localStorage.getItem("inmocoach_days");
+    if (saved) setDays(parseInt(saved, 10));
+  }, []);
 
   const handleSetDays = (d: number) => {
     setDays(d);
-    if (typeof window !== "undefined") localStorage.setItem("inmocoach_days", String(d));
+    localStorage.setItem("inmocoach_days", String(d));
   };
   const [subPlan, setSubPlan] = useState("free");
   const [isOwner, setIsOwner] = useState(false);
