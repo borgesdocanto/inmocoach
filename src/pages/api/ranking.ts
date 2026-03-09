@@ -40,10 +40,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const weekEnd = new Date(); weekEnd.setDate(weekEnd.getDate() + (7 - weekEnd.getDay()));
         const { data: evData } = await supabaseAdmin
           .from("calendar_events")
-          .select("user_email, is_green")
-          .eq("is_green", true)
-          .gte("start_time", weekStart)
-          .lte("start_time", weekEnd.toISOString().slice(0, 10));
+          .select("user_email")
+          .eq("is_productive", true)
+          .gte("start_at", weekStart)
+          .lte("start_at", weekEnd.toISOString().slice(0, 10));
 
         if (evData) {
           const byEmail: Record<string, number> = {};
@@ -138,9 +138,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           // Fallback: calendar_events esta semana
           const { data: evTeam } = await supabaseAdmin
             .from("calendar_events")
-            .select("user_email, is_green")
-            .eq("is_green", true)
-            .gte("start_time", weekStart)
+            .select("user_email")
+            .eq("is_productive", true)
+            .gte("start_at", weekStart)
             .in("user_email", memberEmails);
           if (evTeam) {
             const byEmail: Record<string, number> = {};
