@@ -1,11 +1,11 @@
-import { GetServerSideProps } from "next";
+import React from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/router";
 import { useState } from "react";
 import Head from "next/head";
 import { CheckCircle, Users, ArrowLeft } from "lucide-react";
 import { PLANS, Plan } from "../lib/plans";
-import { getPricing, PricingRow, formatPriceARS } from "../lib/pricing";
+import { formatPriceARS } from "../lib/pricing";
 
 const RED = "#aa0000";
 
@@ -69,11 +69,8 @@ function PlanCard({ plan, livePrice, current, onSelect, loading }: {
   );
 }
 
-interface Props {
-  livePricing: Record<string, number>; // planId → price_ars
-}
-
-export default function PricingPage({ livePricing }: Props) {
+export default function PricingPage() {
+  const [livePricing, setLivePricing] = React.useState<Record<string, number>>({ individual: 10500, teams: 75000 });
   const { data: session } = useSession();
   const router = useRouter();
   const [loading, setLoading] = useState<string | null>(null);
@@ -161,17 +158,3 @@ export default function PricingPage({ livePricing }: Props) {
     </div>
   );
 }
-
-export const getServerSideProps: GetServerSideProps = async () => {
-  try {
-    const pricing = await getPricing();
-    const livePricing: Record<string, number> = {};
-    for (const [id, row] of Object.entries(pricing)) {
-      livePricing[id] = row.price_ars;
-    }
-    return { props: { livePricing } };
-  } catch {
-    // Fallback a precios de plans.ts si Supabase falla
-    return { props: { livePricing: { individual: 10500, teams: 75000 } } };
-  }
-};

@@ -5,6 +5,7 @@ import { google } from "googleapis";
 import { startOfDay, endOfDay, subDays, formatISO } from "date-fns";
 import { syncAndPersist, IAC_GOAL, PROCESOS_GOAL, calcIAC } from "../../lib/calendarSync";
 import { supabaseAdmin } from "../../lib/supabase";
+import { getAgentRankStats } from "../../lib/ranks";
 import { computeAndSaveStreak } from "../../lib/streak";
 
 const GREEN_COLOR_IDS = new Set(["2", "10"]);
@@ -188,6 +189,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       recentEvents: mappedEvents.slice(-50).reverse(),
       onboardingDone: sub?.onboarding_done ?? false,
       streak: await computeAndSaveStreak(session.user?.email!, dailySummaries),
+      rankStats: await getAgentRankStats(session.user?.email!).catch(() => null),
     });
   } catch (err: any) {
     console.error("Calendar API error:", err?.message);
