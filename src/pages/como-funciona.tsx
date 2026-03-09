@@ -203,7 +203,7 @@ export default function ComoFunciona() {
           <FadeIn>
             <div className="space-y-4">
               {[
-                { label: "Reuniones cara a cara por semana", value: "15", color: RED, desc: "El IAC 100% — el objetivo semanal de un Top Producer" },
+                { label: "Reuniones cara a cara por semana", value: "15", color: RED, desc: "3 por día, 5 días — el sábado libre. IAC 100% = Top Producer" },
                 { label: "Captaciones nuevas por semana", value: "3", color: RED, desc: "Tasaciones + propuestas de valor presentadas" },
                 { label: "Efectividad del mercado", value: "15%", color: "#d97706", desc: "6 procesos activos generan aproximadamente 1 operación" },
               ].map((m, i) => (

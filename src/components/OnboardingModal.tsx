@@ -57,7 +57,7 @@ const STEPS = [
         <div className="bg-gray-50 rounded-xl p-4 space-y-2">
           <div className="flex justify-between text-xs font-bold">
             <span>IAC 100%</span>
-            <span style={{ color: GREEN }}>15 reuniones / semana</span>
+            <span style={{ color: GREEN }}>15 / semana · 3 por día</span>
           </div>
           <div className="flex justify-between text-xs font-bold">
             <span>Procesos nuevos</span>
