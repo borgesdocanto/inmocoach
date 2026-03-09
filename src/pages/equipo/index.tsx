@@ -191,7 +191,13 @@ export default function BrokerDashboard() {
   const isOwner = requesterRole === "owner";
   const isFreemium = brokerPlan === "free";
 
-  // Sorted agents
+  if (status === "loading" || loading) {
+    return <div className="min-h-screen bg-white flex items-center justify-center"><Loader2 size={24} className="animate-spin" style={{ color: RED }} /></div>;
+  }
+
+  const iacColor = (iac: number) => iac >= 70 ? "#16a34a" : iac >= 40 ? "#d97706" : "#aa0000";
+  const needsAttention = agents.filter(a => a.status === "red");
+  const onStreak = agents.filter(a => a.streak >= 3);
   const sortedAgents = [...agents].sort((a, b) => {
     if (sortBy === "iac") return b.iac - a.iac;
     if (sortBy === "trend") return b.trendPct - a.trendPct;
@@ -199,127 +205,79 @@ export default function BrokerDashboard() {
     return 0;
   });
 
-  const needsAttention = agents.filter(a => a.status === "red");
-  const onStreak = agents.filter(a => a.streak >= 3);
-
-  if (status === "loading" || loading) {
-    return <div className="min-h-screen bg-white flex items-center justify-center"><Loader2 size={24} className="animate-spin" style={{ color: RED }} /></div>;
-  }
-
-  const iacColor = (iac: number) => iac >= 70 ? "#16a34a" : iac >= 40 ? "#d97706" : "#aa0000";
+  const teamIac = overview && overview.totalAgents > 0
+    ? Math.round(overview.weekTotalMeetings / (overview.totalAgents * IAC_GOAL) * 100) : 0;
+  const teamIacColor = teamIac >= 70 ? "#16a34a" : teamIac >= 40 ? "#d97706" : RED;
 
   return (
     <div className="min-h-screen bg-gray-50" style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" }}>
       <Head><title>Mi Equipo — InmoCoach</title></Head>
-      <div className="h-0.5 w-full" style={{ background: RED }} />
+      <div className="h-1 w-full" style={{ background: RED }} />
 
+      {/* Header */}
       <header className="bg-white border-b border-gray-100 sticky top-0 z-40">
         <div className="max-w-5xl mx-auto px-5 py-3 flex items-center gap-4">
-          <button onClick={() => router.push("/")} className="flex items-center gap-1.5 text-xs font-semibold text-gray-400 hover:text-gray-700 transition-colors mr-auto">
+          <button onClick={() => router.push("/")} className="flex items-center gap-1.5 text-xs font-semibold text-gray-400 hover:text-gray-700 transition-colors">
             <ArrowLeft size={13} /> Volver
           </button>
-          <div className="font-black text-lg tracking-tight" style={{ fontFamily: "Georgia, serif" }}>
+          <div className="font-black text-lg tracking-tight ml-auto" style={{ fontFamily: "Georgia, serif" }}>
             {agencyName || "Mi Equipo"} · <span style={{ color: RED }}>InmoCoach</span>
           </div>
+          <button onClick={() => { loadTeam(); loadAnalytics(); }} className="text-gray-300 hover:text-gray-600 transition-colors ml-2">
+            {analyticsLoading ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+          </button>
         </div>
       </header>
 
-      <main className="max-w-5xl mx-auto px-5 py-8 space-y-5">
+      <main className="max-w-5xl mx-auto px-5 py-6 space-y-5">
 
         {/* Freemium banner */}
         {isFreemium && (
           <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-start gap-3">
             <AlertTriangle size={15} className="text-amber-500 shrink-0 mt-0.5" />
             <div>
-              <p className="text-sm font-semibold text-amber-800">Estás en el período de prueba</p>
+              <p className="text-sm font-bold text-amber-800">Estás en el período de prueba</p>
               <p className="text-xs text-amber-600 mt-0.5">Podés invitar agentes y probar el equipo. Al activar Teams, su acceso queda cubierto por vos.</p>
-              <button onClick={() => router.push("/pricing")} className="mt-2 text-xs font-bold underline text-amber-700 hover:text-amber-900">Activar plan Teams →</button>
+              <button onClick={() => router.push("/pricing")} className="mt-2 text-xs font-bold underline text-amber-700">Activar plan Teams →</button>
             </div>
           </div>
         )}
 
-        {/* KPIs del equipo */}
-        {overview && overview.totalAgents > 0 && (() => {
-          const teamIac = overview.totalAgents > 0 ? Math.round(overview.weekTotalMeetings / (overview.totalAgents * IAC_GOAL) * 100) : 0;
-          const teamIacColor = teamIac >= 70 ? "#16a34a" : teamIac >= 40 ? "#d97706" : RED;
-          return (
-            <div className="space-y-3">
-              {/* IAC colectivo del equipo */}
-              <div className="bg-white border border-gray-100 rounded-2xl p-5">
-                <div className="flex items-center justify-between mb-3">
-                  <div>
-                    <div className="text-xs text-gray-400 uppercase tracking-wide font-bold mb-1">IAC del equipo esta semana</div>
-                    <div className="flex items-end gap-3">
-                      <span className="font-black text-5xl" style={{ fontFamily: "Georgia, serif", color: teamIacColor }}>{teamIac}%</span>
-                      <span className="text-sm text-gray-400 mb-1">{overview.weekTotalMeetings} / {overview.totalAgents * IAC_GOAL} reuniones · {overview.totalAgents} agentes</span>
-                    </div>
-                  </div>
-                  <div className="text-right hidden sm:block">
-                    <div className="text-xs text-gray-400 mb-2">Distribución</div>
-                    <div className="flex gap-2">
-                      {[
-                        { v: overview.greenAgents, label: "🟢", title: "Productivos" },
-                        { v: overview.yellowAgents, label: "🟡", title: "En construcción" },
-                        { v: overview.redAgents, label: "🔴", title: "En riesgo" },
-                      ].map((d, i) => (
-                        <div key={i} title={d.title} className="text-center bg-gray-50 rounded-xl px-3 py-2">
-                          <div className="text-base">{d.label}</div>
-                          <div className="text-sm font-black text-gray-900">{d.v}</div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-                <div className="w-full bg-gray-100 rounded-full h-3 overflow-hidden">
-                  <div className="h-full rounded-full transition-all duration-700"
-                    style={{ width: `${Math.min(teamIac, 100)}%`, background: teamIacColor }} />
-                </div>
-              </div>
-
-              {/* KPIs individuales */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                {[
-                  { label: "Reuniones equipo", value: overview.weekTotalMeetings, sub: `meta ${overview.totalAgents * IAC_GOAL}`, color: "#111827" },
-                  { label: "Productivos", value: overview.greenAgents, sub: "IAC ≥ 70%", color: "#16a34a" },
-                  { label: "En construcción", value: overview.yellowAgents, sub: "IAC 40–70%", color: "#d97706" },
-                  { label: "En riesgo", value: overview.redAgents, sub: "IAC < 40%", color: RED },
-                ].map((s, i) => (
-                  <div key={i} className="bg-white border border-gray-100 rounded-2xl p-4">
-                    <div className="text-xs text-gray-400 mb-1">{s.label}</div>
-                    <div className="text-3xl font-black" style={{ fontFamily: "Georgia, serif", color: s.color }}>{s.value}</div>
-                    <div className="text-xs text-gray-400 mt-1">{s.sub}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          );
-        })()}
-
-        {/* Alertas: necesitan atención + en racha */}
-        {agents.length > 0 && (
+        {/* ── ALERTAS ARRIBA DE TODO ── */}
+        {agents.length > 0 && (needsAttention.length > 0 || onStreak.length > 0) && (
           <div className="grid sm:grid-cols-2 gap-4">
+
             {/* Necesitan atención */}
-            <div className="bg-white border border-gray-100 rounded-2xl p-5">
-              <div className="flex items-center gap-2 mb-3">
+            <div className="rounded-2xl overflow-hidden border border-red-100" style={{ background: "#fff8f8" }}>
+              <div className="flex items-center gap-2 px-5 py-3 border-b border-red-100">
                 <AlertTriangle size={14} style={{ color: RED }} />
-                <span className="text-xs font-black text-gray-700 uppercase tracking-wide">Necesitan atención</span>
-                <span className="ml-auto text-xs font-black px-2 py-0.5 rounded-full" style={{ background: "#fff1f1", color: RED }}>{needsAttention.length}</span>
+                <span className="text-xs font-black uppercase tracking-wide" style={{ color: RED }}>Necesitan atención</span>
+                <span className="ml-auto text-xs font-black px-2 py-0.5 rounded-full text-white" style={{ background: RED }}>{needsAttention.length}</span>
               </div>
               {needsAttention.length === 0 ? (
-                <p className="text-xs text-gray-400">¡Todos por encima del 40% esta semana! 🎉</p>
+                <p className="text-xs text-gray-400 px-5 py-4">¡Todos por encima del 40%! 🎉</p>
               ) : (
-                <div className="space-y-2">
+                <div className="divide-y divide-red-50">
                   {needsAttention.map(a => (
                     <button key={a.email} onClick={() => router.push(`/equipo/agente?email=${encodeURIComponent(a.email)}`)}
-                      className="w-full flex items-center gap-3 p-2.5 rounded-xl bg-red-50 hover:bg-red-100 transition-colors text-left">
-                      <div className="w-7 h-7 rounded-full bg-red-100 flex items-center justify-center text-xs font-black shrink-0" style={{ color: RED }}>
-                        {(a.name || a.email)[0].toUpperCase()}
+                      className="w-full flex items-center gap-3 px-5 py-3.5 hover:bg-red-50 transition-colors text-left">
+                      <div className="relative shrink-0">
+                        {a.avatar
+                          ? <img src={a.avatar} alt="" className="w-9 h-9 rounded-full" />
+                          : <div className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-black text-white" style={{ background: RED }}>{(a.name || a.email)[0].toUpperCase()}</div>
+                        }
+                        <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white bg-red-500" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="text-xs font-bold text-gray-800 truncate">{a.name || a.email}</div>
-                        <div className="text-xs font-black" style={{ color: RED }}>IAC {a.iac}% · {a.weekTotal} reuniones</div>
+                        <div className="text-sm font-bold text-gray-900 truncate">{a.name || a.email}</div>
+                        <div className="text-xs font-black mt-0.5" style={{ color: RED }}>IAC {a.iac}% · {a.weekTotal}/{IAC_GOAL} reuniones</div>
                       </div>
-                      <ChevronRight size={12} className="text-red-300 shrink-0" />
+                      <div className="shrink-0 text-right">
+                        <div className="w-12 bg-red-100 rounded-full h-1.5 overflow-hidden">
+                          <div className="h-full rounded-full" style={{ width: `${a.iac}%`, background: RED }} />
+                        </div>
+                      </div>
+                      <ChevronRight size={13} className="text-red-300 shrink-0" />
                     </button>
                   ))}
                 </div>
@@ -327,27 +285,34 @@ export default function BrokerDashboard() {
             </div>
 
             {/* En racha */}
-            <div className="bg-white border border-gray-100 rounded-2xl p-5">
-              <div className="flex items-center gap-2 mb-3">
+            <div className="rounded-2xl overflow-hidden border border-orange-100" style={{ background: "#fffaf5" }}>
+              <div className="flex items-center gap-2 px-5 py-3 border-b border-orange-100">
                 <Flame size={14} className="text-orange-500" />
-                <span className="text-xs font-black text-gray-700 uppercase tracking-wide">En racha</span>
-                <span className="ml-auto text-xs font-black px-2 py-0.5 rounded-full bg-orange-50 text-orange-600">{onStreak.length}</span>
+                <span className="text-xs font-black uppercase tracking-wide text-orange-600">En racha</span>
+                <span className="ml-auto text-xs font-black px-2 py-0.5 rounded-full bg-orange-500 text-white">{onStreak.length}</span>
               </div>
               {onStreak.length === 0 ? (
-                <p className="text-xs text-gray-400">Nadie con racha activa ≥ 3 días aún.</p>
+                <p className="text-xs text-gray-400 px-5 py-4">Nadie con racha activa ≥ 3 días aún.</p>
               ) : (
-                <div className="space-y-2">
+                <div className="divide-y divide-orange-50">
                   {onStreak.sort((a, b) => b.streak - a.streak).map(a => (
                     <button key={a.email} onClick={() => router.push(`/equipo/agente?email=${encodeURIComponent(a.email)}`)}
-                      className="w-full flex items-center gap-3 p-2.5 rounded-xl bg-orange-50 hover:bg-orange-100 transition-colors text-left">
-                      <div className="w-7 h-7 rounded-full bg-orange-100 flex items-center justify-center text-xs font-black text-orange-600 shrink-0">
-                        {(a.name || a.email)[0].toUpperCase()}
+                      className="w-full flex items-center gap-3 px-5 py-3.5 hover:bg-orange-50 transition-colors text-left">
+                      <div className="relative shrink-0">
+                        {a.avatar
+                          ? <img src={a.avatar} alt="" className="w-9 h-9 rounded-full" />
+                          : <div className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-black text-white bg-orange-500">{(a.name || a.email)[0].toUpperCase()}</div>
+                        }
+                        <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white bg-orange-400" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="text-xs font-bold text-gray-800 truncate">{a.name || a.email}</div>
-                        <div className="text-xs font-black text-orange-600">{a.streak >= 5 ? "🔥" : "⚡"} {a.streak} días consecutivos</div>
+                        <div className="text-sm font-bold text-gray-900 truncate">{a.name || a.email}</div>
+                        <div className="text-xs font-black text-orange-600 mt-0.5">{a.streak >= 5 ? "🔥" : "⚡"} {a.streak} días consecutivos</div>
                       </div>
-                      <ChevronRight size={12} className="text-orange-300 shrink-0" />
+                      <div className="shrink-0">
+                        <span className="text-lg">{a.streak >= 10 ? "🏆" : a.streak >= 5 ? "🔥" : "⚡"}</span>
+                      </div>
+                      <ChevronRight size={13} className="text-orange-300 shrink-0" />
                     </button>
                   ))}
                 </div>
@@ -356,86 +321,135 @@ export default function BrokerDashboard() {
           </div>
         )}
 
-        {/* Ranking visual */}
+        {/* ── KPIs DEL EQUIPO ── */}
+        {overview && overview.totalAgents > 0 && (
+          <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
+            {/* IAC colectivo hero */}
+            <div className="px-6 pt-6 pb-4 flex items-start justify-between gap-4 flex-wrap">
+              <div>
+                <div className="text-xs text-gray-400 uppercase tracking-widest font-bold mb-2">IAC del equipo esta semana</div>
+                <div className="flex items-end gap-3">
+                  <span className="font-black" style={{ fontFamily: "Georgia, serif", fontSize: 56, lineHeight: 1, color: teamIacColor }}>{teamIac}%</span>
+                  <span className="text-sm text-gray-400 mb-2">{overview.weekTotalMeetings} / {overview.totalAgents * IAC_GOAL} reuniones</span>
+                </div>
+              </div>
+              <div className="flex gap-3">
+                {[
+                  { v: overview.greenAgents,  emoji: "🟢", label: "Productivos",      bg: "#f0fdf4", color: "#16a34a" },
+                  { v: overview.yellowAgents, emoji: "🟡", label: "En construcción",  bg: "#fffbeb", color: "#d97706" },
+                  { v: overview.redAgents,    emoji: "🔴", label: "En riesgo",        bg: "#fff1f1", color: RED },
+                ].map((d, i) => (
+                  <div key={i} className="text-center rounded-xl px-4 py-3" style={{ background: d.bg }}>
+                    <div className="text-xl mb-1">{d.emoji}</div>
+                    <div className="text-2xl font-black" style={{ fontFamily: "Georgia, serif", color: d.color }}>{d.v}</div>
+                    <div className="text-xs text-gray-400 mt-0.5 whitespace-nowrap">{d.label}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            {/* Barra IAC del equipo */}
+            <div className="px-6 pb-5">
+              <div className="w-full bg-gray-100 rounded-full h-3 overflow-hidden">
+                <div className="h-full rounded-full transition-all duration-700" style={{ width: `${Math.min(teamIac, 100)}%`, background: teamIacColor }} />
+              </div>
+              <div className="flex justify-between mt-1.5">
+                <span className="text-xs text-gray-400">0%</span>
+                <span className="text-xs text-gray-400 font-bold">Meta: 100%</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── RANKING ── */}
         <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
-          <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-3 flex-wrap">
+          <div className="px-5 py-3.5 border-b border-gray-100 flex items-center gap-3 flex-wrap">
             <Users size={13} className="text-gray-400" />
             <span className="text-xs font-black text-gray-500 uppercase tracking-widest">Ranking del equipo</span>
             <div className="ml-auto flex items-center gap-1.5">
               {(["iac", "trend", "streak"] as const).map(s => (
                 <button key={s} onClick={() => setSortBy(s)}
-                  className="text-xs font-bold px-2.5 py-1 rounded-lg transition-all"
+                  className="text-xs font-bold px-3 py-1.5 rounded-lg transition-all"
                   style={{ background: sortBy === s ? RED : "#f3f4f6", color: sortBy === s ? "white" : "#9ca3af" }}>
                   {s === "iac" ? "IAC" : s === "trend" ? "Tendencia" : "Racha"}
                 </button>
               ))}
-              <button onClick={loadAnalytics} className="ml-1 text-gray-400 hover:text-gray-600">
-                {analyticsLoading ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
-              </button>
             </div>
           </div>
 
           {analyticsLoading ? (
             <div className="flex items-center justify-center py-16"><Loader2 size={20} className="animate-spin text-gray-300" /></div>
           ) : agents.length === 0 ? (
-            <div className="px-5 py-10 text-center text-sm text-gray-400">Todavía no tenés agentes. Invitá al primero abajo.</div>
+            <div className="px-5 py-12 text-center text-sm text-gray-400">Todavía no tenés agentes. Invitá al primero abajo.</div>
           ) : (
             <div className="divide-y divide-gray-50">
               {sortedAgents.map((agent, idx) => {
                 const color = iacColor(agent.iac);
+                const statusDot = agent.status === "green" ? "#16a34a" : agent.status === "yellow" ? "#d97706" : RED;
                 return (
-                  <div key={agent.email} className="px-5 py-4 hover:bg-gray-50 transition-colors">
-                    <div className="flex items-center gap-3 mb-3">
+                  <div key={agent.email} className="px-5 py-5 hover:bg-gray-50 transition-colors">
+
+                    {/* Fila principal */}
+                    <div className="flex items-center gap-4">
+
                       {/* Posición */}
-                      <div className="w-6 text-xs font-black text-gray-300 shrink-0 text-center">#{idx + 1}</div>
+                      <div className="w-7 text-center shrink-0">
+                        {idx === 0
+                          ? <span className="text-lg">🥇</span>
+                          : idx === 1
+                          ? <span className="text-lg">🥈</span>
+                          : idx === 2
+                          ? <span className="text-lg">🥉</span>
+                          : <span className="text-sm font-black text-gray-300">#{idx + 1}</span>
+                        }
+                      </div>
 
-                      {/* Avatar */}
-                      {agent.avatar ? (
-                        <img src={agent.avatar} alt="" className="w-9 h-9 rounded-full shrink-0" />
-                      ) : (
-                        <div className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-black shrink-0"
-                          style={{ background: `${color}15`, color }}>
-                          {(agent.name || agent.email)[0].toUpperCase()}
-                        </div>
-                      )}
+                      {/* Avatar con dot de semáforo */}
+                      <div className="relative shrink-0">
+                        {agent.avatar
+                          ? <img src={agent.avatar} alt="" className="w-11 h-11 rounded-full" />
+                          : <div className="w-11 h-11 rounded-full flex items-center justify-center text-base font-black text-white" style={{ background: color }}>{(agent.name || agent.email)[0].toUpperCase()}</div>
+                        }
+                        <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-white" style={{ background: statusDot }} />
+                      </div>
 
-                      {/* Nombre + rol */}
+                      {/* Nombre */}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-sm font-bold text-gray-900 truncate">{agent.name || agent.email}</span>
+                          <span className="text-sm font-black text-gray-900">{agent.name || agent.email}</span>
                           <span className="text-xs font-bold px-1.5 py-0.5 rounded-md"
-                            style={{ background: `${ROLE_COLOR[agent.teamRole]}15`, color: ROLE_COLOR[agent.teamRole] }}>
+                            style={{ background: `${ROLE_COLOR[agent.teamRole]}18`, color: ROLE_COLOR[agent.teamRole] }}>
                             {ROLE_LABEL[agent.teamRole]}
                           </span>
                           {agent.streak >= 3 && (
-                            <span className="text-xs font-black text-orange-500">{agent.streak >= 5 ? "🔥" : "⚡"} {agent.streak}d</span>
+                            <span className="text-xs font-black" style={{ color: "#ea580c" }}>{agent.streak >= 5 ? "🔥" : "⚡"} {agent.streak}d</span>
                           )}
                         </div>
-                        {agent.name && <div className="text-xs text-gray-400 truncate">{agent.email}</div>}
+                        {agent.name && <div className="text-xs text-gray-400 truncate mt-0.5">{agent.email}</div>}
                       </div>
 
-                      {/* Stats compactos */}
-                      <div className="hidden sm:flex items-center gap-4 shrink-0 text-right">
-                        <div>
-                          <div className="text-base font-black text-gray-900" style={{ fontFamily: "Georgia, serif" }}>{agent.weekTotal}<span className="text-xs font-normal text-gray-400">/{IAC_GOAL}</span></div>
-                          <div className="text-xs text-gray-400">esta semana</div>
-                        </div>
-                        <div>
-                          <TrendBadge trend={agent.trend} pct={Math.abs(agent.trendPct)} />
-                          <div className="text-xs text-gray-400 mt-0.5">vs semana ant.</div>
-                        </div>
+                      {/* IAC grande */}
+                      <div className="hidden sm:block text-right shrink-0">
+                        <div className="text-3xl font-black" style={{ fontFamily: "Georgia, serif", color, lineHeight: 1 }}>{agent.iac}%</div>
+                        <div className="text-xs text-gray-400 mt-1">{agent.weekTotal}/{IAC_GOAL} reuniones</div>
+                      </div>
+
+                      {/* Trend */}
+                      <div className="hidden sm:block text-right shrink-0 w-20">
+                        <TrendBadge trend={agent.trend} pct={Math.abs(agent.trendPct)} />
+                        <div className="text-xs text-gray-400 mt-1">vs sem. ant.</div>
                       </div>
 
                       {/* Acciones owner */}
                       {isOwner && agent.teamRole !== "owner" && (
                         <div className="flex items-center gap-1 shrink-0">
-                          {roleLoading === agent.email ? <Loader2 size={12} className="animate-spin text-gray-300" /> : (
-                            <select value={agent.teamRole} onChange={e => changeRole(agent.email, e.target.value as "team_leader" | "member")}
-                              className="text-xs font-semibold text-gray-500 bg-gray-100 border-0 rounded-lg px-2 py-1 cursor-pointer focus:outline-none appearance-none">
-                              <option value="member">Agente</option>
-                              <option value="team_leader">Team Leader</option>
-                            </select>
-                          )}
+                          {roleLoading === agent.email
+                            ? <Loader2 size={12} className="animate-spin text-gray-300" />
+                            : <select value={agent.teamRole} onChange={e => changeRole(agent.email, e.target.value as "team_leader" | "member")}
+                                className="text-xs font-semibold text-gray-500 bg-gray-100 border-0 rounded-lg px-2 py-1 cursor-pointer focus:outline-none appearance-none">
+                                <option value="member">Agente</option>
+                                <option value="team_leader">Team Leader</option>
+                              </select>
+                          }
                           <button onClick={() => removeAgent(agent.email)} disabled={removeLoading === agent.email}
                             className={`text-xs font-bold px-2 py-1 rounded-lg transition-all ${removeConfirm === agent.email ? "bg-red-100 text-red-600" : "text-gray-300 hover:text-red-400"}`}>
                             {removeLoading === agent.email ? <Loader2 size={11} className="animate-spin" /> : removeConfirm === agent.email ? "¿Ok?" : "✕"}
@@ -445,25 +459,29 @@ export default function BrokerDashboard() {
 
                       {/* Ver detalle */}
                       <button onClick={() => router.push(`/equipo/agente?email=${encodeURIComponent(agent.email)}`)}
-                        className="shrink-0 text-gray-300 hover:text-gray-600 transition-colors">
-                        <ChevronRight size={15} />
+                        className="shrink-0 text-gray-300 hover:text-gray-700 transition-colors">
+                        <ChevronRight size={16} />
                       </button>
                     </div>
 
-                    {/* IAC bar + sparkline */}
-                    <div className="ml-9 pl-3 grid grid-cols-2 sm:grid-cols-3 gap-4 items-center">
-                      <div className="col-span-2 sm:col-span-2">
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-xs text-gray-400">IAC esta semana</span>
-                          <span className="text-xs font-black" style={{ color }}>{agent.iac}% · {agent.weekTotal}/{IAC_GOAL} reuniones</span>
+                    {/* IAC bar + Sparkline */}
+                    <div className="mt-3 ml-11 pl-5 grid grid-cols-3 gap-5 items-center">
+                      <div className="col-span-2">
+                        <div className="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
+                          <div className="h-full rounded-full transition-all duration-500" style={{ width: `${Math.min(agent.iac, 100)}%`, background: color }} />
                         </div>
-                        <IACBar iac={agent.iac} color={color} />
+                        {/* Mobile stats */}
+                        <div className="flex items-center justify-between mt-1.5 sm:hidden">
+                          <span className="text-xs font-black" style={{ color }}>{agent.iac}% · {agent.weekTotal}/{IAC_GOAL}</span>
+                          <TrendBadge trend={agent.trend} pct={Math.abs(agent.trendPct)} />
+                        </div>
                       </div>
-                      <div className="hidden sm:block">
-                        <div className="text-xs text-gray-400 mb-1">Actividad diaria</div>
+                      <div>
+                        <div className="text-xs text-gray-300 mb-1">Últimos 7 días</div>
                         <Sparkline data={agent.sparkline} color={color} />
                       </div>
                     </div>
+
                   </div>
                 );
               })}
@@ -471,7 +489,7 @@ export default function BrokerDashboard() {
           )}
         </div>
 
-        {/* Invitar */}
+        {/* ── INVITAR ── */}
         {isOwner && (
           <div className="bg-white border border-gray-100 rounded-2xl p-5">
             <div className="flex items-center gap-2 mb-4">
@@ -481,11 +499,11 @@ export default function BrokerDashboard() {
             <div className="flex gap-2">
               <input type="email" value={newEmail} onChange={e => setNewEmail(e.target.value)}
                 onKeyDown={e => e.key === "Enter" && invite()} placeholder="email@dominio.com"
-                className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-gray-400 transition-colors" />
+                className="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-gray-400 transition-colors" />
               <button onClick={invite} disabled={inviting || !newEmail}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white disabled:opacity-50 transition-all hover:opacity-90"
+                className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl text-xs font-bold text-white disabled:opacity-50 hover:opacity-90 transition-all"
                 style={{ background: RED }}>
-                {inviting ? <Loader2 size={11} className="animate-spin" /> : <Mail size={11} />}
+                {inviting ? <Loader2 size={12} className="animate-spin" /> : <Mail size={12} />}
                 {inviting ? "Enviando..." : "Invitar"}
               </button>
             </div>
@@ -493,12 +511,13 @@ export default function BrokerDashboard() {
           </div>
         )}
 
-        {/* Invitaciones pendientes */}
+        {/* ── INVITACIONES PENDIENTES ── */}
         {pending.length > 0 && (
           <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
-            <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-2">
+            <div className="px-5 py-3.5 border-b border-gray-100 flex items-center gap-2">
               <Clock size={13} className="text-gray-400" />
               <span className="text-xs font-black text-gray-500 uppercase tracking-widest">Invitaciones pendientes</span>
+              <span className="ml-auto text-xs font-black px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">{pending.length}</span>
             </div>
             <div className="divide-y divide-gray-50">
               {pending.map(p => <PendingRow key={p.token} inv={p} onAction={loadTeam} />)}
@@ -506,20 +525,20 @@ export default function BrokerDashboard() {
           </div>
         )}
 
-        {/* Config del equipo — solo owner */}
+        {/* ── CONFIG INMOBILIARIA ── */}
         {isOwner && (
           <div className="bg-white border border-gray-100 rounded-2xl p-5">
             <div className="flex items-center gap-2 mb-3">
               <Shield size={14} className="text-gray-400" />
               <span className="font-black text-sm text-gray-900">Nombre de la inmobiliaria</span>
-              <span className="text-xs text-gray-400">(aparece en mails)</span>
+              <span className="text-xs text-gray-400 ml-1">(aparece en mails)</span>
             </div>
             <div className="flex gap-2">
               <input value={agencyInput} onChange={e => setAgencyInput(e.target.value)} onKeyDown={e => e.key === "Enter" && saveAgency()}
                 placeholder="Ej: GALAS Propiedades"
-                className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-gray-400 transition-colors" />
+                className="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-gray-400 transition-colors" />
               <button onClick={saveAgency} disabled={agencySaving || agencyInput === agencyName}
-                className="px-4 py-2 rounded-xl text-xs font-bold text-white disabled:opacity-40 transition-all hover:opacity-90" style={{ background: RED }}>
+                className="px-4 py-2.5 rounded-xl text-xs font-bold text-white disabled:opacity-40 hover:opacity-90 transition-all" style={{ background: RED }}>
                 {agencySaving ? "..." : "Guardar"}
               </button>
             </div>
