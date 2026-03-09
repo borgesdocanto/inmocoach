@@ -7,10 +7,10 @@ const PURPLE = "#7c3aed";
 
 const STEPS = [
   {
-    icon: <Zap size={32} style={{ color: RED }} />,
+    icon: <Zap size={36} style={{ color: RED }} />,
     title: "Bienvenido a InmoCoach",
     content: (
-      <div className="space-y-3 text-sm text-gray-600 leading-relaxed">
+      <div className="space-y-3 text-base text-gray-600 leading-relaxed">
         <p>
           InmoCoach es tu coach de productividad inmobiliaria. Conecta con tu Google Calendar
           y mide automáticamente tu actividad comercial real.
@@ -39,10 +39,10 @@ const STEPS = [
     ),
   },
   {
-    icon: <Calendar size={32} style={{ color: GREEN }} />,
+    icon: <Calendar size={36} style={{ color: GREEN }} />,
     title: "Qué es un evento verde",
     content: (
-      <div className="space-y-3 text-sm text-gray-600 leading-relaxed">
+      <div className="space-y-3 text-base text-gray-600 leading-relaxed">
         <p>
           Un <strong style={{ color: GREEN }}>evento verde</strong> es toda reunión cara a cara
           que genera dinero: tasaciones, visitas, propuestas, firmas, reuniones con clientes.
@@ -50,7 +50,7 @@ const STEPS = [
         <p>El sistema los detecta automáticamente si el título contiene palabras como:</p>
         <div className="flex flex-wrap gap-1.5 mt-1">
           {["Tasación", "Visita", "Reunión", "Propuesta", "Firma", "Captación", "Primera visita", "Cliente"].map(k => (
-            <span key={k} className="text-xs font-bold px-2.5 py-1 rounded-lg"
+            <span key={k} className="text-sm font-bold px-3 py-1.5 rounded-lg"
               style={{ background: "#f0fdf4", color: GREEN }}>
               {k}
             </span>
@@ -58,7 +58,7 @@ const STEPS = [
         </div>
         <div className="bg-gray-50 rounded-xl p-3 flex items-start gap-3 mt-1">
           <span className="text-base">💡</span>
-          <p className="text-xs text-gray-500">
+          <p className="text-sm text-gray-500">
             También podés pintar el evento de <strong style={{ color: GREEN }}>verde</strong> en Google Calendar
             para que el sistema lo cuente aunque no tenga esas palabras.
           </p>
@@ -67,33 +67,33 @@ const STEPS = [
     ),
   },
   {
-    icon: <Target size={32} style={{ color: RED }} />,
+    icon: <Target size={36} style={{ color: RED }} />,
     title: "El objetivo: IAC 100%",
     content: (
-      <div className="space-y-3 text-sm text-gray-600 leading-relaxed">
+      <div className="space-y-3 text-base text-gray-600 leading-relaxed">
         <p>
           El <strong>Índice de Actividad Comercial</strong> mide tu nivel de actividad
           comparado con lo esperable para un Top Producer.
         </p>
         <div className="rounded-xl overflow-hidden border border-gray-100 mt-2">
-          <div className="flex justify-between items-center px-4 py-3 bg-gray-50 border-b border-gray-100">
-            <span className="text-xs font-bold text-gray-700">IAC 100%</span>
-            <span className="text-xs font-black" style={{ color: GREEN }}>15 reuniones / semana</span>
+          <div className="flex justify-between items-center px-5 py-3.5 bg-gray-50 border-b border-gray-100">
+            <span className="text-sm font-bold text-gray-700">IAC 100%</span>
+            <span className="text-sm font-black" style={{ color: GREEN }}>15 reuniones / semana</span>
           </div>
-          <div className="flex justify-between items-center px-4 py-3 bg-gray-50 border-b border-gray-100">
-            <span className="text-xs font-bold text-gray-700">Meta diaria</span>
-            <span className="text-xs font-black" style={{ color: RED }}>3 por día · lunes a viernes</span>
+          <div className="flex justify-between items-center px-5 py-3.5 bg-gray-50 border-b border-gray-100">
+            <span className="text-sm font-bold text-gray-700">Meta diaria</span>
+            <span className="text-sm font-black" style={{ color: RED }}>3 por día · lunes a viernes</span>
           </div>
-          <div className="flex justify-between items-center px-4 py-3 bg-gray-50 border-b border-gray-100">
-            <span className="text-xs font-bold text-gray-700">Procesos nuevos</span>
-            <span className="text-xs font-black text-gray-500">3 captaciones / semana</span>
+          <div className="flex justify-between items-center px-5 py-3.5 bg-gray-50 border-b border-gray-100">
+            <span className="text-sm font-bold text-gray-700">Procesos nuevos</span>
+            <span className="text-sm font-black text-gray-500">3 captaciones / semana</span>
           </div>
           <div className="flex justify-between items-center px-4 py-3 bg-gray-50">
-            <span className="text-xs font-bold text-gray-700">Efectividad de mercado</span>
-            <span className="text-xs font-black text-gray-500">6 procesos = 1 operación</span>
+            <span className="text-sm font-bold text-gray-700">Efectividad de mercado</span>
+            <span className="text-sm font-black text-gray-500">6 procesos = 1 operación</span>
           </div>
         </div>
-        <p className="text-xs text-gray-400">
+        <p className="text-sm text-gray-400">
           Tu dashboard ya tiene datos de tu calendario. Revisá tu IAC actual y
           establecé el hábito de las 15 reuniones semanales.
         </p>
@@ -101,34 +101,34 @@ const STEPS = [
     ),
   },
   {
-    icon: <Users size={32} style={{ color: PURPLE }} />,
+    icon: <Users size={36} style={{ color: PURPLE }} />,
     title: "¿Sos broker? Gestioná tu equipo",
     content: (
-      <div className="space-y-3 text-sm text-gray-600 leading-relaxed">
+      <div className="space-y-3 text-base text-gray-600 leading-relaxed">
         <p>
           Con el <strong style={{ color: PURPLE }}>Plan Teams</strong> tenés un dashboard completo
           para gestionar la productividad de todos tus agentes en tiempo real.
         </p>
         <div className="space-y-2 mt-1">
-          <div className="flex items-start gap-3 bg-purple-50 rounded-xl px-4 py-3">
-            <BarChart2 size={16} style={{ color: PURPLE }} className="mt-0.5 shrink-0" />
+          <div className="flex items-start gap-3 bg-purple-50 rounded-xl px-5 py-4">
+            <BarChart2 size={18} style={{ color: PURPLE }} className="mt-0.5 shrink-0" />
             <div>
-              <p className="text-xs font-bold text-gray-800">Métricas individuales</p>
-              <p className="text-xs text-gray-500">Ves el IAC, reuniones y actividad de cada agente por separado.</p>
+              <p className="text-sm font-bold text-gray-800">Métricas individuales</p>
+              <p className="text-sm text-gray-500">Ves el IAC, reuniones y actividad de cada agente por separado.</p>
             </div>
           </div>
-          <div className="flex items-start gap-3 bg-purple-50 rounded-xl px-4 py-3">
-            <TrendingUp size={16} style={{ color: PURPLE }} className="mt-0.5 shrink-0" />
+          <div className="flex items-start gap-3 bg-purple-50 rounded-xl px-5 py-4">
+            <TrendingUp size={18} style={{ color: PURPLE }} className="mt-0.5 shrink-0" />
             <div>
-              <p className="text-xs font-bold text-gray-800">Ranking del equipo</p>
-              <p className="text-xs text-gray-500">Sabés quiénes están en racha y quiénes necesitan apoyo esta semana.</p>
+              <p className="text-sm font-bold text-gray-800">Ranking del equipo</p>
+              <p className="text-sm text-gray-500">Sabés quiénes están en racha y quiénes necesitan apoyo esta semana.</p>
             </div>
           </div>
-          <div className="flex items-start gap-3 bg-purple-50 rounded-xl px-4 py-3">
-            <Search size={16} style={{ color: PURPLE }} className="mt-0.5 shrink-0" />
+          <div className="flex items-start gap-3 bg-purple-50 rounded-xl px-5 py-4">
+            <Search size={18} style={{ color: PURPLE }} className="mt-0.5 shrink-0" />
             <div>
-              <p className="text-xs font-bold text-gray-800">Decisiones basadas en datos</p>
-              <p className="text-xs text-gray-500">Enfocá tu coaching donde más impacto tiene, no por intuición.</p>
+              <p className="text-sm font-bold text-gray-800">Decisiones basadas en datos</p>
+              <p className="text-sm text-gray-500">Enfocá tu coaching donde más impacto tiene, no por intuición.</p>
             </div>
           </div>
         </div>
@@ -151,7 +151,7 @@ export default function OnboardingModal({ onClose }: Props) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
       style={{ background: "rgba(0,0,0,0.5)", backdropFilter: "blur(3px)" }}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden"
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden"
         style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" }}>
 
         {/* Progress bar top */}
@@ -164,10 +164,10 @@ export default function OnboardingModal({ onClose }: Props) {
         </div>
 
         {/* Header */}
-        <div className="flex items-start justify-between px-7 pt-6 pb-2">
+        <div className="flex items-start justify-between px-10 pt-8 pb-3">
           <div className="flex items-center gap-3">
             {current.icon}
-            <h2 className="font-black text-xl text-gray-900" style={{ fontFamily: "Georgia, serif" }}>
+            <h2 className="font-black text-2xl text-gray-900" style={{ fontFamily: "Georgia, serif" }}>
               {current.title}
             </h2>
           </div>
@@ -178,12 +178,12 @@ export default function OnboardingModal({ onClose }: Props) {
         </div>
 
         {/* Content */}
-        <div className="px-7 py-4 min-h-[220px]">
+        <div className="px-10 py-5 min-h-[280px]">
           {current.content}
         </div>
 
         {/* Footer */}
-        <div className="px-7 pb-6 pt-3 border-t border-gray-50">
+        <div className="px-10 pb-8 pt-4 border-t border-gray-50">
 
           {/* Dots */}
           <div className="flex justify-center gap-1.5 mb-4">
@@ -205,20 +205,20 @@ export default function OnboardingModal({ onClose }: Props) {
               style={{ borderColor: dontShow ? RED : "#d1d5db", background: dontShow ? RED : "white" }}>
               {dontShow && <CheckCircle size={10} color="white" />}
             </div>
-            <span className="text-xs text-gray-400">No volver a mostrar</span>
+            <span className="text-sm text-gray-400">No volver a mostrar</span>
           </label>
 
           {/* Buttons */}
           <div className="flex items-center justify-between">
             {step > 0 ? (
               <button onClick={() => setStep(s => s - 1)}
-                className="px-4 py-2 rounded-xl text-xs font-bold text-gray-400 hover:text-gray-600 transition-colors">
+                className="px-4 py-3 rounded-xl text-sm font-bold text-gray-400 hover:text-gray-600 transition-colors">
                 ← Anterior
               </button>
             ) : <div />}
             <button
               onClick={() => isLast ? onClose(dontShow) : setStep(s => s + 1)}
-              className="px-6 py-2.5 rounded-xl text-sm font-black text-white transition-all hover:opacity-90 shadow-sm"
+              className="px-6 py-2.5 rounded-xl text-base font-black text-white transition-all hover:opacity-90 shadow-sm"
               style={{ background: RED }}>
               {isLast ? "¡Empezar ahora!" : "Siguiente →"}
             </button>
