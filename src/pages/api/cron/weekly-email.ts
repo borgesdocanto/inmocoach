@@ -55,7 +55,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   console.log("🔄 Iniciando sync y envío de mails semanales...");
 
-  const subscriptions = await getAllActiveSubscriptions();
+  const { targetEmail } = req.body || {};
+  let subscriptions = await getAllActiveSubscriptions();
+  if (targetEmail) {
+    subscriptions = subscriptions.filter(s => s.email === targetEmail);
+    console.log(`📧 Enviando solo a ${targetEmail}`);
+  }
   console.log(`📋 ${subscriptions.length} usuarios activos encontrados`);
 
   const results = { sent: 0, failed: 0, skipped: 0 };
@@ -114,14 +119,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         daysLeft,
       });
 
-      await resend.emails.send({
+      const { data: sendData, error: sendError } = await resend.emails.send({
         from: "Inmo Coach <coach@inmocoach.com.ar>",
         to: sub.email,
         subject: `Tu semana en números: ${stats.productivityRate}% productividad — ${stats.weekDates}`,
         html,
       });
 
-      console.log(`✅ Mail enviado a ${sub.email}`);
+      if (sendError) {
+        console.error(`❌ Resend error para ${sub.email}:`, JSON.stringify(sendError));
+        results.failed++;
+        continue;
+      }
+      console.log(`✅ Mail enviado a ${sub.email} — id: ${sendData?.id}`);
       results.sent++;
 
       // Rate limiting: pequeña pausa entre mails
