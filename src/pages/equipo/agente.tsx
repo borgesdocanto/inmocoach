@@ -43,11 +43,14 @@ export default function AgentDetail() {
   const [weeklyLoading, setWeeklyLoading] = useState(true);
   const [calEvents, setCalEvents] = useState<any[]>([]);
   const [calLoading, setCalLoading] = useState(true);
+  const [calYear, setCalYear] = useState(new Date().getFullYear());
+  const [calMonth, setCalMonth] = useState(new Date().getMonth());
+  const [selectedDay, setSelectedDay] = useState<string | null>(null);
 
   useEffect(() => { if (status === "unauthenticated") router.replace("/login"); }, [status, router]);
   useEffect(() => { if (status === "authenticated" && email) load(); }, [status, email, period, selectedQ]);
   useEffect(() => { if (status === "authenticated" && email) loadWeekly(); }, [status, email]);
-  useEffect(() => { if (status === "authenticated" && email) loadCalendar(); }, [status, email]);
+  useEffect(() => { if (status === "authenticated" && email) loadCalendar(); }, [status, email, calYear, calMonth]);
 
   const loadWeekly = async () => {
     setWeeklyLoading(true);
@@ -65,7 +68,7 @@ export default function AgentDetail() {
   const loadCalendar = async () => {
     setCalLoading(true);
     try {
-      const res = await fetch(`/api/analytics/agent-calendar?agentEmail=${encodeURIComponent(email as string)}`);
+      const res = await fetch(`/api/analytics/agent-calendar?agentEmail=${encodeURIComponent(email as string)}&year=${calYear}&month=${calMonth}`);
       if (res.ok) { const d = await res.json(); setCalEvents(d.events || []); }
     } catch {}
     setCalLoading(false);
@@ -195,58 +198,149 @@ export default function AgentDetail() {
           </div>
         )}
 
-        {/* Calendario semanal */}
-        <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
-          <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-2">
-            <Calendar size={13} className="text-gray-400" />
-            <span className="text-xs font-black text-gray-500 uppercase tracking-widest">Agenda esta semana</span>
-            {calLoading && <Loader2 size={11} className="animate-spin text-gray-300 ml-1" />}
-            <span className="ml-auto text-xs text-gray-400">{calEvents.filter(e => e.isGreen).length} reuniones cara a cara</span>
-          </div>
-          {calLoading ? (
-            <div className="flex items-center justify-center py-8"><Loader2 size={18} className="animate-spin text-gray-200" /></div>
-          ) : calEvents.length === 0 ? (
-            <p className="px-5 py-6 text-sm text-gray-400 text-center">Sin eventos esta semana aún.</p>
-          ) : (() => {
-            // Group by day
-            const days = ["Lunes","Martes","Miércoles","Jueves","Viernes","Sábado","Domingo"];
-            const byDay: Record<number, any[]> = {};
-            calEvents.forEach(e => {
-              const d = new Date(e.start).getDay();
-              const idx = d === 0 ? 6 : d - 1;
-              if (!byDay[idx]) byDay[idx] = [];
-              byDay[idx].push(e);
-            });
-            return (
-              <div className="divide-y divide-gray-50">
-                {Object.entries(byDay).sort(([a],[b]) => Number(a)-Number(b)).map(([idx, evs]) => (
-                  <div key={idx} className="px-5 py-3">
-                    <div className="text-xs font-black text-gray-400 uppercase tracking-wide mb-2">{days[Number(idx)]}</div>
-                    <div className="space-y-1.5">
-                      {(evs as any[]).sort((a,b) => new Date(a.start).getTime() - new Date(b.start).getTime()).map((e: any) => {
-                        const start = new Date(e.start);
-                        const time = start.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" });
+        {/* Calendario mensual */}
+        {(() => {
+          const MONTH_NAMES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+          const DAY_NAMES = ["Lu","Ma","Mi","Ju","Vi","Sa","Do"];
+          const today = new Date();
+
+          // Build calendar grid
+          const firstDay = new Date(calYear, calMonth, 1);
+          const lastDay = new Date(calYear, calMonth + 1, 0);
+          const startDow = firstDay.getDay() === 0 ? 6 : firstDay.getDay() - 1;
+          const totalCells = Math.ceil((startDow + lastDay.getDate()) / 7) * 7;
+
+          // Index events by date key YYYY-MM-DD
+          const evByDate: Record<string, any[]> = {};
+          calEvents.forEach(e => {
+            const d = new Date(e.start);
+            if (d.getFullYear() === calYear && d.getMonth() === calMonth) {
+              const key = d.toISOString().slice(0, 10);
+              if (!evByDate[key]) evByDate[key] = [];
+              evByDate[key].push(e);
+            }
+          });
+
+          const prevMonth = () => {
+            if (calMonth === 0) { setCalMonth(11); setCalYear(y => y - 1); }
+            else setCalMonth(m => m - 1);
+            setSelectedDay(null);
+          };
+          const nextMonth = () => {
+            if (calMonth === 11) { setCalMonth(0); setCalYear(y => y + 1); }
+            else setCalMonth(m => m + 1);
+            setSelectedDay(null);
+          };
+
+          const selectedEvents = selectedDay ? (evByDate[selectedDay] || []).sort((a:any,b:any) => new Date(a.start).getTime()-new Date(b.start).getTime()) : [];
+
+          return (
+            <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
+              {/* Header */}
+              <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-3">
+                <Calendar size={13} className="text-gray-400" />
+                <button onClick={prevMonth} className="text-gray-400 hover:text-gray-700 font-black px-1">‹</button>
+                <span className="text-sm font-black text-gray-800 flex-1 text-center">
+                  {MONTH_NAMES[calMonth]} {calYear}
+                </span>
+                <button onClick={nextMonth} className="text-gray-400 hover:text-gray-700 font-black px-1">›</button>
+                {calLoading && <Loader2 size={11} className="animate-spin text-gray-300" />}
+                <span className="text-xs text-gray-400">
+                  {Object.values(evByDate).flat().filter((e:any) => e.isGreen).length} <span style={{color: RED}}>verdes</span>
+                </span>
+              </div>
+
+              {/* Day headers */}
+              <div className="grid grid-cols-7 border-b border-gray-50">
+                {DAY_NAMES.map(d => (
+                  <div key={d} className="text-center py-2 text-xs font-black text-gray-300">{d}</div>
+                ))}
+              </div>
+
+              {/* Cells */}
+              <div className="grid grid-cols-7">
+                {Array.from({ length: totalCells }).map((_, i) => {
+                  const dayNum = i - startDow + 1;
+                  if (dayNum < 1 || dayNum > lastDay.getDate()) {
+                    return <div key={i} className="h-14 border-b border-r border-gray-50 last:border-r-0" />;
+                  }
+                  const dateKey = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(dayNum).padStart(2,'0')}`;
+                  const evs = evByDate[dateKey] || [];
+                  const greenCount = evs.filter((e:any) => e.isGreen).length;
+                  const totalCount = evs.length;
+                  const isToday = today.getDate()===dayNum && today.getMonth()===calMonth && today.getFullYear()===calYear;
+                  const isSelected = selectedDay === dateKey;
+                  const hasEvents = totalCount > 0;
+
+                  return (
+                    <div key={i}
+                      onClick={() => setSelectedDay(isSelected ? null : dateKey)}
+                      className="h-14 border-b border-r border-gray-50 last:border-r-0 p-1 cursor-pointer transition-colors relative"
+                      style={{ background: isSelected ? "#fef2f2" : hasEvents ? "#fafafa" : "white" }}>
+                      <div className="flex items-start justify-between">
+                        <span className="text-xs font-bold w-6 h-6 flex items-center justify-center rounded-full"
+                          style={{
+                            background: isToday ? RED : "transparent",
+                            color: isToday ? "white" : "#374151",
+                            fontWeight: isToday ? 900 : 600,
+                          }}>
+                          {dayNum}
+                        </span>
+                        {greenCount > 0 && (
+                          <span className="text-xs font-black leading-none px-1 py-0.5 rounded-md"
+                            style={{ background: "#dcfce7", color: "#16a34a", fontSize: 9 }}>
+                            {greenCount}✓
+                          </span>
+                        )}
+                      </div>
+                      {totalCount > 0 && (
+                        <div className="flex gap-0.5 mt-0.5 flex-wrap">
+                          {evs.slice(0, 3).map((e:any, ei:number) => (
+                            <div key={ei} className="h-1 rounded-full flex-1 min-w-0"
+                              style={{ background: e.isGreen ? (TYPE_COLOR[e.type] || RED) : "#e5e7eb" }} />
+                          ))}
+                          {evs.length > 3 && <span style={{fontSize:8}} className="text-gray-300 font-bold">+{evs.length-3}</span>}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Selected day detail */}
+              {selectedDay && (
+                <div className="border-t border-gray-100 px-5 py-4">
+                  <div className="text-xs font-black text-gray-500 uppercase tracking-wide mb-3">
+                    {new Date(selectedDay + "T12:00:00").toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" })}
+                    {" · "}{selectedEvents.length} evento{selectedEvents.length !== 1 ? "s" : ""}
+                  </div>
+                  {selectedEvents.length === 0 ? (
+                    <p className="text-xs text-gray-400">Sin eventos este día.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {selectedEvents.map((e: any) => {
                         const color = TYPE_COLOR[e.type] || "#9ca3af";
+                        const time = new Date(e.start).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" });
                         return (
-                          <div key={e.id} className="flex items-center gap-2.5 rounded-xl px-3 py-2"
-                            style={{ background: e.isGreen ? `${color}12` : "#f9fafb", borderLeft: `3px solid ${e.isGreen ? color : "#e5e7eb"}` }}>
+                          <div key={e.id} className="flex items-center gap-2.5 rounded-xl px-3 py-2.5"
+                            style={{ background: e.isGreen ? `${color}10` : "#f9fafb", borderLeft: `3px solid ${e.isGreen ? color : "#e5e7eb"}` }}>
                             <span className="text-xs font-bold text-gray-400 shrink-0 w-10">{time}</span>
                             <span className="text-sm font-semibold text-gray-800 flex-1 truncate">{e.title || TYPE_LABEL[e.type]}</span>
                             <span className="text-xs font-bold px-2 py-0.5 rounded-lg shrink-0"
                               style={{ background: `${color}20`, color }}>
-                              {TYPE_LABEL[e.type] || e.type}
+                              {TYPE_LABEL[e.type]}
                             </span>
-                            {e.isGreen && <span className="text-green-500 text-xs font-black shrink-0">✓</span>}
+                            {e.isGreen && <span className="text-xs font-black text-green-500 shrink-0">✓</span>}
                           </div>
                         );
                       })}
                     </div>
-                  </div>
-                ))}
-              </div>
-            );
-          })()}
-        </div>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         {/* Selector de período */}
         <div className="bg-white border border-gray-100 rounded-2xl p-4 flex items-center gap-3 flex-wrap">

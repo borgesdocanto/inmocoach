@@ -10,11 +10,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const session = await getServerSession(req, res, authOptions);
   if (!session?.user?.email) return res.status(401).json({ error: "No autenticado" });
 
-  const { agentEmail } = req.query;
+  const { agentEmail, year, month } = req.query;
   if (!agentEmail || typeof agentEmail !== "string")
     return res.status(400).json({ error: "agentEmail requerido" });
 
-  // Solo owner/team_leader del mismo equipo
   const { data: requester } = await supabaseAdmin
     .from("subscriptions").select("team_id, team_role").eq("email", session.user.email).single();
 
@@ -26,20 +25,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   if (!agent) return res.status(404).json({ error: "Agente no encontrado" });
 
-  // Semana actual: lunes a domingo
-  const now = new Date();
-  const day = now.getDay(); // 0=dom
-  const monday = new Date(now);
-  monday.setDate(now.getDate() - (day === 0 ? 6 : day - 1));
-  monday.setHours(0, 0, 0, 0);
-  const sunday = new Date(monday);
-  sunday.setDate(monday.getDate() + 6);
-  sunday.setHours(23, 59, 59, 999);
+  const y = year ? parseInt(year as string) : new Date().getFullYear();
+  const m = month ? parseInt(month as string) : new Date().getMonth(); // 0-indexed
 
-  const events = await getStoredEvents(agentEmail, monday, sunday);
+  // From first day of prev month to last day of next month (for calendar padding)
+  const from = new Date(y, m - 1, 1);
+  const to = new Date(y, m + 2, 0, 23, 59, 59);
+
+  const events = await getStoredEvents(agentEmail, from, to);
 
   return res.status(200).json({
-    weekStart: monday.toISOString(),
     events: events.map(e => ({
       id: e.id,
       title: e.title,
