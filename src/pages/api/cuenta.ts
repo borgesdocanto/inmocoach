@@ -28,15 +28,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (req.method === "GET") {
     const isVip = isVipEmail(email) || email === SUPER_ADMIN_EMAIL;
 
-    const { data: sub, error: subError } = await supabaseAdmin
+    const { data: sub } = await supabaseAdmin
       .from("subscriptions")
-      .select("*, teams(agency_name, max_agents)")
+      .select("*")
       .eq("email", email)
       .single();
 
-    if (!sub) {
-      console.error("[cuenta] No encontrado para email:", email, "- error supabase:", JSON.stringify(subError));
-      return res.status(404).json({ error: "No encontrado", email, debug: subError?.message });
+    if (!sub) return res.status(404).json({ error: "No encontrado" });
+
+    // Traer agency_name del equipo por separado
+    let agencyName: string | null = null;
+    if (sub.team_id) {
+      const { data: team } = await supabaseAdmin
+        .from("teams")
+        .select("agency_name")
+        .eq("id", sub.team_id)
+        .single();
+      agencyName = team?.agency_name || null;
     }
 
     // VIP / super admin — cuenta activa permanente sin MP
@@ -61,7 +69,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         nextPaymentDate: null,
         mpSubscriptionId: null,
         mpStatus: "vip",
-        agencyName: sub.teams?.agency_name || null,
+        agencyName: agencyName,
         teamRole: sub.team_role,
         isOwner: sub.team_role === "owner",
         isVip: true,
@@ -99,7 +107,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       mpSubscriptionId: sub.mp_subscription_id,
       mpStatus: mpInfo?.status || null,
       nextPaymentDate: mpInfo?.next_payment_date || sub.current_period_end,
-      agencyName: sub.teams?.agency_name || null,
+      agencyName: agencyName,
       teamRole: sub.team_role,
       isOwner: sub.team_role === "owner",
     });
