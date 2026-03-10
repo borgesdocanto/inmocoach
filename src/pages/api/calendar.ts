@@ -7,6 +7,7 @@ import { syncAndPersist, IAC_GOAL, PROCESOS_GOAL, calcIAC } from "../../lib/cale
 import { supabaseAdmin } from "../../lib/supabase";
 import { getAgentRankStats } from "../../lib/ranks";
 import { computeAndSaveStreak } from "../../lib/streak";
+import { saveWeeklyStatsAndRank } from "../../lib/ranks";
 
 const GREEN_COLOR_IDS = new Set(["2", "10"]);
 
@@ -189,7 +190,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       recentEvents: mappedEvents.slice(-50).reverse(),
       onboardingDone: sub?.onboarding_done ?? false,
       streak: await computeAndSaveStreak(session.user?.email!, dailySummaries),
-      rankStats: await getAgentRankStats(session.user?.email!).catch(() => null),
+      rankStats: await (async () => {
+        try {
+          const now = new Date();
+          const monday = new Date(now);
+          monday.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+          monday.setHours(0, 0, 0, 0);
+          const weekStart = monday.toISOString().slice(0, 10);
+          const weekGreen = mappedEvents.filter(e => e.isGreen && e.start >= weekStart);
+          const weekIac = Math.min(100, Math.round((weekGreen.length / 15) * 100));
+          const streakRow = await computeAndSaveStreak(session.user?.email!, dailySummaries).catch(() => null);
+          await saveWeeklyStatsAndRank(session.user?.email!, weekStart, weekIac, weekGreen.length, (streakRow as any)?.best ?? 0);
+          return await getAgentRankStats(session.user?.email!);
+        } catch { return null; }
+      })(),
     });
   } catch (err: any) {
     console.error("Calendar API error:", err?.message);
