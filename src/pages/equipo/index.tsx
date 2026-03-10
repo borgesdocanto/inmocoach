@@ -33,14 +33,20 @@ const ROLE_COLOR: Record<TeamRole, string> = { owner: RED, team_leader: "#7c3aed
 
 function Sparkline({ data, color }: { data: number[]; color: string }) {
   const max = Math.max(...data, 1);
-  const days = ["L", "M", "X", "J", "V", "S", "D"];
+  const dayLabels = ["D", "L", "M", "X", "J", "V", "S"];
+  // Generar labels de los últimos 7 días corridos, terminando hoy
+  const today = new Date().getDay(); // 0=dom, 1=lun...
+  const labels = Array.from({ length: 7 }, (_, i) => {
+    const dayIdx = (today - 6 + i + 7) % 7;
+    return dayLabels[dayIdx];
+  });
   return (
     <div className="flex items-end gap-0.5 h-10">
       {data.map((v, i) => (
         <div key={i} className="flex flex-col items-center gap-0.5 flex-1">
           <div className="w-full rounded-sm transition-all"
             style={{ height: `${Math.max(2, (v / max) * 32)}px`, background: v > 0 ? color : "#e5e7eb", opacity: v === 0 ? 0.3 : 1 }} />
-          <span className="text-gray-300" style={{ fontSize: 7 }}>{days[i]}</span>
+          <span className="text-gray-300" style={{ fontSize: 7, fontWeight: i === 6 ? 900 : 400 }}>{labels[i]}</span>
         </div>
       ))}
     </div>
