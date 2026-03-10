@@ -35,7 +35,7 @@ export default function Landing() {
             Inmo<span style={{ color: RED }}>Coach</span>
           </div>
           <a href="#como-funciona" style={{ color: "#6b7280", fontSize: 13, fontWeight: 500 }}>Cómo funciona</a>
-          <a href="#precios" style={{ color: "#6b7280", fontSize: 13, fontWeight: 500 }}>Precios</a>
+          <a href="/pricing" style={{ color: "#6b7280", fontSize: 13, fontWeight: 500 }}>Precios</a>
           <button onClick={() => router.push("/login")}
             style={{ background: RED, color: "#fff", border: "none", borderRadius: 10, padding: "9px 20px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
             Empezar gratis
@@ -208,41 +208,35 @@ export default function Landing() {
 
       {/* PRECIOS */}
       <section id="precios" style={{ padding: "72px 24px", background: "#fff", borderTop: "1px solid #f3f4f6", borderBottom: "1px solid #f3f4f6" }}>
-        <div style={{ maxWidth: 1080, margin: "0 auto" }}>
-          <div style={{ textAlign: "center", marginBottom: 48 }}>
-            <p style={{ fontSize: 11, fontWeight: 800, color: RED, letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 12 }}>Precios</p>
-            <h2 style={{ fontFamily: "Georgia, serif", fontSize: "clamp(32px, 4vw, 48px)", fontWeight: 900, lineHeight: 1.1 }}>
-              Empezás gratis.<br /><span style={{ color: RED }}>Seguís cuando lo vivís.</span>
-            </h2>
-            <p style={{ color: "#9ca3af", fontSize: 14, marginTop: 12 }}>7 días sin tarjeta. Sin límites. Sin trampa.</p>
+        <div style={{ maxWidth: 720, margin: "0 auto", textAlign: "center" }}>
+          <p style={{ fontSize: 11, fontWeight: 800, color: RED, letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 12 }}>Precios</p>
+          <h2 style={{ fontFamily: "Georgia, serif", fontSize: "clamp(28px, 4vw, 44px)", fontWeight: 900, lineHeight: 1.1, marginBottom: 16 }}>
+            Empezás gratis.<br /><span style={{ color: RED }}>El precio crece con tu equipo.</span>
+          </h2>
+          <p style={{ color: "#9ca3af", fontSize: 15, marginBottom: 40, lineHeight: 1.7 }}>
+            7 días sin tarjeta. Individual desde <strong style={{ color: "#111" }}>$10.500/mes</strong>. Equipos con descuento por volumen — cuantos más agentes, menos pagás por cada uno.
+          </p>
+          <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
+            <button onClick={() => router.push("/pricing")}
+              style={{ background: RED, color: "#fff", border: "none", borderRadius: 12, padding: "14px 32px", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
+              Ver precios y simulador →
+            </button>
+            <button onClick={() => router.push("/login")}
+              style={{ background: "#f3f4f6", color: "#374151", border: "none", borderRadius: 12, padding: "14px 32px", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
+              Empezar gratis 7 días
+            </button>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 20, maxWidth: 900, margin: "0 auto" }}>
+          <div style={{ display: "flex", gap: 32, justifyContent: "center", marginTop: 40, flexWrap: "wrap" }}>
             {[
-              { name: "Gratis", price: "$ 0", period: "7 días", desc: "Para conocer la experiencia completa", features: ["Google Calendar sync", "Dashboard semanal y mensual", "Inmo Coach con IA", "Sin tarjeta de crédito"], cta: "Empezar ahora", highlight: false },
-              { name: "Individual", price: "$ 10.500", period: "/ mes", desc: "Para el inmobiliario que quiere crecer", features: ["Todo lo del plan Gratis", "Acceso permanente", "Reporte semanal por email", "Inmo Coach ilimitado", "Historial completo"], cta: "Suscribirse", highlight: true },
-              { name: "Teams", price: "$ 75.000", period: "/ mes", desc: "Para brokers con equipo de hasta 10", features: ["Todo lo de Individual", "Hasta 10 agentes incluidos", "Dashboard del broker", "Invitaciones por email", "Roles: Team Leader", "Adicionales: $ 10.500/agente"], cta: "Suscribir equipo", highlight: false },
-            ].map((plan, i) => (
-              <div key={i} style={{ background: plan.highlight ? "#111827" : "#fff", border: `1px solid ${plan.highlight ? "#111827" : "#e5e7eb"}`, borderRadius: 16, padding: 28, display: "flex", flexDirection: "column", position: "relative", boxShadow: plan.highlight ? "0 8px 32px rgba(0,0,0,0.12)" : "none" }}>
-                {plan.highlight && (
-                  <div style={{ position: "absolute", top: -12, left: "50%", transform: "translateX(-50%)", background: RED, color: "#fff", fontSize: 11, fontWeight: 800, padding: "4px 14px", borderRadius: 100, whiteSpace: "nowrap" }}>MÁS POPULAR</div>
-                )}
-                <div style={{ fontSize: 11, fontWeight: 700, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>{plan.name}</div>
-                <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginBottom: 4 }}>
-                  <span style={{ fontFamily: "Georgia, serif", fontSize: 34, fontWeight: 900, color: plan.highlight ? "#fff" : "#111827", lineHeight: 1 }}>{plan.price}</span>
-                  <span style={{ fontSize: 13, color: "#9ca3af" }}>{plan.period}</span>
-                </div>
-                <p style={{ fontSize: 12, color: "#9ca3af", marginBottom: 24 }}>{plan.desc}</p>
-                <ul style={{ listStyle: "none", marginBottom: 28, flex: 1 }}>
-                  {plan.features.map((f, j) => (
-                    <li key={j} style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 10, fontSize: 13, color: plan.highlight ? "#d1d5db" : "#6b7280" }}>
-                      <CheckCircle size={13} style={{ color: plan.highlight ? "#fff" : RED, flexShrink: 0, marginTop: 1 }} />{f}
-                    </li>
-                  ))}
-                </ul>
-                <button onClick={() => router.push("/login")}
-                  style={{ width: "100%", padding: "13px", borderRadius: 10, fontWeight: 700, fontSize: 13, cursor: "pointer", border: "none", background: plan.highlight ? RED : "#f3f4f6", color: plan.highlight ? "#fff" : "#374151" }}>
-                  {plan.cta}
-                </button>
+              { range: "1 agente", price: "$10.500", label: "Individual" },
+              { range: "5–9 agentes", price: "$8.400", label: "−20% por agente" },
+              { range: "10–19 agentes", price: "$7.350", label: "−30% por agente" },
+              { range: "20+ agentes", price: "$6.300", label: "−40% por agente" },
+            ].map((t, i) => (
+              <div key={i} style={{ textAlign: "center" }}>
+                <div style={{ fontFamily: "Georgia, serif", fontSize: 22, fontWeight: 900, color: RED }}>{t.price}</div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "#9ca3af", marginTop: 2 }}>{t.range}</div>
+                <div style={{ fontSize: 11, color: "#d1d5db", marginTop: 2 }}>{t.label}</div>
               </div>
             ))}
           </div>

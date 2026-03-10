@@ -57,20 +57,22 @@ export const PLANS: Record<PlanId, Plan> = {
   teams: {
     id: "teams",
     name: "Teams",
-    price: 75000,
-    priceARS: 75000,
+    price: 10500,   // precio base por agente — el total se calcula en pricing.ts por volumen
+    priceARS: 10500,
     period: "mes",
-    description: "Para brokers con equipo — hasta 10 agentes",
-    badge: "$ 7.500/agente vs $ 10.500 individual",
+    description: "Para brokers — precio por agente con descuento por volumen",
+    badge: "Desde -20% por volumen",
     features: [
-      "Todo del plan Individual",
-      "Hasta 10 agentes incluidos",
+      "Todo del plan Individual por agente",
       "Dashboard unificado del broker",
       "Invitación de agentes por email",
       "Informe semanal de todo el equipo",
-      "Agentes adicionales a $ 10.500/mes c/u",
+      "2–4 agentes: $10.500/agente",
+      "5–9 agentes: $8.400/agente (-20%)",
+      "10–19 agentes: $7.350/agente (-30%)",
+      "20+ agentes: $6.300/agente (-40%)",
     ],
-    limits: { historyDays: -1, coachMessages: -1, agents: 10, weeklyEmail: true, teamsAccess: true },
+    limits: { historyDays: -1, coachMessages: -1, agents: 9999, weeklyEmail: true, teamsAccess: true },
   },
 };
 
