@@ -344,7 +344,7 @@ export default function CuentaPage() {
 
             {/* Usuarios activos */}
             {teamMembers.length > 0 && (
-              <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
+              <div className="bg-white border border-gray-100 rounded-2xl">
                 <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-2">
                   <Users size={13} className="text-gray-400" />
                   <span className="text-xs font-black text-gray-500 uppercase tracking-widest">{teamMembers.length} usuarios activos</span><Tooltip text="El plan se cobra por la cantidad de usuarios activos en tu equipo, incluyendo vos como broker. Remover un usuario reduce el costo en el próximo ciclo de facturación." />
@@ -425,7 +425,7 @@ export default function CuentaPage() {
             )}
 
             {/* Preferencias de ranking */}
-            <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
+            <div className="bg-white border border-gray-100 rounded-2xl">
               <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-2">
                 <span className="text-xs font-black text-gray-500 uppercase tracking-widest">Preferencias de ranking</span><Tooltip text="Estas configuraciones solo afectan cómo se muestran los usuarios en el ranking interno del equipo. No afecta el costo ni el acceso." />
                 {settingsSaving && <Loader2 size={11} className="animate-spin text-gray-300 ml-auto" />}
