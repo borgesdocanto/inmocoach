@@ -1,36 +1,41 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import { supabaseAdmin } from "../../../lib/supabase";
-import { syncAndPersist, computeWeekStats } from "../../../lib/calendarSync";
+import { syncAndPersist, computeWeekStats, IAC_GOAL } from "../../../lib/calendarSync";
 import { computeAndSaveStreak } from "../../../lib/streak";
+import { saveWeeklyStatsAndRank } from "../../../lib/ranks";
 import { getValidAccessToken } from "../../../lib/googleToken";
-import { PRODUCTIVITY_GOAL } from "../../../lib/brand";
+import { startOfWeek, format } from "date-fns";
 
 // Corre lunes a viernes a las 20hs UTC (17hs Argentina)
-// Sincroniza solo usuarios con racha activa para que el streak-alert de las 18hs tenga datos frescos
 // vercel.json: "0 20 * * 1-5"
 
 const BATCH_SIZE = 5;
 
-async function syncUser(user: { email: string; team_id: string | null }): Promise<"synced" | "skipped" | "error"> {
+function getMonday(): string {
+  return format(startOfWeek(new Date(), { weekStartsOn: 1 }), "yyyy-MM-dd");
+}
+
+async function syncUser(user: { email: string; team_id: string | null; streak_best: number }): Promise<"synced" | "skipped" | "error"> {
   try {
     const accessToken = await getValidAccessToken(user.email);
     if (!accessToken) return "skipped";
 
-    // Sync liviano: solo 14 días (suficiente para la racha)
-    const events = await syncAndPersist(accessToken, user.email, user.team_id, 14);
+    const events = await syncAndPersist(accessToken, user.email, user.team_id, 30);
 
-    // Recalcular racha con datos frescos
-    const dailySummaries = Object.entries(
-      events
-        .filter((e: any) => e.isGreen)
-        .reduce((acc: Record<string, number>, e: any) => {
-          const day = e.start.slice(0, 10);
-          acc[day] = (acc[day] || 0) + 1;
-          return acc;
-        }, {})
-    ).map(([date, greenCount]) => ({ date, greenCount }));
+    // Racha
+    const byDay: Record<string, number> = {};
+    for (const e of events) {
+      if (e.isGreen) byDay[e.start.slice(0, 10)] = (byDay[e.start.slice(0, 10)] || 0) + 1;
+    }
+    const dailySummaries = Object.entries(byDay).map(([date, greenCount]) => ({ date, greenCount }));
+    const streakData = await computeAndSaveStreak(user.email, dailySummaries);
 
-    await computeAndSaveStreak(user.email, dailySummaries);
+    // Weekly stats de la semana actual
+    const weekStart = getMonday();
+    const weekGreen = events.filter(e => e.isGreen && e.start.slice(0, 10) >= weekStart);
+    const weekIac = Math.min(100, Math.round((weekGreen.length / IAC_GOAL) * 100));
+    await saveWeeklyStatsAndRank(user.email, weekStart, weekIac, weekGreen.length, (streakData as any)?.best ?? user.streak_best ?? 0);
+
     return "synced";
   } catch (err: any) {
     console.error(`Daily sync error ${user.email}:`, err?.message);
@@ -42,23 +47,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const secret = req.headers["x-cron-secret"] || req.query.secret;
   if (secret !== process.env.CRON_SECRET) return res.status(401).json({ error: "Unauthorized" });
 
-  // Solo usuarios con racha activa >= 1 día
+  // Todos los usuarios con token de Google (no solo los con racha activa)
   const { data: users } = await supabaseAdmin
     .from("subscriptions")
-    .select("email, team_id, streak_current")
-    .gte("streak_current", 1)
+    .select("email, team_id, streak_best")
     .not("google_access_token", "is", null);
 
   if (!users?.length) {
-    return res.status(200).json({ ok: true, message: "No hay usuarios con racha activa", synced: 0 });
+    return res.status(200).json({ ok: true, message: "No hay usuarios", synced: 0 });
   }
 
-  console.log(`🔄 Daily sync: ${users.length} usuarios con racha activa`);
+  console.log(`🔄 Daily sync: ${users.length} usuarios`);
 
-  // Responder inmediatamente
-  res.status(200).json({ ok: true, total: users.length, message: `Sincronizando ${users.length} usuarios en background` });
+  res.status(200).json({ ok: true, total: users.length, message: `Sincronizando ${users.length} usuarios` });
 
-  // Procesar en tandas de 5
   const results = { synced: 0, skipped: 0, error: 0 };
   for (let i = 0; i < users.length; i += BATCH_SIZE) {
     const batch = users.slice(i, i + BATCH_SIZE);
