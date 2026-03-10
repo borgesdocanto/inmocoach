@@ -41,10 +41,13 @@ export default function AgentDetail() {
   const [agentName, setAgentName] = useState("");
   const [weekly, setWeekly] = useState<any>(null);
   const [weeklyLoading, setWeeklyLoading] = useState(true);
+  const [calEvents, setCalEvents] = useState<any[]>([]);
+  const [calLoading, setCalLoading] = useState(true);
 
   useEffect(() => { if (status === "unauthenticated") router.replace("/login"); }, [status, router]);
   useEffect(() => { if (status === "authenticated" && email) load(); }, [status, email, period, selectedQ]);
   useEffect(() => { if (status === "authenticated" && email) loadWeekly(); }, [status, email]);
+  useEffect(() => { if (status === "authenticated" && email) loadCalendar(); }, [status, email]);
 
   const loadWeekly = async () => {
     setWeeklyLoading(true);
@@ -57,6 +60,15 @@ export default function AgentDetail() {
       }
     } catch {}
     setWeeklyLoading(false);
+  };
+
+  const loadCalendar = async () => {
+    setCalLoading(true);
+    try {
+      const res = await fetch(`/api/analytics/agent-calendar?agentEmail=${encodeURIComponent(email as string)}`);
+      if (res.ok) { const d = await res.json(); setCalEvents(d.events || []); }
+    } catch {}
+    setCalLoading(false);
   };
 
   const load = async () => {
@@ -84,6 +96,17 @@ export default function AgentDetail() {
     if (period === "semester") return `${selectedQ <= 2 ? "1er" : "2do"} semestre ${year}`;
     if (period === "year") return `Año ${year}`;
     return "Últimos 30 días";
+  };
+
+  const TYPE_LABEL: Record<string, string> = {
+    tasacion: "Tasación", visita: "Visita", propuesta: "Propuesta",
+    firma: "Firma", entrevista: "Entrevista", seguimiento: "Seguimiento",
+    meet: "Meet/Zoom", fotos_video: "Fotos/Video", otro: "Otro",
+  };
+  const TYPE_COLOR: Record<string, string> = {
+    tasacion: "#aa0000", visita: "#7c3aed", propuesta: "#0369a1",
+    firma: "#16a34a", entrevista: "#d97706", seguimiento: "#6b7280",
+    meet: "#0891b2", fotos_video: "#db2777", otro: "#9ca3af",
   };
 
   const iacColor = (v: number) => v >= 70 ? "#16a34a" : v >= 40 ? "#d97706" : "#aa0000";
@@ -171,6 +194,59 @@ export default function AgentDetail() {
             </div>
           </div>
         )}
+
+        {/* Calendario semanal */}
+        <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
+          <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-2">
+            <Calendar size={13} className="text-gray-400" />
+            <span className="text-xs font-black text-gray-500 uppercase tracking-widest">Agenda esta semana</span>
+            {calLoading && <Loader2 size={11} className="animate-spin text-gray-300 ml-1" />}
+            <span className="ml-auto text-xs text-gray-400">{calEvents.filter(e => e.isGreen).length} reuniones cara a cara</span>
+          </div>
+          {calLoading ? (
+            <div className="flex items-center justify-center py-8"><Loader2 size={18} className="animate-spin text-gray-200" /></div>
+          ) : calEvents.length === 0 ? (
+            <p className="px-5 py-6 text-sm text-gray-400 text-center">Sin eventos esta semana aún.</p>
+          ) : (() => {
+            // Group by day
+            const days = ["Lunes","Martes","Miércoles","Jueves","Viernes","Sábado","Domingo"];
+            const byDay: Record<number, any[]> = {};
+            calEvents.forEach(e => {
+              const d = new Date(e.start).getDay();
+              const idx = d === 0 ? 6 : d - 1;
+              if (!byDay[idx]) byDay[idx] = [];
+              byDay[idx].push(e);
+            });
+            return (
+              <div className="divide-y divide-gray-50">
+                {Object.entries(byDay).sort(([a],[b]) => Number(a)-Number(b)).map(([idx, evs]) => (
+                  <div key={idx} className="px-5 py-3">
+                    <div className="text-xs font-black text-gray-400 uppercase tracking-wide mb-2">{days[Number(idx)]}</div>
+                    <div className="space-y-1.5">
+                      {(evs as any[]).sort((a,b) => new Date(a.start).getTime() - new Date(b.start).getTime()).map((e: any) => {
+                        const start = new Date(e.start);
+                        const time = start.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" });
+                        const color = TYPE_COLOR[e.type] || "#9ca3af";
+                        return (
+                          <div key={e.id} className="flex items-center gap-2.5 rounded-xl px-3 py-2"
+                            style={{ background: e.isGreen ? `${color}12` : "#f9fafb", borderLeft: `3px solid ${e.isGreen ? color : "#e5e7eb"}` }}>
+                            <span className="text-xs font-bold text-gray-400 shrink-0 w-10">{time}</span>
+                            <span className="text-sm font-semibold text-gray-800 flex-1 truncate">{e.title || TYPE_LABEL[e.type]}</span>
+                            <span className="text-xs font-bold px-2 py-0.5 rounded-lg shrink-0"
+                              style={{ background: `${color}20`, color }}>
+                              {TYPE_LABEL[e.type] || e.type}
+                            </span>
+                            {e.isGreen && <span className="text-green-500 text-xs font-black shrink-0">✓</span>}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
+        </div>
 
         {/* Selector de período */}
         <div className="bg-white border border-gray-100 rounded-2xl p-4 flex items-center gap-3 flex-wrap">

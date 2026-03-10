@@ -37,7 +37,6 @@ const ALWAYS_GREEN_TYPES = new Set<EventType>([
 const PROCESO_NUEVO_TYPES = new Set<EventType>([
   "tasacion",        // proceso de venta nuevo
   "primera_visita",  // proceso de compra nuevo
-  "fotos_video",     // proceso de venta en curso (captaron)
 ]);
 
 // EventTypes que son cierres
