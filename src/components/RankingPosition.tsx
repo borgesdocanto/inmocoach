@@ -14,9 +14,9 @@ interface RankingData {
 }
 
 const MODES = [
-  { value: "iac_week",  label: "IAC esta semana",   desc: "Reuniones cara a cara en los últimos 7 días" },
-  { value: "iac_avg",   label: "IAC promedio",       desc: "Promedio de las últimas 12 semanas activas" },
-  { value: "rank",      label: "Rango",              desc: "Por nivel: Junior → Master Broker" },
+  { value: "iac_week",  label: "IAC esta semana",   desc: "Reuniones cara a cara en los últimos 7 días", tooltip: "Ranking según tu IAC de esta semana (lunes a hoy). IAC 100% = 15 reuniones cara a cara. Se actualiza cada vez que sincronizás tu calendario." },
+  { value: "iac_avg",   label: "IAC promedio",       desc: "Promedio de las últimas 12 semanas activas",  tooltip: "Ranking según tu IAC promedio de las últimas 12 semanas con actividad. Refleja tu consistencia a lo largo del tiempo, no solo esta semana." },
+  { value: "rank",      label: "Rango",              desc: "Por nivel: Junior → Master Broker",           tooltip: "Ranking según tu rango actual: Junior → Corredor → Asesor → Senior → Top Producer → Master Broker. El rango sube con semanas activas y IAC promedio." },
 ];
 
 function ordinalES(n: number): string {
@@ -45,6 +45,7 @@ export default function RankingPosition() {
   const [mode, setMode] = useState("iac_week");
   const [data, setData] = useState<RankingData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [tooltip, setTooltip] = useState("");
 
   useEffect(() => {
     setLoading(true);
@@ -77,9 +78,22 @@ export default function RankingPosition() {
         </div>
       </div>
 
-      {/* Descripción del modo */}
-      <div className="px-5 pt-3 pb-0">
+      {/* Descripción del modo + tooltip */}
+      <div className="px-5 pt-3 pb-0 flex items-start gap-1.5">
         <p className="text-xs text-gray-400">{currentMode.desc}</p>
+        <div className="relative shrink-0 mt-0.5">
+          <button
+            onMouseEnter={() => setTooltip(currentMode.tooltip)}
+            onMouseLeave={() => setTooltip("")}
+            onTouchStart={() => setTooltip(t => t ? "" : currentMode.tooltip)}
+            className="w-3.5 h-3.5 rounded-full border border-gray-300 text-gray-400 flex items-center justify-center hover:border-gray-500 hover:text-gray-600 transition-colors"
+            style={{ fontSize: 8, fontWeight: 900, lineHeight: 1 }}>?</button>
+          {tooltip && (
+            <div className="absolute left-0 top-full mt-1.5 z-50 w-64 bg-gray-900 text-white text-xs rounded-xl px-3 py-2.5 leading-relaxed shadow-xl pointer-events-none">
+              {tooltip}
+            </div>
+          )}
+        </div>
       </div>
 
       {loading ? (
