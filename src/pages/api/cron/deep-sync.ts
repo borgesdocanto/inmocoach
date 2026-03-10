@@ -1,7 +1,14 @@
 import { NextApiRequest, NextApiResponse } from "next";
+import { getServerSession } from "next-auth";
+import { authOptions } from "../../../lib/auth";
+import { isSuperAdmin } from "../../../lib/adminGuard";
 import { supabaseAdmin } from "../../../lib/supabase";
 import { syncAndPersist } from "../../../lib/calendarSync";
 import { getValidAccessToken } from "../../../lib/googleToken";
+import { saveWeeklyStatsAndRank } from "../../../lib/ranks";
+import { computeAndSaveStreak } from "../../../lib/streak";
+import { startOfWeek, format } from "date-fns";
+import { IAC_GOAL } from "../../../lib/calendarSync";
 
 // Cron: domingos a las 3am UTC — sync profundo 365 días para todos los usuarios activos
 // vercel.json: "0 3 * * 0"
@@ -10,7 +17,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (req.method !== "GET" && req.method !== "POST") return res.status(405).end();
 
   const secret = req.headers["x-cron-secret"] || req.query.secret;
-  if (secret !== process.env.CRON_SECRET) return res.status(401).json({ error: "Unauthorized" });
+  if (secret !== process.env.CRON_SECRET) {
+    const session = await getServerSession(req, res, authOptions);
+    if (!session?.user?.email || !isSuperAdmin(session.user.email))
+      return res.status(401).json({ error: "Unauthorized" });
+  }
 
   const startTime = Date.now();
   const results = { synced: 0, skipped: 0, errors: 0, users: [] as string[] };
@@ -35,7 +46,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
 
         // Sync profundo: 365 días
-        await syncAndPersist(accessToken, user.email, user.team_id, 365);
+        const events = await syncAndPersist(accessToken, user.email, user.team_id, 365);
+        // Racha
+        const byDay: Record<string, number> = {};
+        for (const e of events) {
+          if (e.isGreen) byDay[e.start.slice(0, 10)] = (byDay[e.start.slice(0, 10)] || 0) + 1;
+        }
+        const dailySummaries = Object.entries(byDay).map(([date, greenCount]) => ({ date, greenCount }));
+        const streakData = await computeAndSaveStreak(user.email, dailySummaries);
+        // Weekly stats semana actual
+        const weekStart = format(startOfWeek(new Date(), { weekStartsOn: 1 }), "yyyy-MM-dd");
+        const weekGreen = events.filter(e => e.isGreen && e.start.slice(0, 10) >= weekStart);
+        const weekIac = Math.min(100, Math.round((weekGreen.length / IAC_GOAL) * 100));
+        await saveWeeklyStatsAndRank(user.email, weekStart, weekIac, weekGreen.length, (streakData as any)?.best ?? 0);
         results.synced++;
         results.users.push(user.email);
 
