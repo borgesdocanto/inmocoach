@@ -547,6 +547,7 @@ export default function HomePage() {
   const [subPlan, setSubPlan] = useState("free");
   const [isOwner, setIsOwner] = useState(false);
   const [hasTeam, setHasTeam] = useState(false);
+  const [daysLeft, setDaysLeft] = useState<number | null>(null);
   // calView is derived from days selector — no separate state needed
   const [weekOffset, setWeekOffset] = useState(0);
   const [monthOffset, setMonthOffset] = useState(0);
@@ -564,6 +565,11 @@ export default function HomePage() {
         setIsOwner(d.subscription?.teamRole === "owner" || d.subscription?.teamRole === "team_leader");
         setHasTeam(!!d.subscription?.teamId);
         if (d.subscription?.isExpired) router.push("/expired");
+        if (d.plan?.id === "free" && d.subscription?.createdAt) {
+          const created = new Date(d.subscription.createdAt);
+          const diff = 7 - Math.floor((Date.now() - created.getTime()) / (1000 * 60 * 60 * 24));
+          setDaysLeft(Math.max(0, diff));
+        }
       });
     }
   }, [status]);
@@ -644,12 +650,21 @@ export default function HomePage() {
             <div className="font-black text-lg tracking-tight" style={{ color: RED, fontFamily: "Georgia, serif" }}>
               Inmo<span className="text-gray-900">Coach</span>
             </div>
-            <Link href="/pricing">
-              <span className="text-xs font-bold px-2 py-0.5 rounded-md uppercase cursor-pointer"
-                style={{ background: subPlan === "free" ? "#f3f4f6" : "#fef2f2", color: subPlan === "free" ? "#9ca3af" : RED }}>
-                {subPlan}
-              </span>
-            </Link>
+            {subPlan === "free" ? (
+              <Link href="/pricing">
+                <span className="text-xs font-bold px-2.5 py-1 rounded-lg cursor-pointer hover:opacity-80 transition-opacity"
+                  style={{ background: "#fef2f2", color: RED }}>
+                  {daysLeft !== null ? `${daysLeft}d gratis` : "Activar →"}
+                </span>
+              </Link>
+            ) : (
+              <Link href="/cuenta">
+                <span className="text-xs font-semibold px-2.5 py-1 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors"
+                  style={{ background: "#f3f4f6", color: "#6b7280" }}>
+                  Mi cuenta
+                </span>
+              </Link>
+            )}
             {subPlan === "teams" && (
               <Link href="/equipo">
                 <span className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors cursor-pointer flex items-center gap-1">
