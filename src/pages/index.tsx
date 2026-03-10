@@ -685,7 +685,7 @@ export default function HomePage() {
               <Users size={11} />
               <span className="hidden sm:inline">Mi equipo</span>
             </button>
-          ) : (
+          ) : !hasTeam ? (
             <button onClick={async () => {
               await fetch("/api/teams/init", { method: "POST" });
               setIsOwner(true); setHasTeam(true);
@@ -696,7 +696,7 @@ export default function HomePage() {
               <Users size={11} />
               <span className="hidden sm:inline">Crear equipo</span>
             </button>
-          )}
+          ) : null}
 
           <button onClick={sync} disabled={loading}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-gray-500 hover:bg-gray-100 transition-colors border border-gray-200">
