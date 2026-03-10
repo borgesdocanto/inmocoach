@@ -8,6 +8,7 @@ import { supabaseAdmin } from "../../lib/supabase";
 import { getAgentRankStats } from "../../lib/ranks";
 import { computeAndSaveStreak } from "../../lib/streak";
 import { saveWeeklyStatsAndRank } from "../../lib/ranks";
+import { getValidAccessToken } from "../../lib/googleToken";
 
 const GREEN_COLOR_IDS = new Set(["2", "10"]);
 
@@ -96,7 +97,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const session = await getServerSession(req, res, authOptions);
   if (!session) return res.status(401).json({ error: "No autenticado" });
 
-  const accessToken = (session as any).accessToken;
+  const sessionToken = (session as any).accessToken;
+  const accessToken = sessionToken || await getValidAccessToken(session.user!.email!);
   if (!accessToken) return res.status(401).json({ error: "Sin token de Calendar" });
 
   const requestedDays = parseInt(req.query.days as string) || 30;

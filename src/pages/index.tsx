@@ -591,6 +591,11 @@ export default function HomePage() {
     setError("");
     try {
       const res = await fetch(`/api/calendar?days=${days}`);
+      if (res.status === 401) {
+        // Token expirado — forzar re-login
+        window.location.href = "/api/auth/signin?callbackUrl=/";
+        return;
+      }
       if (!res.ok) throw new Error((await res.json()).error || "Error de sincronización");
       setData(await res.json());
     } catch (e: any) { setError(e.message); }
