@@ -90,7 +90,7 @@ export default function CuentaPage() {
 
   if (!data) return null;
 
-  const isPaid = data.plan !== "free" && data.status === "active";
+  const isPaid = (data.plan !== "free" && data.status === "active") || data.isVip === true;
   const newTotal = calcTeamsTotal(BASE_PRICE, agentSlider);
   const newPerAgent = pricePerAgent(BASE_PRICE, agentSlider);
   const sliderChanged = agentSlider !== data.agentCount;

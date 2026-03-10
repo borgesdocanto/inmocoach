@@ -2,7 +2,9 @@ import { NextApiRequest, NextApiResponse } from "next";
 import { getServerSession } from "next-auth";
 import { authOptions } from "../../lib/auth";
 import { supabaseAdmin } from "../../lib/supabase";
-import { calcTeamsTotal, getTierForAgents } from "../../lib/pricing";
+import { calcTeamsTotal, getTierForAgents, pricePerAgent } from "../../lib/pricing";
+import { isVipEmail } from "../../lib/plans";
+import { SUPER_ADMIN_EMAIL } from "../../lib/brand";
 
 const BASE_PRICE = 10500;
 const MP_TOKEN = process.env.MP_ACCESS_TOKEN!;
@@ -24,8 +26,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   // ── GET — datos de cuenta ──────────────────────────────────────────────────
   if (req.method === "GET") {
-    const { isVipEmail } = await import("../../lib/plans");
-    const { SUPER_ADMIN_EMAIL } = await import("../../lib/brand");
     const isVip = isVipEmail(email) || email === SUPER_ADMIN_EMAIL;
 
     const { data: sub } = await supabaseAdmin
@@ -46,7 +46,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           .eq("team_id", sub.team_id);
         agentCount = count || 1;
       }
-      const { getTierForAgents, calcTeamsTotal, pricePerAgent } = await import("../../lib/pricing");
       const tier = getTierForAgents(agentCount);
       return res.status(200).json({
         plan: sub.plan,
