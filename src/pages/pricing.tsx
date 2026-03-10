@@ -1,13 +1,14 @@
 import Head from "next/head";
 import { useRouter } from "next/router";
 import { useState } from "react";
+import { useSession } from "next-auth/react";
 import { VOLUME_TIERS, calcTeamsTotal, pricePerAgent, formatPriceARS, agentsToNextTier, getNextTier } from "../lib/pricing";
-import { ArrowLeft, Users, Check } from "lucide-react";
+import { ArrowLeft, Users, Check, Loader2 } from "lucide-react";
 
 const RED = "#aa0000";
 const BASE_PRICE = 10500;
 
-function AgentSimulator() {
+function AgentSimulator({ onCheckout }: { onCheckout: (count: number) => void }) {
   const [count, setCount] = useState(5);
   const total = calcTeamsTotal(BASE_PRICE, count);
   const perAgent = pricePerAgent(BASE_PRICE, count);
@@ -60,6 +61,12 @@ function AgentSimulator() {
             👑 Máximo descuento — -40% activo
           </div>
         )}
+
+        <button onClick={() => onCheckout(count)}
+          className="w-full mt-4 py-3 rounded-xl text-sm font-black text-white hover:opacity-90 transition-all"
+          style={{ background: RED }}>
+          Empezar con {count} agente{count !== 1 ? "s" : ""} — {formatPriceARS(total)}/mes →
+        </button>
       </div>
     </div>
   );
@@ -67,6 +74,33 @@ function AgentSimulator() {
 
 export default function PricingPage() {
   const router = useRouter();
+  const { data: session, status } = useSession();
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
+
+  const handleCheckout = async (agentCount: number) => {
+    // Si no está logueado, guardar intención y mandar al login
+    if (!session?.user) {
+      router.push(`/login?callbackUrl=/pricing&agents=${agentCount}`);
+      return;
+    }
+    setCheckoutLoading(true);
+    try {
+      const res = await fetch("/api/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ agentCount }),
+      });
+      const data = await res.json();
+      if (data.checkoutUrl) {
+        window.location.href = data.checkoutUrl;
+      } else {
+        alert(data.error || "Error al iniciar el pago");
+      }
+    } catch {
+      alert("Error de conexión");
+    }
+    setCheckoutLoading(false);
+  };
 
   return (
     <div className="min-h-screen bg-gray-50" style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" }}>
@@ -160,7 +194,7 @@ export default function PricingPage() {
         </div>
 
         {/* Simulador */}
-        <AgentSimulator />
+        <AgentSimulator onCheckout={handleCheckout} />
 
         {/* Qué incluye */}
         <div className="bg-white border border-gray-100 rounded-2xl p-6">
@@ -187,8 +221,8 @@ export default function PricingPage() {
         {/* CTA */}
         <div className="text-center pb-4">
           <p className="text-sm text-gray-400 mb-3">7 días gratis · Sin tarjeta de crédito · Cancelás cuando querés</p>
-          <button onClick={() => router.push("/login")}
-            className="px-8 py-3 rounded-xl font-black text-white text-sm hover:opacity-90 transition-all"
+          <button onClick={() => handleCheckout(1)} disabled={checkoutLoading}
+            className="px-8 py-3 rounded-xl font-black text-white text-sm hover:opacity-90 transition-all disabled:opacity-60"
             style={{ background: RED }}>
             Empezar ahora →
           </button>
