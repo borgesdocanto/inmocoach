@@ -687,6 +687,10 @@ export default function HomePage() {
             </button>
           ) : !hasTeam ? (
             <button onClick={async () => {
+              if (subPlan !== "teams") {
+                router.push("/pricing");
+                return;
+              }
               await fetch("/api/teams/init", { method: "POST" });
               setIsOwner(true); setHasTeam(true);
               router.push("/equipo");
@@ -694,7 +698,7 @@ export default function HomePage() {
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold hover:opacity-90 transition-all border"
               style={{ background: "#fef2f2", color: RED, borderColor: "#fecaca" }}>
               <Users size={11} />
-              <span className="hidden sm:inline">Crear equipo</span>
+              <span className="hidden sm:inline">{subPlan === "teams" ? "Crear equipo" : "Activar Teams"}</span>
             </button>
           ) : null}
 
