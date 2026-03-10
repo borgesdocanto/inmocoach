@@ -28,13 +28,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (req.method === "GET") {
     const isVip = isVipEmail(email) || email === SUPER_ADMIN_EMAIL;
 
-    const { data: sub } = await supabaseAdmin
+    const { data: sub, error: subError } = await supabaseAdmin
       .from("subscriptions")
       .select("*, teams(agency_name, max_agents)")
       .eq("email", email)
       .single();
 
-    if (!sub) return res.status(404).json({ error: "No encontrado" });
+    if (!sub) {
+      console.error("[cuenta] No encontrado para email:", email, "- error supabase:", JSON.stringify(subError));
+      return res.status(404).json({ error: "No encontrado", email, debug: subError?.message });
+    }
 
     // VIP / super admin — cuenta activa permanente sin MP
     if (isVip) {
