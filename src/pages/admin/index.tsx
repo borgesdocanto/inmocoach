@@ -42,6 +42,7 @@ export default function AdminPanel() {
   const [tab, setTab] = useState<"overview" | "users" | "teams" | "ops" | "precios" | "eventos">("overview");
   const [eventTypes, setEventTypes] = useState<any[]>([]);
   const [eventTypesSaving, setEventTypesSaving] = useState(false);
+  const [eventTypesLoading, setEventTypesLoading] = useState(false);
   const [planFilter, setPlanFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [loadingStats, setLoadingStats] = useState(true);
@@ -69,10 +70,12 @@ export default function AdminPanel() {
   useEffect(() => { if (tab === "precios") loadPlans(); }, [tab]);
   useEffect(() => {
     if (tab === "eventos") {
+      setEventTypesLoading(true);
       fetch("/api/admin/event-types")
         .then(r => r.json())
         .then(d => { if (Array.isArray(d)) setEventTypes(d); })
-        .catch(console.error);
+        .catch(console.error)
+        .finally(() => setEventTypesLoading(false));
     }
   }, [tab]);
 
@@ -634,7 +637,11 @@ export default function AdminPanel() {
                   <div className="text-center">Proceso nuevo</div>
                   <div className="text-center">Cierre</div>
                 </div>
-                {eventTypes.map((et, idx) => (
+                {eventTypesLoading ? (
+                  <div className="flex items-center justify-center py-10"><Loader2 size={18} className="animate-spin text-gray-300" /></div>
+                ) : eventTypes.length === 0 ? (
+                  <div className="px-5 py-8 text-center text-sm text-gray-400">No se pudieron cargar los tipos de evento.</div>
+                ) : eventTypes.map((et, idx) => (
                   <div key={et.event_type} className="grid grid-cols-4 px-5 py-3 items-center hover:bg-gray-50">
                     <div>
                       <div className="text-sm font-semibold text-gray-800">{et.label || et.event_type}</div>
