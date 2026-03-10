@@ -24,10 +24,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const payment = await getMPData(`https://api.mercadopago.com/v1/payments/${data.id}`);
       if (payment.status !== "approved") return res.status(200).json({ ok: true });
 
-      const [email, planId] = (payment.external_reference ?? "").split("|");
+      const [email, planId, agentCountStrP] = (payment.external_reference ?? "").split("|");
+      const agentCountP = parseInt(agentCountStrP || "1", 10);
       if (!email || !planId) return res.status(200).json({ ok: true });
 
-      await activatePlan(email, planId as PlanId, String(payment.id), String(payment.payer?.id ?? ""), payment);
+      await activatePlan(email, planId as PlanId, String(payment.id), String(payment.payer?.id ?? ""), payment, agentCountP);
       return res.status(200).json({ ok: true });
     }
 
@@ -49,7 +50,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(200).json({ ok: true });
       }
 
-      let [email, planId] = (sub.external_reference ?? "").split("|");
+      let [email, planId, agentCountStr] = (sub.external_reference ?? "").split("|");
+      const agentCount = parseInt(agentCountStr || "1", 10);
 
       // Fallback: si no hay external_reference, buscar por payer email en Supabase
       if (!email && sub.payer_id) {
@@ -72,7 +74,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(200).json({ ok: true });
       }
 
-      await activatePlan(email, planId as PlanId, String(sub.id), String(sub.payer_id ?? ""), sub);
+      await activatePlan(email, planId as PlanId, String(sub.id), String(sub.payer_id ?? ""), sub, agentCount);
 
       // Si hay agentes extra pendientes de cobrar, aplicar el upgrade ahora
       await applyPendingUpgrade(email).catch(e => console.error("applyPendingUpgrade error:", e));
@@ -92,7 +94,8 @@ async function activatePlan(
   planId: PlanId,
   mpId: string,
   mpPayerId: string,
-  mpData: any
+  mpData: any,
+  agentCount: number = 1
 ) {
   await upgradePlan(email, planId, mpId, mpPayerId);
 

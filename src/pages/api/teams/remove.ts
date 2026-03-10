@@ -68,5 +68,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     .update({ max_agents: newMax })
     .eq("id", team.id);
 
+  // Recalcular precio del broker
+  fetch(`${process.env.NEXTAUTH_URL}/api/teams/recalculate-plan`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "cookie": req.headers.cookie || "" },
+  }).catch(e => console.error("recalculate-plan error:", e));
+
   return res.status(200).json({ ok: true, remaining, newMax });
 }

@@ -1,15 +1,63 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import { getServerSession } from "next-auth";
 import { authOptions } from "../../lib/auth";
-import { PLANS, PlanId } from "../../lib/plans";
+import { supabaseAdmin } from "../../lib/supabase";
+import { calcTeamsTotal, getTierForAgents } from "../../lib/pricing";
 
-// IDs de los planes compartidos en MercadoPago.
-// Cada usuario se adhiere a estos planes — el precio se gestiona en UN solo lugar.
-// Para cambiar el precio: PATCH /preapproval_plan/:id en MP + actualizar estas env vars.
-const MP_PLAN_IDS: Partial<Record<PlanId, string | undefined>> = {
-  individual: process.env.MP_PLAN_INDIVIDUAL_ID,
-  teams: process.env.MP_PLAN_TEAMS_ID,
-};
+const BASE_PRICE = 10500;
+const BASE_URL = process.env.NEXTAUTH_URL!;
+const MP_TOKEN = process.env.MP_ACCESS_TOKEN!;
+
+async function createOrUpdateMPPlan(
+  email: string,
+  agentCount: number,
+  existingPlanId?: string
+): Promise<{ planId: string; initPoint: string }> {
+  const total = calcTeamsTotal(BASE_PRICE, agentCount);
+  const tier = getTierForAgents(agentCount);
+  const reason = agentCount === 1
+    ? "InmoCoach — Plan Individual"
+    : `InmoCoach — Equipo ${agentCount} agentes (${tier.label})`;
+
+  const body = {
+    reason,
+    auto_recurring: {
+      frequency: 1,
+      frequency_type: "months",
+      transaction_amount: total,
+      currency_id: "ARS",
+    },
+    payment_methods_allowed: {
+      payment_types: [{ id: "credit_card" }, { id: "debit_card" }],
+    },
+    back_url: `${BASE_URL}/pago/exito?plan=teams&agents=${agentCount}`,
+    external_reference: `${email}|teams|${agentCount}`,
+    notification_url: `${BASE_URL}/api/webhooks/mercadopago`,
+  };
+
+  if (existingPlanId) {
+    // PATCH — actualizar plan existente con nuevo precio
+    const res = await fetch(`https://api.mercadopago.com/preapproval_plan/${existingPlanId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${MP_TOKEN}` },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (res.ok && data.id) return { planId: data.id, initPoint: data.init_point };
+  }
+
+  // POST — crear nuevo plan
+  const res = await fetch("https://api.mercadopago.com/preapproval_plan", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${MP_TOKEN}` },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json();
+  if (!res.ok || !data.init_point) {
+    throw new Error(data.message || "Error al crear plan en MercadoPago");
+  }
+  return { planId: data.id, initPoint: data.init_point };
+}
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") return res.status(405).end();
@@ -17,65 +65,36 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const session = await getServerSession(req, res, authOptions);
   if (!session?.user?.email) return res.status(401).json({ error: "No autenticado" });
 
-  const { planId } = req.body as { planId: PlanId };
-  const plan = PLANS[planId];
-  if (!plan || plan.price === 0) return res.status(400).json({ error: "Plan inválido" });
-
-  const planMPId = MP_PLAN_IDS[planId];
+  const email = session.user.email;
+  const { agentCount = 1 } = req.body as { agentCount?: number };
+  const count = Math.max(1, Number(agentCount));
 
   try {
-    if (planMPId) {
-      // ── Modo correcto: redirigir al init_point del plan compartido ────────
-      // Pasamos payer_email y external_reference para que el webhook pueda identificar al usuario
-      const params = new URLSearchParams({
-        preapproval_plan_id: planMPId,
-        payer_email: session.user.email,
-        external_reference: `${session.user.email}|${planId}`,
-      });
-      const checkoutUrl = `https://www.mercadopago.com.ar/subscriptions/checkout?${params.toString()}`;
-      return res.status(200).json({ checkoutUrl });
+    // Ver si ya tiene un plan MP guardado
+    const { data: sub } = await supabaseAdmin
+      .from("subscriptions")
+      .select("mp_plan_id, mp_subscription_id")
+      .eq("email", email)
+      .single();
 
-    } else {
-      // ── Fallback: crear plan individual (mientras no estén configurados los IDs) ──
-      // ADVERTENCIA: este modo no permite cambio de precio centralizado.
-      // Configurar MP_PLAN_INDIVIDUAL_ID y MP_PLAN_TEAMS_ID en Vercel para salir de este modo.
-      console.warn(`[checkout] MP_PLAN_${planId.toUpperCase()}_ID no configurado — creando plan individual`);
+    const { planId, initPoint } = await createOrUpdateMPPlan(
+      email,
+      count,
+      sub?.mp_plan_id || undefined
+    );
 
-      const response = await fetch("https://api.mercadopago.com/preapproval_plan", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${process.env.MP_ACCESS_TOKEN}`,
-        },
-        body: JSON.stringify({
-          reason: `InmoCoach — Plan ${plan.name}`,
-          auto_recurring: {
-            frequency: 1,
-            frequency_type: "months",
-            transaction_amount: plan.priceARS,
-            currency_id: "ARS",
-          },
-          payment_methods_allowed: {
-            payment_types: [{ id: "credit_card" }, { id: "debit_card" }],
-          },
-          back_url: `${process.env.NEXTAUTH_URL}/pago/exito?plan=${planId}`,
-          external_reference: `${session.user.email}|${planId}`,
-          notification_url: `${process.env.NEXTAUTH_URL}/api/webhooks/mercadopago`,
-        }),
-      });
+    // Guardar el plan ID para futuras actualizaciones
+    await supabaseAdmin
+      .from("subscriptions")
+      .update({ mp_plan_id: planId })
+      .eq("email", email);
 
-      const data = await response.json();
+    const checkoutUrl = `https://www.mercadopago.com.ar/subscriptions/checkout?preapproval_plan_id=${planId}&payer_email=${encodeURIComponent(email)}&external_reference=${encodeURIComponent(`${email}|teams|${count}`)}`;
 
-      if (!response.ok || !data.init_point) {
-        console.error("MP preapproval_plan error:", JSON.stringify(data));
-        return res.status(500).json({ error: data.message || "Error al crear la suscripción" });
-      }
-
-      return res.status(200).json({ checkoutUrl: data.init_point });
-    }
+    return res.status(200).json({ checkoutUrl, planId, total: calcTeamsTotal(BASE_PRICE, count) });
 
   } catch (err: any) {
     console.error("Checkout error:", err);
-    return res.status(500).json({ error: "Error al procesar" });
+    return res.status(500).json({ error: err.message || "Error al procesar" });
   }
 }
