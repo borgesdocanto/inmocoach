@@ -42,6 +42,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const events = await getStoredEvents(agentEmail, from, to);
 
+  console.log(`[agent-dashboard] agentEmail=${agentEmail} days=${days} from=${from.toISOString()} to=${to.toISOString()} events=${events.length}`);
+
+  // Also try raw query to diagnose
+  const { data: rawCheck, error: rawError } = await supabaseAdmin
+    .from("calendar_events")
+    .select("user_email, start_at, is_productive")
+    .eq("user_email", agentEmail)
+    .order("start_at", { ascending: false })
+    .limit(5);
+  console.log(`[agent-dashboard] raw last 5 events:`, JSON.stringify(rawCheck), rawError?.message);
+
   // Build daily summaries
   const productivityGoal = parseInt(process.env.NEXT_PUBLIC_PRODUCTIVITY_GOAL || "2");
   const byDay: Record<string, typeof events> = {};
