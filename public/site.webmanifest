@@ -1,13 +1,14 @@
 {
-  "name": "InstaCoach",
-  "short_name": "InstaCoach",
+  "name": "InmoCoach",
+  "short_name": "InmoCoach",
   "description": "Tu productividad comercial, medida y analizada.",
   "icons": [
-    { "src": "/android-chrome-192x192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "/android-chrome-512x512.png", "sizes": "512x512", "type": "image/png" }
+    { "src": "/android-chrome-192x192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/android-chrome-512x512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
   ],
-  "theme_color": "#ffffff",
+  "theme_color": "#aa0000",
   "background_color": "#ffffff",
   "display": "standalone",
-  "start_url": "/"
+  "start_url": "/",
+  "orientation": "portrait"
 }

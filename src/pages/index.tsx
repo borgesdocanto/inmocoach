@@ -3,6 +3,7 @@ import OnboardingModal from "../components/OnboardingModal";
 import StreakBadge from "../components/StreakBadge";
 import RankBadge from "../components/RankBadge";
 import RankingPosition from "../components/RankingPosition";
+import PushPrompt from "../components/PushPrompt";
 import { useRouter } from "next/router";
 import { useEffect, useState, useMemo } from "react";
 import Head from "next/head";
@@ -785,6 +786,9 @@ export default function HomePage() {
                 tooltip='Operaciones cerradas. El evento debe tener la palabra "Firma" en el título (firma de contrato, firma de escritura, etc.).'
               />
             </div>
+
+            {/* Push notifications prompt */}
+            <PushPrompt />
 
             {/* Streak */}
             {data.streak !== undefined && (
