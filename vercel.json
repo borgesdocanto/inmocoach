@@ -1,7 +1,8 @@
 {
   "crons": [
-    { "path": "/api/cron/weekly-email", "schedule": "0 12 * * 1" },
-    { "path": "/api/cron/deep-sync",    "schedule": "0 3 * * 0" },
-    { "path": "/api/cron/streak-alert", "schedule": "0 21 * * 1-5" }
+    { "path": "/api/cron/weekly-email",  "schedule": "0 12 * * 1"   },
+    { "path": "/api/cron/deep-sync",     "schedule": "0 3 * * 0"    },
+    { "path": "/api/cron/daily-sync",    "schedule": "0 20 * * 1-5" },
+    { "path": "/api/cron/streak-alert",  "schedule": "0 21 * * 1-5" }
   ]
 }

@@ -33,8 +33,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(200).json({ ok: true, checked: 0 });
   }
 
-  // Ver quién ya cumplió hoy (streak_last_active_date = today)
-  const atRisk = users.filter(u => u.streak_last_active_date !== today);
+  // En riesgo = tiene racha activa PERO no registró actividad hoy
+  // Después del daily-sync de las 17hs, streak_last_active_date refleja datos reales
+  const atRisk = users.filter(u => {
+    if (u.streak_last_active_date === today) return false; // ya cumplió hoy ✅
+    // Si la racha fue activa ayer o antes, está en riesgo
+    return true;
+  });
 
   console.log(`🔥 ${atRisk.length} agentes con racha en riesgo hoy`);
 
