@@ -99,12 +99,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const accessToken = (session as any).accessToken;
   if (!accessToken) return res.status(401).json({ error: "Sin token de Calendar" });
 
-  const days = parseInt(req.query.days as string) || 30;
+  const requestedDays = parseInt(req.query.days as string) || 30;
 
   try {
     const auth = new google.auth.OAuth2();
     auth.setCredentials({ access_token: accessToken });
     const calendar = google.calendar({ version: "v3", auth });
+
+    // Determinar días a sincronizar — primera vez trae 180 días de historial
+    const { data: sub } = await supabaseAdmin
+      .from("subscriptions")
+      .select("team_id, onboarding_done")
+      .eq("email", session.user?.email!)
+      .single();
+
+    const isFirstSync = !sub?.onboarding_done;
+    const days = isFirstSync ? 180 : requestedDays;
 
     const now = new Date();
     const timeMin = formatISO(startOfDay(subDays(now, days)));
@@ -123,13 +133,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const mappedEvents: CalendarEvent[] = items
       .filter(e => e.status !== "cancelled" && e.summary)
       .map(processEvent);
-
-    // Persistir en background
-    const { data: sub } = await supabaseAdmin
-      .from("subscriptions")
-      .select("team_id, onboarding_done")
-      .eq("email", session.user?.email!)
-      .single();
 
     await syncAndPersist(accessToken, session.user?.email!, sub?.team_id, days)
       .catch(e => console.error("Persist error:", e));
