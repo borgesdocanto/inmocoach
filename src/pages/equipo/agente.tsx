@@ -39,9 +39,25 @@ export default function AgentDetail() {
   const [year] = useState(new Date().getFullYear());
   const [loading, setLoading] = useState(true);
   const [agentName, setAgentName] = useState("");
+  const [weekly, setWeekly] = useState<any>(null);
+  const [weeklyLoading, setWeeklyLoading] = useState(true);
 
   useEffect(() => { if (status === "unauthenticated") router.replace("/login"); }, [status, router]);
   useEffect(() => { if (status === "authenticated" && email) load(); }, [status, email, period, selectedQ]);
+  useEffect(() => { if (status === "authenticated" && email) loadWeekly(); }, [status, email]);
+
+  const loadWeekly = async () => {
+    setWeeklyLoading(true);
+    try {
+      const res = await fetch(`/api/analytics/agent-weekly?agentEmail=${encodeURIComponent(email as string)}`);
+      if (res.ok) {
+        const d = await res.json();
+        setWeekly(d);
+        if (d.name) setAgentName(d.name);
+      }
+    } catch {}
+    setWeeklyLoading(false);
+  };
 
   const load = async () => {
     setLoading(true);
@@ -70,6 +86,9 @@ export default function AgentDetail() {
     return "Últimos 30 días";
   };
 
+  const iacColor = (v: number) => v >= 70 ? "#16a34a" : v >= 40 ? "#d97706" : "#aa0000";
+  const iacLabel = (v: number) => v >= 70 ? "Productivo" : v >= 40 ? "En construcción" : "En riesgo";
+
   if (status === "loading") return <div className="min-h-screen bg-white flex items-center justify-center"><Loader2 size={24} className="animate-spin" style={{ color: RED }} /></div>;
 
   return (
@@ -93,6 +112,65 @@ export default function AgentDetail() {
           <h1 className="text-xl font-black text-gray-900" style={{ fontFamily: "Georgia, serif" }}>{agentName || email}</h1>
           <p className="text-sm text-gray-400">{email}</p>
         </div>
+
+        {/* IAC semanal + sparkline */}
+        {weeklyLoading ? (
+          <div className="flex items-center justify-center py-6"><Loader2 size={18} className="animate-spin text-gray-200" /></div>
+        ) : weekly && (
+          <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
+            <div className="px-6 pt-5 pb-4 flex items-end justify-between gap-4 flex-wrap">
+              <div>
+                <div className="text-xs text-gray-400 uppercase tracking-widest font-bold mb-2">IAC esta semana</div>
+                <div className="flex items-end gap-3">
+                  <span className="font-black leading-none" style={{ fontFamily: "Georgia, serif", fontSize: 56, color: iacColor(weekly.iac) }}>
+                    {weekly.iac}%
+                  </span>
+                  <div className="mb-1">
+                    <div className="text-sm font-black" style={{ color: iacColor(weekly.iac) }}>{iacLabel(weekly.iac)}</div>
+                    <div className="text-xs text-gray-400">{weekly.weekTotal} / 15 reuniones</div>
+                  </div>
+                </div>
+              </div>
+              <div className="flex flex-col items-end gap-1 shrink-0">
+                {weekly.streak >= 1 && (
+                  <span className="text-sm font-black text-orange-500">{weekly.streak >= 5 ? "🔥" : "⚡"} {weekly.streak} días de racha</span>
+                )}
+                <div className="text-xs text-gray-400">
+                  {weekly.trend === "up" ? <span className="text-green-600 font-bold">↑ +{Math.abs(weekly.trendPct)}% vs semana anterior</span>
+                  : weekly.trend === "down" ? <span className="text-red-500 font-bold">↓ {Math.abs(weekly.trendPct)}% vs semana anterior</span>
+                  : <span>estable vs semana anterior</span>}
+                </div>
+              </div>
+            </div>
+
+            {/* Barra IAC */}
+            <div className="px-6 mb-4">
+              <div className="w-full bg-gray-100 rounded-full h-3 overflow-hidden">
+                <div className="h-full rounded-full transition-all duration-700"
+                  style={{ width: `${Math.min(weekly.iac, 100)}%`, background: iacColor(weekly.iac) }} />
+              </div>
+            </div>
+
+            {/* Sparkline 7 días */}
+            <div className="px-6 pb-5">
+              <div className="text-xs text-gray-400 mb-2 font-medium">Últimos 7 días</div>
+              <div className="flex items-end gap-1.5 h-12">
+                {(weekly.sparkline || []).map((v: number, i: number) => {
+                  const days = ["L","M","X","J","V","S","D"];
+                  const max = Math.max(...(weekly.sparkline || [1]), 1);
+                  const color = iacColor(weekly.iac);
+                  return (
+                    <div key={i} className="flex flex-col items-center gap-1 flex-1">
+                      <div className="w-full rounded-sm transition-all"
+                        style={{ height: `${Math.max(3, (v / max) * 36)}px`, background: v > 0 ? color : "#e5e7eb", opacity: v === 0 ? 0.3 : 1 }} />
+                      <span className="text-gray-300 font-medium" style={{ fontSize: 9 }}>{days[i]}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Selector de período */}
         <div className="bg-white border border-gray-100 rounded-2xl p-4 flex items-center gap-3 flex-wrap">
