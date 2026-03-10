@@ -1,7 +1,7 @@
 import Head from "next/head";
 import { useRouter } from "next/router";
 import { useSession } from "next-auth/react";
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { ArrowLeft, Users, User, AlertTriangle, Loader2, CheckCircle, UserPlus, Mail, Clock, Shield, X, ChevronUp, ChevronDown, Info } from "lucide-react";
 import TeamsPricingWidget from "../components/TeamsPricingWidget";
 import { pricePerAgent, formatPriceARS } from "../lib/pricing";
@@ -11,21 +11,49 @@ const BASE_PRICE = 10500;
 
 function Tooltip({ text }: { text: string }) {
   const [show, setShow] = useState(false);
+  const ref = React.useRef<HTMLButtonElement>(null);
+  const [above, setAbove] = useState(false);
+
+  const handleShow = () => {
+    if (ref.current) {
+      const rect = ref.current.getBoundingClientRect();
+      setAbove(rect.top > 180);
+    }
+    setShow(true);
+  };
+
   return (
     <span className="relative inline-flex items-center">
       <button
-        onMouseEnter={() => setShow(true)}
+        ref={ref}
+        onMouseEnter={handleShow}
         onMouseLeave={() => setShow(false)}
-        onTouchStart={() => setShow(v => !v)}
+        onTouchStart={() => { handleShow(); }}
         className="text-gray-300 hover:text-gray-500 transition-colors ml-1 align-middle"
         type="button"
       >
         <Info size={13} />
       </button>
       {show && (
-        <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 bg-gray-900 text-white text-xs rounded-xl px-3 py-2 z-50 shadow-xl leading-relaxed pointer-events-none">
+        <span
+          className="absolute w-64 bg-gray-900 text-white text-xs rounded-xl px-3 py-2 shadow-xl leading-relaxed pointer-events-none"
+          style={{
+            zIndex: 9999,
+            left: "50%",
+            transform: "translateX(-50%)",
+            ...(above
+              ? { bottom: "calc(100% + 8px)" }
+              : { top: "calc(100% + 8px)" }),
+          }}
+        >
           {text}
-          <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900" />
+          <span
+            className="absolute border-4 border-transparent"
+            style={above
+              ? { top: "100%", left: "50%", transform: "translateX(-50%)", borderTopColor: "#111827" }
+              : { bottom: "100%", left: "50%", transform: "translateX(-50%)", borderBottomColor: "#111827" }
+            }
+          />
         </span>
       )}
     </span>
