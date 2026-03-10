@@ -101,13 +101,21 @@ export async function getAgentSummary(email: string): Promise<Omit<AgentSummary,
   if (iac >= 70) status = "green";
   else if (iac >= 40) status = "yellow";
 
-  // Sparkline: reuniones verdes por día, últimos 7 días
+  // Sparkline: reuniones verdes por día, últimos 7 días corridos
+  const sparkByDay: Record<string, number> = {};
+  all.forEach(e => {
+    if (e.is_productive) {
+      const d = e.start_at.slice(0, 10);
+      sparkByDay[d] = (sparkByDay[d] || 0) + 1;
+    }
+  });
+
   const sparkline: number[] = [];
   for (let i = 6; i >= 0; i--) {
     const d = new Date(now);
     d.setDate(d.getDate() - i);
     const key = d.toISOString().slice(0, 10);
-    sparkline.push(byDay[key] || 0);
+    sparkline.push(sparkByDay[key] || 0);
   }
 
   // Streak desde subscriptions
