@@ -52,6 +52,7 @@ export default function CuentaPage() {
   const [agencyMsg, setAgencyMsg] = useState("");
   const [removeConfirm, setRemoveConfirm] = useState<string | null>(null);
   const [removeLoading, setRemoveLoading] = useState<string | null>(null);
+  const [roleLoading, setRoleLoading] = useState<string | null>(null);
   const [teamMembers, setTeamMembers] = useState<any[]>([]);
   const [showTeamLeaders, setShowTeamLeaders] = useState(true);
   const [showBroker, setShowBroker] = useState(true);
@@ -113,6 +114,16 @@ export default function CuentaPage() {
     setSettingsSaving(true);
     await fetch("/api/teams/settings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ [key]: value }) });
     setSettingsSaving(false);
+  };
+
+  const changeRole = async (memberEmail: string, newRole: "team_leader" | "member") => {
+    setRoleLoading(memberEmail);
+    const res = await fetch("/api/teams/role", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ memberEmail, newRole }) });
+    const d = await res.json();
+    if (d.ok) {
+      fetch("/api/analytics/team").then(r => r.json()).then(d => { if (d?.agents) setTeamMembers(d.agents); });
+    } else alert(d.error);
+    setRoleLoading(null);
   };
 
   const invite = async () => {
@@ -352,15 +363,15 @@ export default function CuentaPage() {
               {inviteMsg && <p className={`text-xs mt-2 font-medium ${inviteMsg.includes("nviada") ? "text-green-600" : "text-red-500"}`}>{inviteMsg}</p>}
             </div>
 
-            {/* Agentes activos */}
+            {/* Usuarios activos */}
             {teamMembers.length > 0 && (
               <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
                 <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-2">
                   <Users size={13} className="text-gray-400" />
-                  <span className="text-xs font-black text-gray-500 uppercase tracking-widest">Agentes activos</span>
+                  <span className="text-xs font-black text-gray-500 uppercase tracking-widest">{teamMembers.length} usuarios activos</span>
                 </div>
                 <div className="divide-y divide-gray-50">
-                  {teamMembers.filter((a:any) => a.teamRole !== "owner").map((a: any) => (
+                  {teamMembers.map((a: any) => (
                     <div key={a.email} className="flex items-center gap-3 px-5 py-3">
                       {a.avatar ? <img src={a.avatar} className="w-8 h-8 rounded-full shrink-0" /> :
                         <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-xs font-black text-gray-400 shrink-0">{(a.name||a.email)[0].toUpperCase()}</div>}
@@ -368,10 +379,24 @@ export default function CuentaPage() {
                         <div className="text-sm font-semibold text-gray-800 truncate">{a.name || a.email}</div>
                         {a.name && <div className="text-xs text-gray-400 truncate">{a.email}</div>}
                       </div>
-                      <button onClick={() => removeAgent(a.email)} disabled={removeLoading === a.email}
-                        className={`text-xs font-bold px-3 py-1.5 rounded-lg transition-all ${removeConfirm === a.email ? "bg-red-100 text-red-600" : "text-gray-300 hover:text-red-400 bg-gray-50"}`}>
-                        {removeLoading === a.email ? <Loader2 size={11} className="animate-spin" /> : removeConfirm === a.email ? "¿Confirmar?" : "Remover"}
-                      </button>
+                      {a.teamRole === "owner" ? (
+                        <span className="text-xs font-bold px-2.5 py-1 rounded-lg shrink-0" style={{ background: "#fef2f2", color: RED }}>Broker</span>
+                      ) : (
+                        <div className="flex items-center gap-2 shrink-0">
+                          {roleLoading === a.email ? <Loader2 size={12} className="animate-spin text-gray-300" /> : (
+                            <select value={a.teamRole}
+                              onChange={e => changeRole(a.email, e.target.value as "team_leader" | "member")}
+                              className="text-xs font-semibold text-gray-600 bg-gray-100 border-0 rounded-lg px-2 py-1.5 cursor-pointer focus:outline-none appearance-none">
+                              <option value="member">Agente</option>
+                              <option value="team_leader">Team Leader</option>
+                            </select>
+                          )}
+                          <button onClick={() => removeAgent(a.email)} disabled={removeLoading === a.email}
+                            className={`text-xs font-bold px-3 py-1.5 rounded-lg transition-all ${removeConfirm === a.email ? "bg-red-100 text-red-600" : "text-gray-300 hover:text-red-400 bg-gray-50"}`}>
+                            {removeLoading === a.email ? <Loader2 size={11} className="animate-spin" /> : removeConfirm === a.email ? "¿Confirmar?" : "Remover"}
+                          </button>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
