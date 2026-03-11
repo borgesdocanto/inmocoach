@@ -38,8 +38,8 @@ export async function getOrCreateSubscription(
       await ensureSuperAdminTeam(email, name);
       return { ...mapSub(data), plan: "teams", status: "active", teamRole: "owner", isVip: true };
     }
-    // VIP domain — siempre individual activo
-    if (vip && data.plan === "free") {
+    // VIP domain — siempre individual activo (pero no pisar si ya está en un equipo)
+    if (vip && data.plan === "free" && !data.team_id) {
       await supabaseAdmin
         .from("subscriptions")
         .update({ plan: "individual", status: "active" })

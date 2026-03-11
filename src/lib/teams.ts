@@ -133,19 +133,25 @@ export async function acceptInvitation(token: string, agentEmail: string): Promi
 
   const { data: brokerSub } = await supabaseAdmin
     .from("subscriptions")
-    .select("plan")
+    .select("plan, team_id")
     .eq("email", inv.teams.owner_email)
     .single();
 
-  // No hacer downgrade si el agente ya tiene un plan pagado individualmente
+  // No hacer downgrade si el agente ya tiene un plan pagado individualmente con MP real
   const { data: existingAgent } = await supabaseAdmin
     .from("subscriptions")
     .select("plan, mp_subscription_id")
     .eq("email", agentEmail)
     .maybeSingle();
 
-  const agentPlan = brokerSub?.plan === "teams" ? "teams"
-    : (existingAgent?.plan === "individual" && existingAgent?.mp_subscription_id) ? "individual"
+  // Determinar plan del agente:
+  // 1. Si el broker tiene teams activo → siempre teams (incluso VIP domain)
+  // 2. Si el agente tiene individual con suscripción MP real → no hacer downgrade
+  // 3. Caso base → free
+  const brokerHasTeams = brokerSub?.plan === "teams" || (brokerSub?.team_id === inv.team_id);
+  const agentHasPaidIndividual = existingAgent?.plan === "individual" && !!existingAgent?.mp_subscription_id;
+  const agentPlan = brokerHasTeams ? "teams"
+    : agentHasPaidIndividual ? "individual"
     : "free";
 
   await supabaseAdmin
