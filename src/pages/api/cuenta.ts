@@ -198,12 +198,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         .single();
 
       if (sub?.team_id && sub?.team_role === "owner") {
-        // Desasociar todos los agentes del equipo
-        await supabaseAdmin
+        // Desasociar agentes — solo resetear plan a free si no tienen suscripción individual propia
+        const { data: agentsToReset } = await supabaseAdmin
           .from("subscriptions")
-          .update({ team_id: null, team_role: null, plan: "free", status: "active" })
+          .select("email, mp_subscription_id, plan")
           .eq("team_id", sub.team_id)
           .neq("email", email);
+
+        for (const agent of agentsToReset || []) {
+          const keepPlan = agent.plan === "individual" && agent.mp_subscription_id;
+          await supabaseAdmin
+            .from("subscriptions")
+            .update({ team_id: null, team_role: null, plan: keepPlan ? agent.plan : "free", status: "active" })
+            .eq("email", agent.email);
+        }
 
         // Marcar equipo como cancelado
         await supabaseAdmin

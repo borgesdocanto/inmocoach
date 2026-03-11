@@ -102,7 +102,6 @@ export default function CuentaPage() {
   const [agencyName, setAgencyName] = useState("");
   const [agencySaving, setAgencySaving] = useState(false);
   const [agencyMsg, setAgencyMsg] = useState("");
-  const [removeConfirm, setRemoveConfirm] = useState<string | null>(null);
   const [removeLoading, setRemoveLoading] = useState<string | null>(null);
   const [removeModal, setRemoveModal] = useState<{ email: string; name: string } | null>(null);
   const [retornarModal, setRetornarModal] = useState(false);

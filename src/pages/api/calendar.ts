@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "../../lib/auth";
 import { google } from "googleapis";
 import { startOfDay, endOfDay, subDays, addDays, formatISO } from "date-fns";
-import { syncAndPersist, IAC_GOAL, PROCESOS_GOAL, calcIAC } from "../../lib/calendarSync";
+import { syncAndPersist, IAC_GOAL, PROCESOS_GOAL, calcIAC, getEventTypeConfig } from "../../lib/calendarSync";
 import { supabaseAdmin } from "../../lib/supabase";
 import { getAgentRankStats } from "../../lib/ranks";
 import { computeAndSaveStreak } from "../../lib/streak";
@@ -56,25 +56,32 @@ function normalize(s: string) {
   return s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 }
 
-function detectType(title: string): string {
-  const t = normalize(title);
-  for (const [keywords, type] of ALWAYS_GREEN_KEYWORDS) {
-    if (keywords.some(kw => t.includes(kw))) return type;
+async function processEventDynamic(
+  e: any,
+  greenTypes: Set<string>,
+  procesoTypes: Set<string>,
+  cierreTypes: Set<string>,
+  keywordsMap: Array<{ type: string; keywords: string[] }>
+): Promise<CalendarEvent> {
+  const t = normalize(e.summary || "");
+
+  // Detectar tipo usando keywords dinámicos (DB) con fallback a hardcoded
+  let type = "otro";
+  const sorted = [...keywordsMap].sort((a, b) =>
+    Math.max(...b.keywords.map(k => k.length)) - Math.max(...a.keywords.map(k => k.length))
+  );
+  for (const { type: ktype, keywords } of sorted) {
+    if (keywords.some(kw => t.includes(kw))) { type = ktype; break; }
   }
-  if (USER_ONLY_GREEN_KEYWORDS.some(kw => t.includes(kw))) return "prospeccion";
-  if (YELLOW_KEYWORDS.some(kw => t.includes(kw))) return "amarillo";
-  return "otro";
-}
+  // Fallback estático si no matcheó ninguno
+  if (type === "otro") {
+    for (const [keywords, ktype] of ALWAYS_GREEN_KEYWORDS) {
+      if (keywords.some(kw => t.includes(kw))) { type = ktype; break; }
+    }
+  }
 
-function processEvent(e: any): CalendarEvent {
-  const type = detectType(e.summary || "");
   const isUserColored = !!(e.colorId && GREEN_COLOR_IDS.has(e.colorId));
-
-  const alwaysGreenTypes = new Set(["tasacion", "primera_visita", "fotos_video", "propuesta", "firma", "conocer", "visita", "reunion"]);
-  const isGreen = isUserColored || alwaysGreenTypes.has(type);
-
-  const procesoTypes = new Set(["tasacion", "primera_visita", "fotos_video"]);
-  const cierreTypes = new Set(["firma"]);
+  const isGreen = isUserColored || greenTypes.has(type);
 
   return {
     id: e.id!,
@@ -132,9 +139,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
 
     const items = response.data.items || [];
-    const mappedEvents: CalendarEvent[] = items
-      .filter(e => e.status !== "cancelled" && e.summary)
-      .map(processEvent);
+    // Usar config dinámica de tipos de evento (misma que calendarSync)
+    const typeConfig = await getEventTypeConfig();
+    const mappedEvents: CalendarEvent[] = await Promise.all(
+      items
+        .filter(e => e.status !== "cancelled" && e.summary)
+        .map(e => processEventDynamic(e, typeConfig.green, typeConfig.procesos, typeConfig.cierres, typeConfig.keywordsMap))
+    );
 
     await syncAndPersist(accessToken, session.user?.email!, sub?.team_id, days)
       .catch(e => console.error("Persist error:", e));

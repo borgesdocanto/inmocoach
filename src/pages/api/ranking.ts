@@ -17,11 +17,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .eq("email", email)
       .single();
 
-    // Todos los usuarios activos (cualquier plan)
-    const { data: allUsers } = await supabaseAdmin
+    // Solo usuarios con acceso activo (excluye freemium expirado y cancelados)
+    const { data: allUsersRaw } = await supabaseAdmin
       .from("subscriptions")
-      .select("email, rank_slug")
-      .not("plan", "is", null);
+      .select("email, rank_slug, plan, status, created_at")
+      .in("status", ["active"]);
+
+    const FREEMIUM_DAYS = 7;
+    const allUsers = (allUsersRaw ?? []).filter(u => {
+      if (u.plan !== "free") return true;
+      const created = new Date(u.created_at);
+      const diffDays = (Date.now() - created.getTime()) / (1000 * 60 * 60 * 24);
+      return diffDays <= FREEMIUM_DAYS;
+    });
 
     const allEmails = (allUsers ?? []).map(u => u.email);
 

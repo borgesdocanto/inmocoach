@@ -46,6 +46,35 @@ export async function getOrCreateSubscription(
         .eq("email", email);
       return { ...mapSub(data), plan: "individual", status: "active", isVip: true };
     }
+    // Agente en equipo pausado — verificar si paid_until venció
+    if (data.team_id && data.team_role !== "owner" && data.plan === "teams") {
+      const { data: team } = await supabaseAdmin
+        .from("teams")
+        .select("status, paid_until")
+        .eq("id", data.team_id)
+        .single();
+
+      if (team?.status === "paused" && team?.paid_until && new Date(team.paid_until) < new Date()) {
+        // Periodo pagado vencido — mover agente a free con 7 días desde ahora
+        const freeUntil = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+        await supabaseAdmin
+          .from("subscriptions")
+          .update({ plan: "free", status: "active", team_id: null, team_role: null, created_at: new Date().toISOString() })
+          .eq("email", email);
+        // Registrar en team_removals para historial (sin bloqueo — fue por cancelación del broker)
+        const { data: teamOwnerData } = await supabaseAdmin.from("teams").select("owner_email").eq("id", data.team_id).single();
+        await supabaseAdmin.from("team_removals").insert({
+          team_id: data.team_id,
+          owner_email: teamOwnerData?.owner_email || "",
+          removed_email: email,
+          removed_at: new Date().toISOString(),
+          blocked_until: new Date().toISOString(), // sin bloqueo
+          free_until: freeUntil.toISOString(),
+        }); // ignorar error si ya existe — .catch no disponible en este contexto
+        return { ...mapSub({ ...data, plan: "free", status: "active", team_id: null, team_role: null }), isVip: vip };
+      }
+    }
+
     return { ...mapSub(data), isVip: vip };
   }
 

@@ -121,7 +121,16 @@ export async function acceptInvitation(token: string, agentEmail: string): Promi
     .eq("email", inv.teams.owner_email)
     .single();
 
-  const agentPlan = brokerSub?.plan === "teams" ? "teams" : "free";
+  // No hacer downgrade si el agente ya tiene un plan pagado individualmente
+  const { data: existingAgent } = await supabaseAdmin
+    .from("subscriptions")
+    .select("plan, mp_subscription_id")
+    .eq("email", agentEmail)
+    .maybeSingle();
+
+  const agentPlan = brokerSub?.plan === "teams" ? "teams"
+    : (existingAgent?.plan === "individual" && existingAgent?.mp_subscription_id) ? "individual"
+    : "free";
 
   await supabaseAdmin
     .from("subscriptions")

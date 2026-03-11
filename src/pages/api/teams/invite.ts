@@ -39,14 +39,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const brokerName = session.user.name || session.user.email!;
     const team = await getOrCreateTeam(session.user.email, `Equipo de ${brokerName}`);
 
-    // Verificar bloqueo de 60 días por remoción previa
-    const { data: removal } = await supabaseAdmin
+    // Verificar bloqueo de 60 días por remoción previa (tomar el más reciente)
+    const { data: removals } = await supabaseAdmin
       .from("team_removals")
       .select("blocked_until, removed_at")
       .eq("team_id", team.id)
       .eq("removed_email", email)
       .gte("blocked_until", new Date().toISOString())
-      .maybeSingle();
+      .order("blocked_until", { ascending: false })
+      .limit(1);
+    const removal = removals?.[0] ?? null;
 
     if (removal) {
       const blockedUntil = new Date(removal.blocked_until);

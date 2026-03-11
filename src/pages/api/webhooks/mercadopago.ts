@@ -53,9 +53,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
             // Si es broker de un equipo, pausar el equipo con fecha de corte
             if (brokerSub?.team_id && brokerSub.team_role === "owner") {
+              // Guardar cantidad de agentes antes de pausar
+              const { count: agentCount } = await supabaseAdmin
+                .from("subscriptions")
+                .select("email", { count: "exact", head: true })
+                .eq("team_id", brokerSub.team_id);
               await supabaseAdmin
                 .from("teams")
-                .update({ status: "paused", paid_until: paidUntilDate.toISOString() })
+                .update({ status: "paused", paid_until: paidUntilDate.toISOString(), max_agents: agentCount ?? 1 })
                 .eq("id", brokerSub.team_id);
             }
 

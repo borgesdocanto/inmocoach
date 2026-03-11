@@ -37,7 +37,7 @@ export default function ExpiredPage() {
           </p>
 
           <div className="bg-slate-50 rounded-2xl p-4 mb-6 text-left">
-            <div className="font-black text-sm text-slate-700 mb-2">Plan Individual — USD 7/mes</div>
+            <div className="font-black text-sm text-slate-700 mb-2">Plan Individual — $10.500/mes</div>
             <ul className="space-y-1.5">
               {["Inmo Coach ilimitado", "Informe semanal personalizado", "Historial completo", "Cancelás cuando querés"].map(f => (
                 <li key={f} className="text-xs text-slate-500 font-medium flex items-center gap-2">
@@ -52,7 +52,7 @@ export default function ExpiredPage() {
             onClick={() => router.push("/pricing")}
             className="w-full py-4 rounded-2xl font-black text-white text-sm transition-all hover:-translate-y-0.5 hover:shadow-xl mb-3"
             style={{ background: `linear-gradient(135deg, ${BRAND.color}, ${BRAND.colorDark})` }}>
-            Activar mi plan — USD 7/mes
+            Activar mi plan →
           </button>
 
           <button

@@ -53,6 +53,17 @@ async function detectTypeDynamic(title: string): Promise<string | null> {
   return null;
 }
 
+export async function getEventTypeConfig(): Promise<{
+  green: Set<string>;
+  procesos: Set<string>;
+  cierres: Set<string>;
+  keywordsMap: Array<{ type: string; keywords: string[] }>;
+}> {
+  const { green, procesos, cierres } = await getGreenTypes();
+  const keywordsMap = _keywordsCache || [];
+  return { green: green as Set<string>, procesos: procesos as Set<string>, cierres: cierres as Set<string>, keywordsMap };
+}
+
 export function invalidateEventTypeCache() { _cacheTime = 0; }
 
 // ── Tipos de eventos ──────────────────────────────────────────────────────────
