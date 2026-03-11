@@ -57,5 +57,34 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(200).json({ ok: true, user: data });
   }
 
+  // Suspender equipo completo — pausa el equipo y desactiva todos sus miembros
+  if (action === "suspend_team") {
+    const { teamId } = req.body;
+    if (!teamId) return res.status(400).json({ error: "teamId requerido" });
+
+    // Pausar el equipo
+    await supabaseAdmin
+      .from("teams")
+      .update({ status: "paused", paid_until: new Date().toISOString() })
+      .eq("id", teamId);
+
+    // Desactivar todos los miembros (excepto el owner — sigue con su propia suscripción)
+    await supabaseAdmin
+      .from("subscriptions")
+      .update({ status: "cancelled" })
+      .eq("team_id", teamId)
+      .neq("team_role", "owner");
+
+    // También cancelar el owner
+    await supabaseAdmin
+      .from("subscriptions")
+      .update({ status: "cancelled" })
+      .eq("team_id", teamId)
+      .eq("team_role", "owner");
+
+    console.log(`🚫 Equipo ${teamId} suspendido por admin`);
+    return res.status(200).json({ ok: true });
+  }
+
   return res.status(400).json({ error: "Acción inválida" });
 }

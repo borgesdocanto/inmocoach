@@ -70,6 +70,9 @@ export default function AdminPanel() {
   const [selectedTeam, setSelectedTeam] = useState<AdminStats["teams"][0] | null>(null);
   const [teamMembers, setTeamMembers] = useState<any[]>([]);
   const [teamMembersLoading, setTeamMembersLoading] = useState(false);
+  const [suspendConfirm, setSuspendConfirm] = useState(false);
+  const [suspendLoading, setSuspendLoading] = useState(false);
+  const [suspendMsg, setSuspendMsg] = useState("");
 
   useEffect(() => { loadStats(); }, []);
   useEffect(() => { if (tab === "users" || tab === "teams") loadUsers(); }, [tab, planFilter, search]);
@@ -233,6 +236,30 @@ export default function AdminPanel() {
       setTeamMembers(data.members || []);
     } catch {}
     setTeamMembersLoading(false);
+  };
+
+  const suspendTeam = async (teamId: string) => {
+    setSuspendLoading(true);
+    setSuspendMsg("");
+    try {
+      const res = await fetch("/api/admin/ops", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "suspend_team", teamId }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setSuspendMsg("✓ Equipo suspendido");
+        setSuspendConfirm(false);
+        setTimeout(() => setSuspendMsg(""), 3000);
+        loadStats();
+      } else {
+        setSuspendMsg(data.error || "Error");
+      }
+    } catch {
+      setSuspendMsg("Error de conexión");
+    }
+    setSuspendLoading(false);
   };
 
   const ROLE_LABEL: Record<string, string> = {
@@ -567,14 +594,44 @@ export default function AdminPanel() {
                         <span className="font-semibold text-gray-600">{selectedTeam.memberCount} miembro{selectedTeam.memberCount !== 1 ? "s" : ""}</span>
                       </div>
                     </div>
-                    <div className="flex gap-2 shrink-0">
-                      <button onClick={() => triggerOp("send_weekly_email", selectedTeam.owner_email)}
-                        className="text-xs font-semibold text-gray-400 hover:text-gray-700 bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-lg flex items-center gap-1 transition-colors">
-                        <Mail size={11} /> Mail al broker
-                      </button>
-                      <button onClick={() => { setSelectedTeam(null); setTeamMembers([]); }}
-                        className="text-xs font-semibold text-gray-400 hover:text-gray-700 bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-lg transition-colors">
-                        ✕
+                    <div className="flex gap-2 shrink-0 items-center">
+                      {/* Suspend team */}
+                      {!suspendConfirm ? (
+                        <button
+                          onClick={() => { setSuspendConfirm(true); setSuspendMsg(""); }}
+                          className="text-xs font-bold px-3 py-1.5 rounded-lg border transition-colors"
+                          style={{ borderColor: "#fca5a5", color: "#dc2626", background: "#fff5f5" }}>
+                          Suspender equipo
+                        </button>
+                      ) : (
+                        <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-red-200 bg-red-50">
+                          <span className="text-xs font-bold text-red-700">¿Confirmás?</span>
+                          <button
+                            onClick={() => suspendTeam(selectedTeam.id)}
+                            disabled={suspendLoading}
+                            className="text-xs font-black text-white px-2.5 py-1 rounded-lg flex items-center gap-1 transition-all"
+                            style={{ background: "#dc2626" }}>
+                            {suspendLoading ? <Loader2 size={10} className="animate-spin" /> : null}
+                            Sí, suspender
+                          </button>
+                          <button
+                            onClick={() => { setSuspendConfirm(false); setSuspendMsg(""); }}
+                            className="text-xs font-semibold text-gray-400 hover:text-gray-600 px-1.5">
+                            Cancelar
+                          </button>
+                        </div>
+                      )}
+                      {suspendMsg && (
+                        <span className={`text-xs font-bold ${suspendMsg.startsWith("✓") ? "text-green-600" : "text-red-500"}`}>
+                          {suspendMsg}
+                        </span>
+                      )}
+                      {/* Cerrar panel */}
+                      <button
+                        onClick={() => { setSelectedTeam(null); setTeamMembers([]); setSuspendConfirm(false); setSuspendMsg(""); }}
+                        title="Cerrar detalle"
+                        className="text-xs font-semibold text-gray-400 hover:text-gray-600 bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-lg transition-colors">
+                        Cerrar
                       </button>
                     </div>
                   </div>
