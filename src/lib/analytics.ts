@@ -54,12 +54,15 @@ export async function getAgentSummary(email: string): Promise<Omit<AgentSummary,
   const prevWeekStart = new Date(weekStart); prevWeekStart.setDate(prevWeekStart.getDate() - 7);
   const prevWeekEnd = new Date(weekStart); prevWeekEnd.setMilliseconds(-1);
 
+  const endOfToday = new Date(now);
+  endOfToday.setHours(23, 59, 59, 999);
+
   const { data: events30 } = await supabaseAdmin
     .from("calendar_events")
     .select("start_at, is_productive")
     .eq("user_email", email)
     .gte("start_at", from30.toISOString())
-    .lte("start_at", now.toISOString());
+    .lte("start_at", endOfToday.toISOString());
 
   const all = events30 || [];
   const monthTotal = all.filter(e => e.is_productive).length;
