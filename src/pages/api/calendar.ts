@@ -4,7 +4,7 @@ import { authOptions } from "../../lib/auth";
 import { getOrCreateSubscription, isFreemiumExpired } from "../../lib/subscription";
 import { google } from "googleapis";
 import { startOfDay, endOfDay, subDays, addDays, formatISO } from "date-fns";
-import { syncAndPersist, IAC_GOAL, PROCESOS_GOAL, calcIAC, getEventTypeConfig } from "../../lib/calendarSync";
+import { persistEvents, IAC_GOAL, PROCESOS_GOAL, calcIAC, getEventTypeConfig, EventType } from "../../lib/calendarSync";
 import { supabaseAdmin } from "../../lib/supabase";
 import { getAgentRankStats } from "../../lib/ranks";
 import { computeAndSaveStreak } from "../../lib/streak";
@@ -155,7 +155,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         .map(e => processEventDynamic(e, typeConfig.green, typeConfig.procesos, typeConfig.cierres, typeConfig.keywordsMap))
     );
 
-    await syncAndPersist(accessToken, session.user?.email!, sub?.team_id, days)
+    // Persistir usando los eventos ya procesados — evita segunda llamada a Google
+    // que causaba discrepancias en la primera impresión del usuario
+    const syncedForPersist = mappedEvents.map(e => ({
+      id: e.id,
+      title: e.title,
+      start: e.start,
+      end: e.end,
+      type: e.type as EventType,
+      isGreen: e.isGreen,
+      isProceso: e.isProceso,
+      isCierre: e.isCierre,
+      isUserColored: e.isUserColored,
+      durationMinutes: 60,
+      attendeesCount: e.attendees?.length ?? 1,
+    }));
+    await persistEvents(session.user?.email!, sub?.team_id, syncedForPersist)
       .catch(e => console.error("Persist error:", e));
 
     // Agrupar por día
