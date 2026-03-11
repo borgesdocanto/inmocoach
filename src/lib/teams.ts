@@ -138,24 +138,6 @@ export async function acceptInvitation(token: string, agentEmail: string): Promi
     .update({ status: "accepted" })
     .eq("token", token);
 
-  // Actualizar max_agents_ever — registra el pico histórico de agentes
-  const { count: currentCount } = await supabaseAdmin
-    .from("subscriptions")
-    .select("email", { count: "exact", head: true })
-    .eq("team_id", inv.team_id);
-
-  const { data: teamRow } = await supabaseAdmin
-    .from("teams")
-    .select("max_agents_ever")
-    .eq("id", inv.team_id)
-    .single();
-
-  const newPeak = Math.max(currentCount ?? 1, teamRow?.max_agents_ever ?? 1);
-  await supabaseAdmin
-    .from("teams")
-    .update({ max_agents_ever: newPeak })
-    .eq("id", inv.team_id);
-
   return { ok: true, ownerEmail: inv.teams.owner_email };
 }
 

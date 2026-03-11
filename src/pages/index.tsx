@@ -552,6 +552,7 @@ export default function HomePage() {
   const [weekOffset, setWeekOffset] = useState(0);
   const [monthOffset, setMonthOffset] = useState(0);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [brokerExpiredModal, setBrokerExpiredModal] = useState<{ brokerName: string; brokerEmail: string } | null>(null);
   const { status: pushStatus, subscribe: subscribePush } = usePushNotifications();
 
   useEffect(() => {
@@ -565,6 +566,14 @@ export default function HomePage() {
         setIsOwner(d.subscription?.teamRole === "owner" || d.subscription?.teamRole === "team_leader");
         setHasTeam(!!d.subscription?.teamId);
         if (d.subscription?.isExpired) router.push("/expired");
+        // Chequear si el equipo del broker expiró
+        if (d.subscription?.teamId && d.subscription?.teamRole === "member") {
+          fetch(`/api/teams/status?teamId=${d.subscription.teamId}`)
+            .then(r => r.json())
+            .then(t => {
+              if (t.status === "expired") setBrokerExpiredModal({ brokerName: t.brokerName, brokerEmail: t.brokerEmail });
+            }).catch(() => {});
+        }
         if (d.plan?.id === "free" && d.subscription?.createdAt) {
           const created = new Date(d.subscription.createdAt);
           const diff = 7 - Math.floor((Date.now() - created.getTime()) / (1000 * 60 * 60 * 24));
@@ -913,6 +922,34 @@ export default function HomePage() {
         )}
       </main>
       {showOnboarding && <OnboardingModal onClose={handleOnboardingClose} />}
+
+      {brokerExpiredModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl space-y-4">
+            <div className="text-2xl text-center">⚠️</div>
+            <div className="text-base font-black text-gray-900 text-center">Tu equipo no continuó en InmoCoach</div>
+            <p className="text-sm text-gray-500 text-center leading-relaxed">
+              El broker <strong>{brokerExpiredModal.brokerName}</strong> no renovó el plan del equipo.<br/>
+              Tenés 7 días de acceso gratuito para decidir qué hacer.
+            </p>
+            <div className="space-y-2">
+              <a href={`mailto:${brokerExpiredModal.brokerEmail}?subject=InmoCoach - Renovación del equipo`}
+                className="block w-full text-center py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-700 hover:border-gray-400 transition-all">
+                Contactar a {brokerExpiredModal.brokerName}
+              </a>
+              <button onClick={() => { setBrokerExpiredModal(null); router.push("/pricing"); }}
+                className="block w-full text-center py-2.5 rounded-xl text-sm font-black text-white transition-all"
+                style={{ background: "#aa0000" }}>
+                Contratar plan individual →
+              </button>
+              <button onClick={() => setBrokerExpiredModal(null)}
+                className="block w-full text-center py-2 text-xs text-gray-400 hover:text-gray-600">
+                Cerrar (me quedan días de acceso)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

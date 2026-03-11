@@ -101,6 +101,9 @@ export default function CuentaPage() {
   const [agencyMsg, setAgencyMsg] = useState("");
   const [removeConfirm, setRemoveConfirm] = useState<string | null>(null);
   const [removeLoading, setRemoveLoading] = useState<string | null>(null);
+  const [removeModal, setRemoveModal] = useState<{ email: string; name: string } | null>(null);
+  const [removedMembers, setRemovedMembers] = useState<any[]>([]);
+  const [reinviteLoading, setReinviteLoading] = useState<string | null>(null);
   const [roleLoading, setRoleLoading] = useState<string | null>(null);
   const [resendLoading, setResendLoading] = useState<string | null>(null);
   const [resendMsg, setResendMsg] = useState<string | null>(null);
@@ -176,13 +179,42 @@ export default function CuentaPage() {
     setInviting(false);
   };
 
-  const removeAgent = async (email: string) => {
-    if (removeConfirm !== email) { setRemoveConfirm(email); return; }
-    setRemoveLoading(email); setRemoveConfirm(null);
-    const res = await fetch("/api/teams/remove", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ memberEmail: email }) });
+  const removeAgent = async (email: string, name: string) => {
+    // Paso 1: pedir confirmación al API (devuelve warning)
+    const check = await fetch("/api/teams/remove", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ memberEmail: email }) });
+    const checkData = await check.json();
+    if (checkData.requiresConfirmation) {
+      setRemoveModal({ email, name });
+      return;
+    }
+  };
+
+  const confirmRemove = async () => {
+    if (!removeModal) return;
+    setRemoveLoading(removeModal.email);
+    const res = await fetch("/api/teams/remove", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ memberEmail: removeModal.email, confirmed: true }) });
     const d = await res.json();
-    if (d.ok) { fetch("/api/teams/members").then(r=>r.json()).then(d=>{ if(d?.members) setTeamMembers(d.members); }); fetch("/api/cuenta").then(r=>r.json()).then(d=>setData(d)); }
+    if (d.ok) {
+      setRemoveModal(null);
+      fetch("/api/teams/members").then(r=>r.json()).then(d=>{ if(d?.members) setTeamMembers(d.members); });
+      fetch("/api/cuenta").then(r=>r.json()).then(d=>setData(d));
+      loadRemovedMembers();
+    }
     setRemoveLoading(null);
+  };
+
+  const loadRemovedMembers = async () => {
+    const res = await fetch("/api/teams/removed-members");
+    if (res.ok) { const d = await res.json(); setRemovedMembers(d.removed || []); }
+  };
+
+  const reinviteAgent = async (email: string) => {
+    setReinviteLoading(email);
+    const res = await fetch("/api/teams/invite", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email }) });
+    const d = await res.json();
+    if (d.ok) { alert(`Invitación enviada a ${email}`); }
+    else { alert(d.error || "Error al invitar"); }
+    setReinviteLoading(null);
   };
 
   const saveAgency = async () => {
@@ -381,9 +413,9 @@ export default function CuentaPage() {
                               <option value="team_leader">Team Leader</option>
                             </select>
                           )}
-                          <button onClick={() => removeAgent(a.email)} disabled={removeLoading === a.email}
-                            className={`text-xs font-bold px-3 py-1.5 rounded-lg transition-all ${removeConfirm === a.email ? "bg-red-100 text-red-600" : "text-gray-300 hover:text-red-400 bg-gray-50"}`}>
-                            {removeLoading === a.email ? <Loader2 size={11} className="animate-spin" /> : removeConfirm === a.email ? "¿Confirmar?" : "Remover"}
+                          <button onClick={() => removeAgent(a.email, a.name || a.email)} disabled={!!removeLoading}
+                            className="text-xs font-bold px-3 py-1.5 rounded-lg transition-all text-gray-300 hover:text-red-400 bg-gray-50">
+                            {removeLoading === a.email ? <Loader2 size={11} className="animate-spin" /> : "Remover"}
                           </button>
                         </div>
                       )}
@@ -538,10 +570,69 @@ export default function CuentaPage() {
           </div>
         )}
 
+        {/* Ex-agentes removidos */}
+        {removedMembers.length > 0 && (
+          <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
+            <div className="px-5 py-4 border-b border-gray-100">
+              <div className="text-sm font-black text-gray-800">Agentes removidos</div>
+              <div className="text-xs text-gray-400 mt-0.5">Podés re-invitar cuando se cumpla el período de bloqueo</div>
+            </div>
+            <div className="divide-y divide-gray-50">
+              {removedMembers.map((m: any) => {
+                const blockedUntil = new Date(m.blocked_until);
+                const isBlocked = blockedUntil > new Date();
+                const daysLeft = Math.ceil((blockedUntil.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+                return (
+                  <div key={m.removed_email} className="px-5 py-3 flex items-center gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-semibold text-gray-700">{m.removed_email}</div>
+                      {isBlocked
+                        ? <div className="text-xs text-red-400">Bloqueado {daysLeft} días más (hasta {blockedUntil.toLocaleDateString("es-AR")})</div>
+                        : <div className="text-xs text-green-600">Disponible para re-invitar</div>
+                      }
+                    </div>
+                    <button onClick={() => reinviteAgent(m.removed_email)}
+                      disabled={isBlocked || reinviteLoading === m.removed_email}
+                      className="text-xs font-bold px-3 py-1.5 rounded-lg border border-gray-200 text-gray-500 hover:border-gray-400 transition-all disabled:opacity-40 disabled:cursor-not-allowed">
+                      {reinviteLoading === m.removed_email ? "Enviando..." : "Re-invitar"}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         <p className="text-xs text-center text-gray-300 pb-4">
           Para consultas sobre facturación escribí a <span className="text-gray-400">hola@inmocoach.com.ar</span>
         </p>
       </main>
+
+      {/* Modal confirmación remoción */}
+      {removeModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl space-y-4">
+            <div className="text-2xl text-center">⚠️</div>
+            <div className="text-base font-black text-gray-900 text-center">¿Remover a {removeModal.name}?</div>
+            <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 space-y-1.5 text-sm text-amber-800">
+              <div>• Tendrá <strong>7 días de acceso gratuito</strong>, luego deberá contratar plan individual.</div>
+              <div>• <strong>No podrás volver a invitarlo por 60 días</strong> desde hoy.</div>
+              <div>• El precio de tu plan baja en el próximo ciclo de facturación.</div>
+            </div>
+            <div className="flex gap-2">
+              <button onClick={() => setRemoveModal(null)}
+                className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-500 hover:border-gray-400 transition-all">
+                Cancelar
+              </button>
+              <button onClick={confirmRemove} disabled={removeLoading === removeModal.email}
+                className="flex-1 py-2.5 rounded-xl text-sm font-black text-white transition-all disabled:opacity-50"
+                style={{ background: "#aa0000" }}>
+                {removeLoading === removeModal.email ? "Removiendo..." : "Sí, remover"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

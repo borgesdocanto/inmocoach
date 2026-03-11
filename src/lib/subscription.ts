@@ -121,6 +121,57 @@ export function isFreemiumExpired(sub: Subscription): boolean {
   return diffDays > FREEMIUM_DAYS;
 }
 
+// Verifica si el equipo del broker está expirado (cancelado y paid_until vencido)
+export async function getTeamStatus(teamId: string): Promise<{
+  status: "active" | "paused" | "expired";
+  paidUntil: Date | null;
+  brokerName: string;
+  brokerEmail: string;
+}> {
+  const { data: team } = await supabaseAdmin
+    .from("teams")
+    .select("status, paid_until, owner_email")
+    .eq("id", teamId)
+    .single();
+
+  const { data: broker } = await supabaseAdmin
+    .from("subscriptions")
+    .select("name, email")
+    .eq("email", team?.owner_email)
+    .single();
+
+  const paidUntil = team?.paid_until ? new Date(team.paid_until) : null;
+  const isPaidPeriodOver = !paidUntil || paidUntil < new Date();
+
+  let status: "active" | "paused" | "expired" = "active";
+  if (team?.status === "paused") {
+    status = isPaidPeriodOver ? "expired" : "paused";
+  }
+
+  return {
+    status,
+    paidUntil,
+    brokerName: broker?.name || team?.owner_email || "",
+    brokerEmail: team?.owner_email || "",
+  };
+}
+
+// Verifica si un agente fue removido y aún tiene días free
+export async function getRemovedAgentFreeUntil(email: string): Promise<Date | null> {
+  // Si tiene plan free y no tiene team_id, verificar si tiene free_until vigente
+  const { data } = await supabaseAdmin
+    .from("team_removals")
+    .select("free_until")
+    .eq("removed_email", email)
+    .order("removed_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (!data?.free_until) return null;
+  const freeUntil = new Date(data.free_until);
+  return freeUntil > new Date() ? freeUntil : null;
+}
+
 export async function upgradePlan(
   email: string,
   plan: PlanId,

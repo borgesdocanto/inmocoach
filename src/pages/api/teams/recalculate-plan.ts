@@ -49,16 +49,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .select("email", { count: "exact" })
       .eq("team_id", sub.team_id);
 
-    // Usar max_agents_ever como piso — evita que remover agentes baje el precio al instante
-    const { data: teamRow } = await supabaseAdmin
-      .from("teams")
-      .select("max_agents_ever")
-      .eq("id", sub.team_id)
-      .single();
-
-    const currentCount = count || 1;
-    const billingCount = Math.max(currentCount, teamRow?.max_agents_ever ?? 1);
-    const agentCount = billingCount;
+    const agentCount = count || 1;
     const newTotal = calcTeamsTotal(BASE_PRICE, agentCount);
     const tier = getTierForAgents(agentCount);
 

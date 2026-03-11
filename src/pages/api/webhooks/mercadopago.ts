@@ -37,10 +37,28 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const sub = await getMPData(`https://api.mercadopago.com/preapproval/${data.id}`);
 
       if (!["authorized", "active"].includes(sub.status)) {
-        // Suscripción cancelada o suspendida — bajar plan a free
         if (sub.status === "cancelled" || sub.status === "paused") {
           const [email] = (sub.external_reference ?? "").split("|");
           if (email) {
+            // Obtener paid_until desde el próximo cobro o current_period_end de MP
+            const paidUntil = sub.next_payment_date || sub.date_last_updated
+              ? new Date(sub.next_payment_date || sub.date_last_updated)
+              : new Date();
+
+            const { data: brokerSub } = await supabaseAdmin
+              .from("subscriptions")
+              .select("team_id, team_role")
+              .eq("email", email)
+              .single();
+
+            // Si es broker de un equipo, pausar el equipo con fecha de corte
+            if (brokerSub?.team_id && brokerSub.team_role === "owner") {
+              await supabaseAdmin
+                .from("teams")
+                .update({ status: "paused", paid_until: paidUntil.toISOString() })
+                .eq("id", brokerSub.team_id);
+            }
+
             await supabaseAdmin
               .from("subscriptions")
               .update({ plan: "free", status: "cancelled", mp_subscription_id: null })
@@ -103,11 +121,10 @@ async function activatePlan(
   if (planId === "teams") {
     const { data: sub } = await supabaseAdmin
       .from("subscriptions")
-      .select("name, team_role")
+      .select("name, team_role, team_id")
       .eq("email", email)
       .single();
 
-    // Solo crear equipo si no es ya owner
     if (sub?.team_role !== "owner") {
       const brokerName = sub?.name || email.split("@")[0];
       const team = await getOrCreateTeam(email, `Equipo de ${brokerName}`);
@@ -115,6 +132,17 @@ async function activatePlan(
         .from("subscriptions")
         .update({ team_id: team.id, team_role: "owner" })
         .eq("email", email);
+      // Reactivar equipo si estaba pausado
+      await supabaseAdmin
+        .from("teams")
+        .update({ status: "active", paid_until: null })
+        .eq("id", team.id);
+    } else if (sub?.team_id) {
+      // Broker renueva — reactivar equipo
+      await supabaseAdmin
+        .from("teams")
+        .update({ status: "active", paid_until: null })
+        .eq("id", sub.team_id);
     }
   }
 
