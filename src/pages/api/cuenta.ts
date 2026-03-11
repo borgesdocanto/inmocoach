@@ -96,6 +96,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const total = calcTeamsTotal(BASE_PRICE, agentCount);
     const tier = getTierForAgents(agentCount);
 
+    // Estado del equipo (para broker con equipo pausado)
+    let teamStatus: string | null = null;
+    let teamPaidUntil: string | null = null;
+    let teamId: string | null = sub.team_id || null;
+    if (sub.team_id) {
+      const { data: teamRow } = await supabaseAdmin
+        .from("teams")
+        .select("status, paid_until")
+        .eq("id", sub.team_id)
+        .single();
+      teamStatus = teamRow?.status || "active";
+      teamPaidUntil = teamRow?.paid_until || null;
+    }
+
     return res.status(200).json({
       plan: sub.plan,
       status: sub.status,
@@ -110,6 +124,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       agencyName: agencyName,
       teamRole: sub.team_role,
       isOwner: sub.team_role === "owner",
+      teamId,
+      teamStatus,
+      teamPaidUntil,
     });
   }
 
@@ -134,7 +151,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (action === "cancel") {
       const { data: sub } = await supabaseAdmin
         .from("subscriptions")
-        .select("mp_subscription_id, mp_plan_id")
+        .select("mp_subscription_id, mp_plan_id, team_id, team_role, current_period_end")
         .eq("email", email)
         .single();
 
@@ -145,10 +162,51 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         await mp(`/preapproval_plan/${sub.mp_plan_id}`, "PATCH", { status: "cancelled" });
       }
 
+      // Si es broker con equipo, pausar equipo con paid_until = fin del período actual
+      if (sub?.team_id && sub?.team_role === "owner") {
+        const paidUntil = sub.current_period_end ? new Date(sub.current_period_end) : new Date();
+        await supabaseAdmin
+          .from("teams")
+          .update({ status: "paused", paid_until: paidUntil.toISOString() })
+          .eq("id", sub.team_id);
+      }
+
       await supabaseAdmin
         .from("subscriptions")
         .update({ plan: "free", status: "cancelled", mp_subscription_id: null, mp_plan_id: null })
         .eq("email", email);
+
+      return res.status(200).json({ ok: true });
+    }
+
+    // ── Broker elige plan individual (eliminar equipo) ────────────────────
+    if (action === "reset_to_individual") {
+      const { data: sub } = await supabaseAdmin
+        .from("subscriptions")
+        .select("team_id, team_role")
+        .eq("email", email)
+        .single();
+
+      if (sub?.team_id && sub?.team_role === "owner") {
+        // Desasociar todos los agentes del equipo
+        await supabaseAdmin
+          .from("subscriptions")
+          .update({ team_id: null, team_role: null, plan: "free", status: "active" })
+          .eq("team_id", sub.team_id)
+          .neq("email", email);
+
+        // Marcar equipo como cancelado
+        await supabaseAdmin
+          .from("teams")
+          .update({ status: "cancelled" })
+          .eq("id", sub.team_id);
+
+        // Desasociar broker del equipo
+        await supabaseAdmin
+          .from("subscriptions")
+          .update({ team_id: null, team_role: null })
+          .eq("email", email);
+      }
 
       return res.status(200).json({ ok: true });
     }

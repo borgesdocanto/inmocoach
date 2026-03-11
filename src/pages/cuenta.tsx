@@ -74,6 +74,9 @@ interface CuentaData {
   teamRole: string | null;
   isOwner: boolean;
   isVip?: boolean;
+  teamId?: string | null;
+  teamStatus?: string | null;
+  teamPaidUntil?: string | null;
   mpStatus?: string | null;
 }
 
@@ -102,6 +105,8 @@ export default function CuentaPage() {
   const [removeConfirm, setRemoveConfirm] = useState<string | null>(null);
   const [removeLoading, setRemoveLoading] = useState<string | null>(null);
   const [removeModal, setRemoveModal] = useState<{ email: string; name: string } | null>(null);
+  const [retornarModal, setRetornarModal] = useState(false);
+  const [retornarLoading, setRetornarLoading] = useState(false);
   const [removedMembers, setRemovedMembers] = useState<any[]>([]);
   const [reinviteLoading, setReinviteLoading] = useState<string | null>(null);
   const [roleLoading, setRoleLoading] = useState<string | null>(null);
@@ -215,6 +220,38 @@ export default function CuentaPage() {
     if (d.ok) { alert(`Invitación enviada a ${email}`); }
     else { alert(d.error || "Error al invitar"); }
     setReinviteLoading(null);
+  };
+
+  const retornarConEquipo = async () => {
+    setRetornarLoading(true);
+    // Ir al checkout con la cantidad de agentes que tenía
+    const res = await fetch("/api/checkout", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ agentCount: data?.agentCount || 1 }),
+    });
+    const d = await res.json();
+    if (d.checkoutUrl) window.location.href = d.checkoutUrl;
+    else setRetornarLoading(false);
+  };
+
+  const retornarIndividual = async () => {
+    setRetornarLoading(true);
+    // Primero resetear equipo
+    await fetch("/api/cuenta", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "reset_to_individual" }),
+    });
+    // Luego ir al checkout individual
+    const res = await fetch("/api/checkout", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ agentCount: 1 }),
+    });
+    const d = await res.json();
+    if (d.checkoutUrl) window.location.href = d.checkoutUrl;
+    else setRetornarLoading(false);
   };
 
   const saveAgency = async () => {
@@ -607,6 +644,54 @@ export default function CuentaPage() {
           Para consultas sobre facturación escribí a <span className="text-gray-400">hola@inmocoach.com.ar</span>
         </p>
       </main>
+
+      {/* Modal broker vuelve con equipo pausado */}
+      {retornarModal && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-5">
+            <div className="text-center">
+              <div className="text-3xl mb-2">👋</div>
+              <div className="text-lg font-black text-gray-900">Bienvenido de vuelta</div>
+              <p className="text-sm text-gray-500 mt-1">Tenías un equipo en InmoCoach. ¿Cómo querés continuar?</p>
+            </div>
+
+            <div className="space-y-3">
+              {/* Opción 1: Retomar equipo */}
+              <div className="border-2 border-gray-100 hover:border-red-200 rounded-2xl p-4 cursor-pointer transition-all"
+                onClick={retornarConEquipo}>
+                <div className="flex items-start gap-3">
+                  <div className="text-2xl">👥</div>
+                  <div>
+                    <div className="text-sm font-black text-gray-900">Retomar mi equipo</div>
+                    <div className="text-xs text-gray-500 mt-0.5 leading-relaxed">
+                      Seguís como broker con tu equipo existente. Vas a poder re-invitar a tus agentes uno a uno.
+                      Se cobra el plan por la cantidad de agentes que tenías (<strong>{data?.agentCount || 1}</strong>).
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Opción 2: Plan individual */}
+              <div className="border-2 border-gray-100 hover:border-gray-300 rounded-2xl p-4 cursor-pointer transition-all"
+                onClick={retornarIndividual}>
+                <div className="flex items-start gap-3">
+                  <div className="text-2xl">👤</div>
+                  <div>
+                    <div className="text-sm font-black text-gray-900">Contratar plan individual</div>
+                    <div className="text-xs text-gray-500 mt-0.5 leading-relaxed">
+                      Usás InmoCoach solo para vos. <span className="text-red-500 font-semibold">Tu equipo anterior se eliminará</span> y deberás invitar agentes de nuevo si querés armar uno.
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {retornarLoading && (
+              <p className="text-xs text-center text-gray-400 animate-pulse">Procesando...</p>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Modal confirmación remoción */}
       {removeModal && (
