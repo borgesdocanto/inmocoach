@@ -555,7 +555,7 @@ export default function HomePage() {
   const { status: pushStatus, subscribe: subscribePush } = usePushNotifications();
 
   useEffect(() => {
-    if (status === "unauthenticated") router.replace("/home");
+    if (status === "unauthenticated") router.replace("/login");
   }, [status, router]);
 
   useEffect(() => {
