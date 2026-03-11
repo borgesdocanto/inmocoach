@@ -71,6 +71,7 @@ export default function BrokerDashboard() {
   const [showTeamLeaders, setShowTeamLeaders] = useState(true);
   const [showBroker, setShowBroker] = useState(true);
   const [sortBy, setSortBy] = useState<"iac" | "trend" | "streak">("iac");
+  const [syncing, setSyncing] = useState(false);
 
   useEffect(() => { if (status === "unauthenticated") router.replace("/login"); }, [status, router]);
   useEffect(() => { if (status === "authenticated") { loadTeam(); loadAnalytics(); } }, [status]);
@@ -97,6 +98,15 @@ export default function BrokerDashboard() {
       if (res.ok) { const data = await res.json(); setAgents(data.agents || []); setOverview(data.overview || null); }
     } catch {}
     setAnalyticsLoading(false);
+  };
+
+  const syncAll = async () => {
+    setSyncing(true);
+    try {
+      await fetch("/api/teams/sync-all", { method: "POST" });
+      await loadAnalytics();
+    } catch {}
+    setSyncing(false);
   };
 
   const isOwner = requesterRole === "owner";
@@ -142,8 +152,11 @@ export default function BrokerDashboard() {
               Gestionar →
             </button>
           )}
-          <button onClick={() => { loadTeam(); loadAnalytics(); }} className="text-gray-300 hover:text-gray-600 transition-colors">
-            <RefreshCw size={14} />
+          <button onClick={syncAll} disabled={syncing}
+            title="Sincronizar calendarios de todo el equipo"
+            className="flex items-center gap-1.5 text-xs font-semibold text-gray-400 hover:text-gray-700 px-2 py-1 rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-50">
+            <RefreshCw size={13} className={syncing ? "animate-spin" : ""} />
+            <span className="hidden sm:inline">{syncing ? "Sincronizando..." : "Sync equipo"}</span>
           </button>
         </div>
       </header>
@@ -269,8 +282,8 @@ export default function BrokerDashboard() {
                   {s === "iac" ? "IAC" : s === "trend" ? "Tendencia" : "Racha"}
                 </button>
               ))}
-              <button onClick={loadAnalytics} className="ml-1 text-gray-400 hover:text-gray-600">
-                {analyticsLoading ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
+              <button onClick={syncAll} disabled={syncing} className="ml-1 text-gray-400 hover:text-gray-600 disabled:opacity-50">
+                {syncing || analyticsLoading ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
               </button>
             </div>
           </div>
