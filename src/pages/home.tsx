@@ -1,5 +1,6 @@
 import Head from "next/head";
 import { useRouter } from "next/router";
+import { signIn } from "next-auth/react";
 import { CheckCircle, TrendingUp, Users, Brain, Mail, Calendar, BarChart2, ArrowRight, Target } from "lucide-react";
 
 const RED = "#aa0000";
@@ -36,7 +37,7 @@ export default function Landing() {
           </div>
           <a href="#como-funciona" style={{ color: "#6b7280", fontSize: 13, fontWeight: 500 }}>Cómo funciona</a>
           <a href="/pricing" style={{ color: "#6b7280", fontSize: 13, fontWeight: 500 }}>Precios</a>
-          <button onClick={() => router.push("/login")}
+          <button onClick={() => signIn('google', { callbackUrl: '/' })}
             style={{ background: RED, color: "#fff", border: "none", borderRadius: 10, padding: "9px 20px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
             Empezar gratis
           </button>
@@ -57,7 +58,7 @@ export default function Landing() {
             InmoCoach sincroniza tu agenda, mide tus reuniones cara a cara y te dice exactamente qué estás haciendo bien, qué perdés y cuál es la próxima acción concreta.
           </p>
           <div className="f4" style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
-            <button onClick={() => router.push("/login")}
+            <button onClick={() => signIn('google', { callbackUrl: '/' })}
               style={{ background: RED, color: "#fff", border: "none", borderRadius: 12, padding: "15px 32px", fontSize: 15, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 8 }}>
               Probalo 7 días gratis <ArrowRight size={15} />
             </button>
@@ -221,7 +222,7 @@ export default function Landing() {
               style={{ background: RED, color: "#fff", border: "none", borderRadius: 12, padding: "14px 32px", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
               Ver precios y simulador →
             </button>
-            <button onClick={() => router.push("/login")}
+            <button onClick={() => signIn('google', { callbackUrl: '/' })}
               style={{ background: "#f3f4f6", color: "#374151", border: "none", borderRadius: 12, padding: "14px 32px", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
               Empezar gratis 7 días
             </button>
@@ -252,7 +253,7 @@ export default function Landing() {
           <p style={{ fontSize: 16, color: "#6b7280", marginBottom: 36, lineHeight: 1.7 }}>
             Conectás tu Google Calendar hoy. El lunes siguiente recibís tu primer análisis. Sin excusas, sin adivinanzas.
           </p>
-          <button onClick={() => router.push("/login")}
+          <button onClick={() => signIn('google', { callbackUrl: '/' })}
             style={{ background: RED, color: "#fff", border: "none", borderRadius: 12, padding: "16px 40px", fontSize: 16, fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 10 }}>
             Empezar 7 días gratis <ArrowRight size={16} />
           </button>
@@ -267,7 +268,7 @@ export default function Landing() {
           <div style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
             <a href="/privacidad" style={{ color: "#9ca3af", fontSize: 12 }}>Política de privacidad</a>
             <a href="/terminos" style={{ color: "#9ca3af", fontSize: 12 }}>Términos de uso</a>
-            <a href="/login" style={{ color: "#9ca3af", fontSize: 12 }}>Iniciar sesión</a>
+            <a onClick={() => signIn('google', { callbackUrl: '/' })} style={{ color: "#9ca3af", fontSize: 12, cursor: "pointer" }}>Iniciar sesión</a>
           </div>
           <p style={{ color: "#d1d5db", fontSize: 12 }}>© 2025 InmoCoach · inmocoach.com.ar</p>
         </div>
