@@ -21,7 +21,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     { data: newLast30 },
   ] = await Promise.all([
     supabaseAdmin.from("subscriptions").select("email, name, avatar, plan, status, created_at, team_id, team_role, google_access_token"),
-    supabaseAdmin.from("teams").select("id, name, agency_name, owner_email, max_agents, created_at"),
+    supabaseAdmin.from("teams").select("id, name, agency_name, owner_email, max_agents, created_at, status"),
     supabaseAdmin.from("payments").select("amount, created_at, status").order("created_at", { ascending: false }).limit(20),
     supabaseAdmin.from("subscriptions").select("email").gte("created_at", last7),
     supabaseAdmin.from("subscriptions").select("email").gte("created_at", last30),
@@ -51,6 +51,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       ...t,
       memberCount: users.filter(u => u.team_id === t.id).length,
       ownerName: users.find(u => u.email === t.owner_email)?.name || t.owner_email,
+      status: (t as any).status || "active",
     })),
     recentPayments: payments || [],
   });

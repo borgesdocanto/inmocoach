@@ -86,5 +86,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(200).json({ ok: true });
   }
 
+  // Reactivar equipo suspendido
+  if (action === "reactivate_team") {
+    const { teamId } = req.body;
+    if (!teamId) return res.status(400).json({ error: "teamId requerido" });
+
+    // Reactivar el equipo
+    await supabaseAdmin
+      .from("teams")
+      .update({ status: "active", paid_until: null })
+      .eq("id", teamId);
+
+    // Reactivar todos los miembros del equipo
+    await supabaseAdmin
+      .from("subscriptions")
+      .update({ status: "active" })
+      .eq("team_id", teamId);
+
+    console.log(`✅ Equipo ${teamId} reactivado por admin`);
+    return res.status(200).json({ ok: true });
+  }
+
   return res.status(400).json({ error: "Acción inválida" });
 }

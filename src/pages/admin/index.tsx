@@ -25,7 +25,7 @@ const PLAN_LABEL: Record<string, string> = {
 interface AdminStats {
   totals: { users: number; paid: number; free: number; withCalendar: number; newLast7: number; newLast30: number; conversionRate: number };
   byPlan: { free: number; individual: number; teams: number };
-  teams: { id: string; name: string; agency_name?: string; owner_email: string; ownerName: string; memberCount: number; created_at: string }[];
+  teams: { id: string; name: string; agency_name?: string; owner_email: string; ownerName: string; memberCount: number; created_at: string; status: string }[];
   recentPayments: { amount: number; created_at: string; status: string }[];
 }
 
@@ -253,6 +253,31 @@ export default function AdminPanel() {
         setSuspendConfirm(false);
         setTimeout(() => setSuspendMsg(""), 3000);
         loadStats();
+      } else {
+        setSuspendMsg(data.error || "Error");
+      }
+    } catch {
+      setSuspendMsg("Error de conexión");
+    }
+    setSuspendLoading(false);
+  };
+
+  const reactivateTeam = async (teamId: string) => {
+    setSuspendLoading(true);
+    setSuspendMsg("");
+    try {
+      const res = await fetch("/api/admin/ops", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "reactivate_team", teamId }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setSuspendMsg("✓ Equipo reactivado");
+        setSuspendConfirm(false);
+        setTimeout(() => setSuspendMsg(""), 3000);
+        loadStats();
+        loadTeamMembers(teamId);
       } else {
         setSuspendMsg(data.error || "Error");
       }
@@ -595,32 +620,46 @@ export default function AdminPanel() {
                       </div>
                     </div>
                     <div className="flex gap-2 shrink-0 items-center">
-                      {/* Suspend team */}
-                      {!suspendConfirm ? (
-                        <button
-                          onClick={() => { setSuspendConfirm(true); setSuspendMsg(""); }}
-                          className="text-xs font-bold px-3 py-1.5 rounded-lg border transition-colors"
-                          style={{ borderColor: "#fca5a5", color: "#dc2626", background: "#fff5f5" }}>
-                          Suspender equipo
-                        </button>
-                      ) : (
-                        <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-red-200 bg-red-50">
-                          <span className="text-xs font-bold text-red-700">¿Confirmás?</span>
-                          <button
-                            onClick={() => suspendTeam(selectedTeam.id)}
-                            disabled={suspendLoading}
-                            className="text-xs font-black text-white px-2.5 py-1 rounded-lg flex items-center gap-1 transition-all"
-                            style={{ background: "#dc2626" }}>
-                            {suspendLoading ? <Loader2 size={10} className="animate-spin" /> : null}
-                            Sí, suspender
-                          </button>
-                          <button
-                            onClick={() => { setSuspendConfirm(false); setSuspendMsg(""); }}
-                            className="text-xs font-semibold text-gray-400 hover:text-gray-600 px-1.5">
-                            Cancelar
-                          </button>
-                        </div>
-                      )}
+                      {/* Suspend / Reactivate team */}
+                      {(() => {
+                        const isSuspended = selectedTeam.status === "paused" || selectedTeam.status === "cancelled";
+                        if (!suspendConfirm) {
+                          return isSuspended ? (
+                            <button
+                              onClick={() => { setSuspendConfirm(true); setSuspendMsg(""); }}
+                              className="text-xs font-bold px-3 py-1.5 rounded-lg border transition-colors"
+                              style={{ borderColor: "#86efac", color: "#16a34a", background: "#f0fdf4" }}>
+                              Reactivar equipo
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => { setSuspendConfirm(true); setSuspendMsg(""); }}
+                              className="text-xs font-bold px-3 py-1.5 rounded-lg border transition-colors"
+                              style={{ borderColor: "#fca5a5", color: "#dc2626", background: "#fff5f5" }}>
+                              Suspender equipo
+                            </button>
+                          );
+                        }
+                        return (
+                          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border"
+                            style={{ borderColor: isSuspended ? "#86efac" : "#fecaca", background: isSuspended ? "#f0fdf4" : "#fff5f5" }}>
+                            <span className="text-xs font-bold" style={{ color: isSuspended ? "#15803d" : "#dc2626" }}>¿Confirmás?</span>
+                            <button
+                              onClick={() => isSuspended ? reactivateTeam(selectedTeam.id) : suspendTeam(selectedTeam.id)}
+                              disabled={suspendLoading}
+                              className="text-xs font-black text-white px-2.5 py-1 rounded-lg flex items-center gap-1 transition-all"
+                              style={{ background: isSuspended ? "#16a34a" : "#dc2626" }}>
+                              {suspendLoading ? <Loader2 size={10} className="animate-spin" /> : null}
+                              {isSuspended ? "Sí, reactivar" : "Sí, suspender"}
+                            </button>
+                            <button
+                              onClick={() => { setSuspendConfirm(false); setSuspendMsg(""); }}
+                              className="text-xs font-semibold text-gray-400 hover:text-gray-600 px-1.5">
+                              Cancelar
+                            </button>
+                          </div>
+                        );
+                      })()}
                       {suspendMsg && (
                         <span className={`text-xs font-bold ${suspendMsg.startsWith("✓") ? "text-green-600" : "text-red-500"}`}>
                           {suspendMsg}
