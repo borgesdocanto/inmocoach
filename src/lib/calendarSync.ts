@@ -254,22 +254,48 @@ export async function fetchCalendarEvents(
   const timeMin = formatISO(startOfDay(subDays(now, days)));
   const timeMax = formatISO(addDays(now, 30)); // 30 días hacia adelante
 
-  // Paginar — Google devuelve hasta 2500 por página, puede haber más
+  // Obtener lista de calendarios propios — si falla (token viejo) usar solo primary
+  let calendarIds: string[] = ["primary"];
+  try {
+    const calList = await calendar.calendarList.list();
+    const owned = (calList.data.items || []).filter(c =>
+      c.accessRole === "owner" || c.accessRole === "writer"
+    );
+    if (owned.length > 0) calendarIds = owned.map(c => c.id!);
+  } catch {
+    // Token sin scope calendar.calendars.readonly — solo leer primary
+  }
+
+  // Paginar cada calendario y acumular eventos
   const allItems: any[] = [];
-  let pageToken: string | undefined = undefined;
-  do {
-    const response: any = await calendar.events.list({
-      calendarId: "primary",
-      timeMin,
-      timeMax,
-      singleEvents: true,
-      orderBy: "startTime",
-      maxResults: 2500,
-      ...(pageToken ? { pageToken } : {}),
-    });
-    allItems.push(...(response.data.items || []));
-    pageToken = response.data.nextPageToken ?? undefined;
-  } while (pageToken);
+  const seenIds = new Set<string>();
+
+  for (const calId of calendarIds) {
+    let pageToken: string | undefined;
+    try {
+      do {
+        const response: any = await calendar.events.list({
+          calendarId: calId,
+          timeMin,
+          timeMax,
+          singleEvents: true,
+          orderBy: "startTime",
+          maxResults: 2500,
+          ...(pageToken ? { pageToken } : {}),
+        });
+        for (const item of response.data.items || []) {
+          // Deduplicar por event id (mismo evento puede aparecer en múltiples calendarios)
+          if (!seenIds.has(item.id)) {
+            seenIds.add(item.id);
+            allItems.push(item);
+          }
+        }
+        pageToken = response.data.nextPageToken ?? undefined;
+      } while (pageToken);
+    } catch {
+      // Ignorar calendarios sin acceso
+    }
+  }
 
   const items = allItems.filter(e =>
     e.status !== "cancelled" &&

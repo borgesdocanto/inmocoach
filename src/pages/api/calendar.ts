@@ -152,22 +152,35 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const timeMin = formatISO(startOfDay(subDays(now, fetchDays)));
     const timeMax = formatISO(endOfDay(addDays(now, 30))); // 30 días hacia adelante
 
-    // Paginar — Google devuelve hasta 2500 por página, puede haber más
+    // Obtener todos los calendarios propios — fallback a primary si el token es viejo
+    let calendarIds: string[] = ["primary"];
+    try {
+      const calList = await calendar.calendarList.list();
+      const owned = (calList.data.items || []).filter((c: any) =>
+        c.accessRole === "owner" || c.accessRole === "writer"
+      );
+      if (owned.length > 0) calendarIds = owned.map((c: any) => c.id!);
+    } catch { /* token sin scope — solo primary */ }
+
+    // Paginar cada calendario y acumular, deduplicando por event id
     const allItems: any[] = [];
-    let pageToken: string | undefined = undefined;
-    do {
-      const response: any = await calendar.events.list({
-        calendarId: "primary",
-        timeMin,
-        timeMax,
-        singleEvents: true,
-        orderBy: "startTime",
-        maxResults: 2500,
-        ...(pageToken ? { pageToken } : {}),
-      });
-      allItems.push(...(response.data.items || []));
-      pageToken = response.data.nextPageToken ?? undefined;
-    } while (pageToken);
+    const seenIds = new Set<string>();
+    for (const calId of calendarIds) {
+      let pageToken: string | undefined;
+      try {
+        do {
+          const response: any = await calendar.events.list({
+            calendarId: calId, timeMin, timeMax,
+            singleEvents: true, orderBy: "startTime", maxResults: 2500,
+            ...(pageToken ? { pageToken } : {}),
+          });
+          for (const item of response.data.items || []) {
+            if (!seenIds.has(item.id)) { seenIds.add(item.id); allItems.push(item); }
+          }
+          pageToken = response.data.nextPageToken ?? undefined;
+        } while (pageToken);
+      } catch { /* ignorar calendarios sin acceso */ }
+    }
 
     const items = allItems;
     // Usar config dinámica de tipos de evento (misma que calendarSync)
