@@ -12,8 +12,7 @@ export const authOptions: NextAuthOptions = {
         params: {
           scope: [
             "openid", "email", "profile",
-            "https://www.googleapis.com/auth/calendar.calendars.readonly",
-            "https://www.googleapis.com/auth/calendar.events.readonly",
+            "https://www.googleapis.com/auth/calendar.readonly",
           ].join(" "),
           access_type: "offline",
           prompt: "consent",
