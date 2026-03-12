@@ -58,6 +58,15 @@ function normalize(s: string) {
   return s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 }
 
+// Verifica que la keyword aparezca como palabra completa (evita "confirmar" → "firma")
+function hasWord(text: string, word: string): boolean {
+  const re = new RegExp(`(^|[\\s.,;:()/\\-])${word}($|[\\s.,;:()/\\-])`, "i");
+  return re.test(text);
+}
+
+// Keywords que requieren word boundary para evitar falsos positivos
+const WORD_BOUNDARY_KEYWORDS = new Set(["firma"]);
+
 async function processEventDynamic(
   e: any,
   greenTypes: Set<string>,
@@ -73,12 +82,12 @@ async function processEventDynamic(
     Math.max(...b.keywords.map(k => k.length)) - Math.max(...a.keywords.map(k => k.length))
   );
   for (const { type: ktype, keywords } of sorted) {
-    if (keywords.some(kw => t.includes(kw))) { type = ktype; break; }
+    if (keywords.some(kw => WORD_BOUNDARY_KEYWORDS.has(kw) ? hasWord(t, kw) : t.includes(kw))) { type = ktype; break; }
   }
   // Fallback estático si no matcheó ninguno
   if (type === "otro") {
     for (const [keywords, ktype] of ALWAYS_GREEN_KEYWORDS) {
-      if (keywords.some(kw => t.includes(kw))) { type = ktype; break; }
+      if (keywords.some(kw => WORD_BOUNDARY_KEYWORDS.has(kw) ? hasWord(t, kw) : t.includes(kw))) { type = ktype; break; }
     }
   }
 

@@ -154,12 +154,19 @@ export interface PeriodStats {
 }
 
 // ── Detectar tipo de evento por keywords ──────────────────────────────────────
+// Verifica que la keyword aparezca como palabra completa (no como substring de otra)
+function hasWord(text: string, word: string): boolean {
+  // Acepta: inicio/fin de string, espacios, puntos, comas, guiones, paréntesis
+  const re = new RegExp(`(^|[\\s.,;:()/\\-])${word}($|[\\s.,;:()/\\-])`, "i");
+  return re.test(text);
+}
+
 function detectType(title: string): EventType {
   const t = title.toLowerCase()
     .normalize("NFD").replace(/[\u0300-\u036f]/g, ""); // quita tildes para comparar
 
-  // Cierres
-  if (t.includes("firma") || t.includes("escritura")) return "firma";
+  // Cierres — "firma" como palabra completa para evitar "confirmar", "información", etc.
+  if (hasWord(t, "firma") || t.includes("escritura")) return "firma";
 
   // Tasación / captación
   if (t.includes("tasac") || t.includes("captac")) return "tasacion";
