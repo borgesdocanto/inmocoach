@@ -21,27 +21,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const auth = new google.auth.OAuth2();
   auth.setCredentials({ access_token: accessToken });
-  const calendar = google.calendar({ version: "v3", auth });
+  const cal = google.calendar({ version: "v3", auth });
 
-  const now = new Date();
-  const timeMin = formatISO(startOfDay(subDays(now, 7)));
-  const timeMax = formatISO(addDays(now, 7));
+  const timeMin = "2026-03-08T00:00:00-03:00";
+  const timeMax = "2026-03-15T00:00:00-03:00";
 
-  // 1. Listar calendarios
-  let calendars: any[] = [];
+  // Listar TODOS los calendarios sin filtrar por rol
+  let allCalendars: any[] = [];
   let calListError = null;
   try {
-    const calList = await calendar.calendarList.list();
-    calendars = (calList.data.items || []).map(c => ({
+    const calList = await cal.calendarList.list({ maxResults: 50 });
+    allCalendars = (calList.data.items || []).map(c => ({
       id: c.id, name: c.summary, primary: !!c.primary, role: c.accessRole,
     }));
   } catch (e: any) { calListError = e.message; }
 
-  // 2. Fetch eventos de cada calendario esta semana
-  const calResults: any[] = [];
-  const calIds = calendars.length > 0
-    ? calendars.filter(c => c.role === "owner" || c.role === "writer").map((c: any) => c.id)
-    : ["primary"];
+  // Fetch eventos de TODOS los calendarios (no solo owner/writer)
+  const results: any[] = [];
+  const calIds = allCalendars.length > 0 ? allCalendars.map(c => c.id!) : ["primary"];
 
   for (const calId of calIds) {
     const events: any[] = [];
@@ -49,7 +46,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     try {
       let pageToken: string | undefined;
       do {
-        const r: any = await calendar.events.list({
+        const r: any = await cal.events.list({
           calendarId: calId, timeMin, timeMax,
           singleEvents: true, orderBy: "startTime", maxResults: 250,
           ...(pageToken ? { pageToken } : {}),
@@ -59,44 +56,39 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       } while (pageToken);
     } catch (e: any) { err = e.message; }
 
-    calResults.push({
+    results.push({
       calendarId: calId,
-      name: calendars.find(c => c.id === calId)?.name ?? calId,
-      primary: calendars.find(c => c.id === calId)?.primary ?? false,
+      name: allCalendars.find(c => c.id === calId)?.name ?? calId,
+      role: allCalendars.find(c => c.id === calId)?.role,
+      primary: allCalendars.find(c => c.id === calId)?.primary ?? false,
       error: err,
       count: events.length,
       events: events.map(e => ({
         title: e.summary,
         start: e.start?.dateTime || e.start?.date,
-        organizer_self: e.organizer?.self ?? "MISSING",
         organizer_email: e.organizer?.email,
-        status: e.status,
-        colorId: e.colorId ?? null,
+        organizer_self: e.organizer?.self ?? "MISSING",
       })),
     });
   }
 
-  // 3. DB esta semana
+  // DB esta semana
   const { data: dbEvents } = await supabaseAdmin
-    .from("calendar_events").select("title, start_at, is_productive, is_organizer, event_type")
+    .from("calendar_events").select("title, start_at, is_productive, event_type")
     .eq("user_email", email)
-    .gte("start_at", timeMin).lte("start_at", timeMax)
+    .gte("start_at", "2026-03-08T00:00:00Z").lte("start_at", "2026-03-15T00:00:00Z")
     .order("start_at");
-
-  const { count: dbTotal } = await supabaseAdmin
-    .from("calendar_events").select("*", { count: "exact", head: true }).eq("user_email", email);
 
   return res.status(200).json({
     calListError,
-    calendars,
-    google: calResults,
+    all_calendars: allCalendars,
+    google_per_calendar: results,
     db: {
-      total: dbTotal,
       this_week: dbEvents?.length,
       events: dbEvents?.map(e => ({
         title: e.title,
-        start_ar: new Date(e.start_at).toLocaleString("es-AR", { timeZone: "America/Argentina/Buenos_Aires", weekday: "short", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }),
-        green: e.is_productive, organizer: e.is_organizer, type: e.event_type,
+        start: new Date(e.start_at).toLocaleString("es-AR", { timeZone: "America/Argentina/Buenos_Aires", weekday: "short", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }),
+        green: e.is_productive, type: e.event_type,
       })),
     },
   });
