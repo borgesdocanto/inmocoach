@@ -245,7 +245,7 @@ export async function fetchCalendarEvents(
 
   const now = new Date();
   const timeMin = formatISO(startOfDay(subDays(now, days)));
-  const timeMax = formatISO(addDays(now, 90)); // incluir reuniones futuras agendadas
+  const timeMax = formatISO(addDays(now, 30)); // 30 días hacia adelante
 
   const response = await calendar.events.list({
     calendarId: "primary",

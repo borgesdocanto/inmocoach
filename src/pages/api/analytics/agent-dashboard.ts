@@ -34,10 +34,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   if (!agent) return res.status(404).json({ error: "Agente no encontrado en tu equipo" });
 
-  const days = parseInt(daysParam as string) || 7;
+  const statsDays = parseInt(daysParam as string) || 7;
   const now = new Date();
-  const from = startOfDay(subDays(now, days));
-  const to = endOfDay(addDays(now, 90)); // incluir reuniones futuras
+  // Leer siempre 90 días hacia atrás para que la navegación del calendario funcione,
+  // pero calcular stats solo sobre el período seleccionado
+  const fetchDays = Math.max(statsDays, 90);
+  const from = startOfDay(subDays(now, fetchDays));
+  const to = endOfDay(addDays(now, 30)); // 30 días hacia adelante
 
   const events = await getStoredEvents(agentEmail, from, to);
 
@@ -68,8 +71,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       };
     });
 
-  const greenEvents = events.filter(e => e.isGreen);
-  const semanas = Math.max(1, Math.ceil(days / 7));
+  // Stats calculados solo sobre el período seleccionado (statsDays), no sobre fetchDays
+  const statsFrom = startOfDay(subDays(now, statsDays)).toISOString();
+  const statsTo = now.toISOString();
+  const greenEvents = events.filter(e => e.isGreen && e.start >= statsFrom && e.start <= statsTo);
+  const semanas = Math.max(1, Math.ceil(statsDays / 7));
   const avgPorSemana = greenEvents.length / semanas;
 
   const totals = {
@@ -97,7 +103,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     syncedAt: lastSyncedAt || new Date().toISOString(),
     lastSyncedAt,
     hasData,
-    period: { from: from.toISOString(), to: to.toISOString(), days },
+    period: { from: from.toISOString(), to: to.toISOString(), days: statsDays },
     totals, productivityGoal, productiveDays, totalDays,
     productivityRate: totalDays > 0 ? Math.round((productiveDays / totalDays) * 100) : 0,
     dailySummaries,

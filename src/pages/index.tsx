@@ -637,15 +637,17 @@ export default function HomePage() {
 
   const trendData = useMemo(() => {
     if (!data) return [];
-    const sliceDays = Math.min(days, 30);
-    return data.dailySummaries.slice(-sliceDays).map(d => {
-      const dt = new Date(d.date + "T12:00:00");
-      return {
-        dateLabel: `${dt.getDate()}/${dt.getMonth() + 1}`,
-        verdes: d.greenCount,
-        meta: PRODUCTIVITY_GOAL,
-      };
-    });
+    const today = new Date();
+    const fromDate = new Date(today);
+    fromDate.setDate(today.getDate() - Math.min(days, 30));
+    const fromStr = fromDate.toISOString().slice(0, 10);
+    const todayStr = today.toISOString().slice(0, 10);
+    return data.dailySummaries
+      .filter(d => d.date >= fromStr && d.date <= todayStr)
+      .map(d => {
+        const dt = new Date(d.date + "T12:00:00");
+        return { dateLabel: `${dt.getDate()}/${dt.getMonth() + 1}`, verdes: d.greenCount, meta: PRODUCTIVITY_GOAL };
+      });
   }, [data, days]);
 
   if (status === "loading" || (!data && !error && loading)) {

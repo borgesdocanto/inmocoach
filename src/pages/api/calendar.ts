@@ -134,11 +134,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .single();
 
     const isFirstSync = !sub?.onboarding_done;
-    const days = isFirstSync ? 180 : requestedDays;
+    // Siempre traer al menos 90 días hacia atrás para que la navegación del calendario funcione.
+    // Primera vez: 180 días. Stats se calculan sobre el período seleccionado.
+    const fetchDays = isFirstSync ? 180 : Math.max(requestedDays, 90);
+    const statsDays = isFirstSync ? 180 : requestedDays;
 
     const now = new Date();
-    const timeMin = formatISO(startOfDay(subDays(now, days)));
-    const timeMax = formatISO(endOfDay(addDays(now, 90))); // incluir reuniones futuras
+    const timeMin = formatISO(startOfDay(subDays(now, fetchDays)));
+    const timeMax = formatISO(endOfDay(addDays(now, 30))); // 30 días hacia adelante
 
     const response = await calendar.events.list({
       calendarId: "primary",
@@ -211,10 +214,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return { date, greenCount, procesosCount, events, isProductive: greenCount >= productivityGoal };
       });
 
-    const greenEvents = mappedEvents.filter(e => e.isGreen);
+    // Stats calculados solo sobre el período seleccionado (statsDays), no sobre los 90 días cargados
+    const statsFromDate = formatISO(startOfDay(subDays(now, statsDays)));
+    const greenEvents = mappedEvents.filter(e => e.isGreen && e.start >= statsFromDate);
 
     // Calcular semanas en el período para el IAC
-    const semanas = Math.max(1, Math.ceil(days / 7));
+    const semanas = Math.max(1, Math.ceil(statsDays / 7));
     const avgPorSemana = greenEvents.length / semanas;
 
     const totals = {
@@ -239,7 +244,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(200).json({
       user: { name: session.user?.name, email: session.user?.email, image: session.user?.image },
       syncedAt: new Date().toISOString(),
-      period: { from: timeMin, to: timeMax, days },
+      period: { from: timeMin, to: timeMax, days: statsDays },
       totals,
       productivityGoal,
       productiveDays,
