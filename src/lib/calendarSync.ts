@@ -112,6 +112,7 @@ export interface SyncedEvent {
   isProceso: boolean;       // entrada al embudo comercial
   isCierre: boolean;        // cierre de operación
   isUserColored: boolean;   // el usuario lo pintó verde manualmente
+  isOrganizer: boolean;     // false = fue invitado por otro, no cuenta como verde
   durationMinutes: number;
   attendeesCount: number;
 }
@@ -257,9 +258,7 @@ export async function fetchCalendarEvents(
 
   const items = (response.data.items || []).filter(e =>
     e.status !== "cancelled" &&
-    e.summary &&
-    // Solo eventos creados por el usuario (excluye invitaciones de otros)
-    (e.organizer?.self === true || !e.organizer)
+    e.summary
   );
   const { green, procesos, cierres } = await getGreenTypes();
 
@@ -267,7 +266,8 @@ export async function fetchCalendarEvents(
     const dynamicType = await detectTypeDynamic(e.summary!);
     const type = (dynamicType || detectType(e.summary!)) as EventType;
     const isUserColored = !!(e.colorId && GREEN_COLOR_IDS.has(e.colorId));
-    const isGreen = isUserColored || green.has(type);
+    const isOrganizer = e.organizer?.self !== false; // true si no hay organizer (evento propio sin invitados)
+    const isGreen = isOrganizer && (isUserColored || green.has(type));
     return {
       id: e.id!,
       title: e.summary!,
@@ -275,9 +275,10 @@ export async function fetchCalendarEvents(
       end: e.end?.dateTime ? new Date(e.end.dateTime).toISOString() : (e.end?.date ? e.end.date + "T00:00:00.000Z" : ""),
       type,
       isGreen,
-      isProceso: procesos.has(type),
-      isCierre: cierres.has(type),
+      isProceso: isOrganizer && procesos.has(type),
+      isCierre: isOrganizer && cierres.has(type),
       isUserColored,
+      isOrganizer,
       durationMinutes: durationMinutes(e),
       attendeesCount: attendeesCount(e),
     } as SyncedEvent;
@@ -307,7 +308,7 @@ export async function persistEvents(
       is_proceso: e.isProceso,
       is_cierre: e.isCierre,
       is_user_colored: e.isUserColored,
-
+      is_organizer: e.isOrganizer,
     }));
 
   await supabaseAdmin
@@ -351,6 +352,7 @@ export async function getStoredEvents(
     isProceso: r.is_proceso ?? false,
     isCierre: r.is_cierre ?? false,
     isUserColored: r.is_user_colored ?? false,
+    isOrganizer: r.is_organizer ?? true,
     durationMinutes: r.duration_minutes ?? 60,
     attendeesCount: r.attendees_count ?? 1,
   }));

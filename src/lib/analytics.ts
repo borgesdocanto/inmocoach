@@ -191,6 +191,7 @@ export async function getAgentPeriodStats(
     isProceso: r.is_proceso ?? procesoTypes.has(r.event_type),
     isCierre: r.is_cierre ?? cierreTypes.has(r.event_type),
     isUserColored: r.is_user_colored ?? false,
+    isOrganizer: r.is_organizer ?? true,
     durationMinutes: r.duration_minutes ?? 60,
     attendeesCount: r.attendees_count ?? 1,
   }));

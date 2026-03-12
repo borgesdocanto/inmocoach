@@ -41,6 +41,7 @@ export interface CalendarEvent {
   isProceso: boolean;
   isCierre: boolean;
   isUserColored: boolean;
+  isOrganizer: boolean;
   type: string;
   attendees: string[];
 }
@@ -82,7 +83,8 @@ async function processEventDynamic(
   }
 
   const isUserColored = !!(e.colorId && GREEN_COLOR_IDS.has(e.colorId));
-  const isGreen = isUserColored || greenTypes.has(type);
+  const isOrganizer = e.organizer?.self !== false;
+  const isGreen = isOrganizer && (isUserColored || greenTypes.has(type));
 
   return {
     id: e.id!,
@@ -91,9 +93,10 @@ async function processEventDynamic(
     end: e.end?.dateTime || e.end?.date || "",
     colorId: e.colorId ?? undefined,
     isGreen,
-    isProceso: isGreen && procesoTypes.has(type),
-    isCierre: isGreen && cierreTypes.has(type),
+    isProceso: isOrganizer && procesoTypes.has(type),
+    isCierre: isOrganizer && cierreTypes.has(type),
     isUserColored,
+    isOrganizer,
     type,
     attendees: (e.attendees || []).filter((a: any) => !a.self).map((a: any) => a.email || a.displayName || ""),
   };
@@ -153,9 +156,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       items
         .filter(e =>
           e.status !== "cancelled" &&
-          e.summary &&
-          // Solo eventos creados por el usuario (excluye invitaciones de otros)
-          (e.organizer?.self === true || !e.organizer)
+          e.summary
         )
         .map(e => processEventDynamic(e, typeConfig.green, typeConfig.procesos, typeConfig.cierres, typeConfig.keywordsMap))
     );
@@ -184,6 +185,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         isProceso: e.isProceso,
         isCierre: e.isCierre,
         isUserColored: e.isUserColored,
+        isOrganizer: e.isOrganizer,
         durationMinutes: Math.max(0, dur),
         attendeesCount: e.attendees?.length ?? 1,
       };

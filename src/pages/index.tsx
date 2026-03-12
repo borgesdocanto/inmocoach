@@ -17,7 +17,7 @@ const RED = "#aa0000";
 const GREEN = "#16a34a";
 const PRODUCTIVITY_GOAL = parseInt(process.env.NEXT_PUBLIC_PRODUCTIVITY_GOAL || "10");
 
-interface CalendarEvent { id: string; title: string; type: string; isGreen: boolean; start: string; }
+interface CalendarEvent { id: string; title: string; type: string; isGreen: boolean; isOrganizer: boolean; start: string; }
 interface DaySummary { date: string; greenCount: number; isProductive: boolean; events: CalendarEvent[]; }
 interface CalendarData {
   user: { name: string; email: string; image?: string };
@@ -156,16 +156,23 @@ function WeeklyView({ summaries, weekOffset, onPrev, onNext }: {
               </div>
               {/* Events */}
               <div className="flex-1 p-1 space-y-1 overflow-y-auto max-h-60">
-                {summary?.events.map(ev => (
-                  <div key={ev.id}
-                    className={`text-xs px-2 py-1.5 rounded-md font-medium truncate border-l-2 ${ev.isGreen ? "bg-green-50 border-green-400 text-green-800" : "bg-gray-50 border-gray-200 text-gray-400"}`}
-                    title={ev.title}>
-                    {ev.start.includes("T") && (
-                      <span className={`text-xs mr-1 ${ev.isGreen ? "text-green-600" : "text-gray-300"}`}>{formatHour(ev.start)}</span>
-                    )}
-                    {ev.title}
-                  </div>
-                ))}
+                {summary?.events.map(ev => {
+                  const invited = ev.isOrganizer === false;
+                  const tooltip = invited
+                    ? `${ev.title} · No cuenta como verde — fuiste invitado a este evento. Solo cuenta para quien lo organizó.`
+                    : ev.title;
+                  return (
+                    <div key={ev.id}
+                      className={`text-xs px-2 py-1.5 rounded-md font-medium truncate border-l-2 ${ev.isGreen ? "bg-green-50 border-green-400 text-green-800" : invited ? "bg-gray-50 border-gray-200 text-gray-300 opacity-60" : "bg-gray-50 border-gray-200 text-gray-400"}`}
+                      title={tooltip}>
+                      {ev.start.includes("T") && (
+                        <span className={`text-xs mr-1 ${ev.isGreen ? "text-green-600" : "text-gray-300"}`}>{formatHour(ev.start)}</span>
+                      )}
+                      {invited && <span className="mr-1">👤</span>}
+                      {ev.title}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           );
@@ -230,6 +237,8 @@ function MonthlyView({ summaries, monthOffset, onPrev, onNext }: {
           const isToday = dateStr === today.toISOString().slice(0, 10);
           const greenEvs = summary?.events.filter(e => e.isGreen) ?? [];
           const grayEvs = summary?.events.filter(e => !e.isGreen) ?? [];
+          const invitedEvs = grayEvs.filter(e => e.isOrganizer === false);
+          const otherGrayEvs = grayEvs.filter(e => e.isOrganizer !== false);
 
           return (
             <div key={dateStr} className={`h-20 p-1.5 flex flex-col ${isToday ? "bg-red-50" : ""}`}>
@@ -239,13 +248,19 @@ function MonthlyView({ summaries, monthOffset, onPrev, onNext }: {
               </div>
               <div className="flex-1 overflow-hidden space-y-0.5">
                 {greenEvs.slice(0, 2).map(ev => (
-                  <div key={ev.id} className="text-xs bg-green-100 text-green-800 rounded px-1 truncate font-medium leading-tight py-0.5">
+                  <div key={ev.id} className="text-xs bg-green-100 text-green-800 rounded px-1 truncate font-medium leading-tight py-0.5" title={ev.title}>
                     {ev.title}
                   </div>
                 ))}
-                {grayEvs.slice(0, 1).map(ev => (
-                  <div key={ev.id} className="text-xs bg-gray-100 text-gray-400 rounded px-1 truncate leading-tight py-0.5">
+                {otherGrayEvs.slice(0, 1).map(ev => (
+                  <div key={ev.id} className="text-xs bg-gray-100 text-gray-400 rounded px-1 truncate leading-tight py-0.5" title={ev.title}>
                     {ev.title}
+                  </div>
+                ))}
+                {invitedEvs.slice(0, 1).map(ev => (
+                  <div key={ev.id} className="text-xs bg-gray-50 text-gray-300 rounded px-1 truncate leading-tight py-0.5 opacity-60"
+                    title={`${ev.title} · No cuenta como verde — fuiste invitado a este evento. Solo cuenta para quien lo organizó.`}>
+                    👤 {ev.title}
                   </div>
                 ))}
                 {(greenEvs.length + grayEvs.length) > 3 && (

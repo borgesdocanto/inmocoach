@@ -63,7 +63,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         events: evs.map(e => ({
           id: e.id, title: e.title, start: e.start, end: e.end,
           type: e.type, isGreen: e.isGreen, isProceso: e.isProceso,
-          isCierre: e.isCierre, isUserColored: e.isUserColored, attendees: [],
+          isCierre: e.isCierre, isUserColored: e.isUserColored, isOrganizer: e.isOrganizer, attendees: [],
         })),
       };
     });
