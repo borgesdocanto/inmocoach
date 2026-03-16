@@ -7,7 +7,7 @@ import { requireSuperAdmin } from "../../lib/adminGuard";
 import {
   Users, CreditCard, BarChart2, Zap, Search, RefreshCw, Settings,
   ChevronDown, CheckCircle, XCircle, Clock, Loader2,
-  Calendar, Mail, Shield, TrendingUp, AlertTriangle
+  Calendar, Mail, Shield, TrendingUp, AlertTriangle, Target
 } from "lucide-react";
 
 const RED = "#aa0000";
@@ -39,7 +39,10 @@ export default function AdminPanel() {
   const router = useRouter();
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [users, setUsers] = useState<AdminUser[]>([]);
-  const [tab, setTab] = useState<"overview" | "users" | "teams" | "ops" | "precios" | "eventos">("overview");
+  const [tab, setTab] = useState<"overview" | "users" | "teams" | "ops" | "precios" | "eventos" | "goals">("overview");
+  const [goalsConfig, setGoalsConfig] = useState({ weekly_goal: "15", productive_day_min: "2" });
+  const [goalsSaving, setGoalsSaving] = useState(false);
+  const [goalsMsg, setGoalsMsg] = useState("");
   const [eventTypes, setEventTypes] = useState<any[]>([]);
   const [eventTypesSaving, setEventTypesSaving] = useState(false);
   const [etForm, setEtForm] = useState<any | null>(null); // null = closed, {} = new, {...} = editing
@@ -85,6 +88,14 @@ export default function AdminPanel() {
         .then(d => { if (Array.isArray(d)) setEventTypes(d); })
         .catch(console.error)
         .finally(() => setEventTypesLoading(false));
+    }
+  }, [tab]);
+  useEffect(() => {
+    if (tab === "goals") {
+      fetch("/api/admin/config")
+        .then(r => r.json())
+        .then(d => setGoalsConfig(prev => ({ ...prev, ...d })))
+        .catch(console.error);
     }
   }, [tab]);
 
@@ -347,6 +358,7 @@ export default function AdminPanel() {
             { key: "ops", label: "Operaciones", icon: <Zap size={13} /> },
             { key: "precios", label: "Precios", icon: <CreditCard size={13} /> },
             { key: "eventos", label: "Tipos de evento", icon: <Settings size={13} /> },
+            { key: "goals", label: "Goals", icon: <Target size={13} /> },
           ] as const).map(t => (
             <button key={t.key} onClick={() => setTab(t.key)}
               className="flex items-center gap-1.5 px-4 py-2.5 text-xs font-bold border-b-2 transition-colors"
@@ -1056,6 +1068,58 @@ export default function AdminPanel() {
                 })}
               </div>
             )}
+          </div>
+        )}
+
+        {tab === "goals" && (
+          <div className="max-w-2xl mx-auto px-5 py-8 space-y-6">
+            <div>
+              <h2 className="text-base font-bold text-gray-800 mb-1">Configuración de Goals</h2>
+              <p className="text-xs text-gray-400">Estos valores afectan el cálculo de IAC y días productivos para todos los agentes.</p>
+            </div>
+            <div className="bg-white rounded-2xl border border-gray-100 p-6 space-y-6">
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1">Meta semanal de reuniones (IAC 100%)</label>
+                <p className="text-xs text-gray-400 mb-2">Cantidad de reuniones cara a cara por semana para alcanzar el 100% de IAC. Default: 15</p>
+                <input
+                  type="number" min="1" max="100"
+                  value={goalsConfig.weekly_goal}
+                  onChange={e => setGoalsConfig(p => ({ ...p, weekly_goal: e.target.value }))}
+                  className="w-32 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-gray-400"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1">Mínimo de reuniones para día productivo</label>
+                <p className="text-xs text-gray-400 mb-2">Cuántas reuniones verdes necesita un agente en un día para que cuente como "día productivo". Default: 2</p>
+                <input
+                  type="number" min="1" max="20"
+                  value={goalsConfig.productive_day_min}
+                  onChange={e => setGoalsConfig(p => ({ ...p, productive_day_min: e.target.value }))}
+                  className="w-32 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-gray-400"
+                />
+              </div>
+              <div className="flex items-center gap-3 pt-2">
+                <button
+                  onClick={async () => {
+                    setGoalsSaving(true); setGoalsMsg("");
+                    try {
+                      await fetch("/api/admin/config", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: "weekly_goal", value: goalsConfig.weekly_goal }) });
+                      await fetch("/api/admin/config", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: "productive_day_min", value: goalsConfig.productive_day_min }) });
+                      setGoalsMsg("✓ Guardado");
+                    } catch { setGoalsMsg("Error al guardar"); }
+                    setGoalsSaving(false);
+                  }}
+                  disabled={goalsSaving}
+                  className="px-5 py-2 rounded-xl text-xs font-bold text-white disabled:opacity-50"
+                  style={{ background: RED }}>
+                  {goalsSaving ? "Guardando..." : "Guardar"}
+                </button>
+                {goalsMsg && <span className={`text-xs font-semibold ${goalsMsg.startsWith("✓") ? "text-green-600" : "text-red-500"}`}>{goalsMsg}</span>}
+              </div>
+            </div>
+            <div className="bg-blue-50 rounded-2xl border border-blue-100 p-4">
+              <p className="text-xs text-blue-700 font-medium">Los cambios se aplican en el próximo ciclo de sincronización. El mail semanal del lunes usará los nuevos valores automáticamente.</p>
+            </div>
           </div>
         )}
 

@@ -1,6 +1,7 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import { Resend } from "resend";
 import { subDays, startOfWeek } from "date-fns";
+import { getGoals } from "../../../lib/appConfig";
 
 export const config = { maxDuration: 300 }; // 5 minutos
 
@@ -11,20 +12,20 @@ import { saveWeeklyStatsAndRank, getNextRank } from "../../../lib/ranks";
 import { generateWeeklyEmailHtml } from "../../../lib/emailTemplate";
 import { supabaseAdmin } from "../../../lib/supabase";
 import { getValidAccessToken } from "../../../lib/googleToken";
-import { FREEMIUM_DAYS, PRODUCTIVITY_GOAL, IAC_WEEKLY_GOAL } from "../../../lib/brand";
+import { FREEMIUM_DAYS } from "../../../lib/brand";
 import { getPlanById } from "../../../lib/plans";
 
 const resend = new Resend(process.env.RESEND_API_KEY!);
 
 
-async function generateCoachAdvice(stats: ReturnType<typeof computeWeekStats>, name: string, streak: number): Promise<string> {
+async function generateCoachAdvice(stats: ReturnType<typeof computeWeekStats>, name: string, streak: number, weeklyGoal: number): Promise<string> {
   const prompt = `Sos Inmo Coach, un coach de ventas inmobiliarias argentino, directo, motivador y sin vueltas.
 
 Analizá esta semana de ${name} y escribí un consejo de 3-4 oraciones. Sin listas, solo párrafos. Usá segunda persona, hablale de vos a vos.
 
 SEMANA:
-- Reuniones cara a cara: ${stats.greenTotal} de 15 (meta semanal)
-- IAC: ${Math.round((stats.greenTotal / IAC_WEEKLY_GOAL) * 100)}%
+- Reuniones cara a cara: ${stats.greenTotal} de ${weeklyGoal} (meta semanal)
+- IAC: ${Math.round((stats.greenTotal / weeklyGoal) * 100)}%
 - Tasaciones: ${stats.tasaciones} · Visitas: ${stats.visitas} · Propuestas: ${stats.propuestas}
 - Días productivos: ${stats.productiveDays} de ${stats.totalDays}
 ${streak > 0 ? `- Racha: ${streak} días consecutivos` : "- Sin racha activa"}
@@ -51,9 +52,10 @@ async function processUser(sub: any): Promise<"sent" | "failed" | "skipped"> {
 
     const { data: subData } = await supabaseAdmin.from("subscriptions").select("created_at, plan").eq("email", sub.email).single();
     const events = await fetchCalendarEvents(accessToken, 90);
+    const { weeklyGoal, productiveDayMin } = await getGoals();
     // El mail del lunes reporta la semana ANTERIOR (lun-dom pasados)
     const lastSunday = subDays(startOfWeek(new Date(), { weekStartsOn: 1 }), 1);
-    const stats = computeWeekStats(events, PRODUCTIVITY_GOAL, lastSunday);
+    const stats = computeWeekStats(events, productiveDayMin, lastSunday);
 
     const dailySummaries = Object.entries(
       events.filter(e => e.isGreen).reduce((acc: Record<string, number>, e) => {
@@ -64,13 +66,13 @@ async function processUser(sub: any): Promise<"sent" | "failed" | "skipped"> {
     const streakData = await computeAndSaveStreak(sub.email, dailySummaries);
 
     const weekStart = getMonday();
-    const rank = await saveWeeklyStatsAndRank(sub.email, weekStart, Math.round((stats.greenTotal / IAC_WEEKLY_GOAL) * 100), stats.greenTotal, streakData.best);
+    const rank = await saveWeeklyStatsAndRank(sub.email, weekStart, Math.round((stats.greenTotal / weeklyGoal) * 100), stats.greenTotal, streakData.best);
 
     const { data: weekHistory } = await supabaseAdmin.from("weekly_stats").select("iac").eq("email", sub.email).gt("iac", 0).order("week_start", { ascending: false }).limit(12);
     const activeWeeks = weekHistory?.length ?? 0;
     const iacAvg = activeWeeks > 0 ? Math.round(weekHistory!.reduce((s: number, w: any) => s + w.iac, 0) / activeWeeks) : 0;
 
-    const coachAdvice = await generateCoachAdvice(stats, sub.name || sub.email, streakData.current);
+    const coachAdvice = await generateCoachAdvice(stats, sub.name || sub.email, streakData.current, weeklyGoal);
 
     const createdAt = new Date(subData?.created_at ?? Date.now());
     const daysUsed = (Date.now() - createdAt.getTime()) / (1000 * 60 * 60 * 24);
@@ -91,7 +93,7 @@ async function processUser(sub: any): Promise<"sent" | "failed" | "skipped"> {
 
     const { data: sendData, error: sendError } = await resend.emails.send({
       from: "InmoCoach <coach@inmocoach.com.ar>", to: sub.email,
-      subject: `Tu semana · IAC ${Math.round((stats.greenTotal / IAC_WEEKLY_GOAL) * 100)}% · ${stats.weekDates}`,
+      subject: `Tu semana · IAC ${Math.round((stats.greenTotal / weeklyGoal) * 100)}% · ${stats.weekDates}`,
       html,
     });
 
