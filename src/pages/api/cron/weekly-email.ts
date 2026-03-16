@@ -15,7 +15,7 @@ import { FREEMIUM_DAYS, PRODUCTIVITY_GOAL, IAC_WEEKLY_GOAL } from "../../../lib/
 import { getPlanById } from "../../../lib/plans";
 
 const resend = new Resend(process.env.RESEND_API_KEY!);
-const BATCH_SIZE = 3;
+
 
 async function generateCoachAdvice(stats: ReturnType<typeof computeWeekStats>, name: string, streak: number): Promise<string> {
   const prompt = `Sos Inmo Coach, un coach de ventas inmobiliarias argentino, directo, motivador y sin vueltas.
@@ -105,18 +105,14 @@ async function processUser(sub: any): Promise<"sent" | "failed" | "skipped"> {
   }
 }
 
-async function processBatch(items: any[], batchSize: number): Promise<{ sent: number; failed: number; skipped: number }> {
+async function processBatch(items: any[]): Promise<{ sent: number; failed: number; skipped: number }> {
   const results = { sent: 0, failed: 0, skipped: 0 };
-  for (let i = 0; i < items.length; i += batchSize) {
-    const batch = items.slice(i, i + batchSize);
-    console.log(`🔄 Tanda ${Math.floor(i / batchSize) + 1}/${Math.ceil(items.length / batchSize)} (${batch.length} usuarios)`);
-    const batchResults = await Promise.allSettled(batch.map(processUser));
-    for (const r of batchResults) {
-      if (r.status === "fulfilled") results[r.value]++;
-      else results.failed++;
-    }
-    // Pausa entre tandas para no saturar Google y Anthropic
-    if (i + batchSize < items.length) await new Promise(r => setTimeout(r, 2000));
+  for (let i = 0; i < items.length; i++) {
+    console.log(`🔄 Usuario ${i + 1}/${items.length}: ${items[i].email}`);
+    const result = await processUser(items[i]);
+    results[result]++;
+    // 600ms entre mails — respeta el límite de 2 req/seg de Resend
+    if (i < items.length - 1) await new Promise(r => setTimeout(r, 600));
   }
   return results;
 }
@@ -137,10 +133,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (targetEmail) subscriptions = subscriptions.filter((s: any) => s.email === targetEmail);
 
   const total = subscriptions.length;
-  console.log(`📋 ${total} usuarios — tandas de ${BATCH_SIZE}`);
+  console.log(`📋 ${total} usuarios`);
 
   // Procesar primero, luego responder
-  const results = await processBatch(subscriptions, BATCH_SIZE);
+  const results = await processBatch(subscriptions);
   console.log(`\n📊 Final: ${results.sent} enviados, ${results.failed} errores, ${results.skipped} sin token`);
   res.status(200).json({ ok: true, total, ...results });
 }
