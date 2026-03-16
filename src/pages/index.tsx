@@ -618,7 +618,9 @@ export default function HomePage() {
         return;
       }
       if (!res.ok) throw new Error((await res.json()).error || "Error de sincronización");
-      setData(await res.json());
+      const json = await res.json();
+      console.log("[calendar API] dailySummaries:", json.dailySummaries?.length, "sample:", json.dailySummaries?.slice(0,3));
+      setData(json);
     } catch (e: any) { setError(e.message); }
     setLoading(false);
   };
