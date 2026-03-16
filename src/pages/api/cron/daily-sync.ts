@@ -44,8 +44,9 @@ async function syncUser(user: { email: string; team_id: string | null; streak_be
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  const secret = req.headers["x-cron-secret"] || req.query.secret;
-  if (secret !== process.env.CRON_SECRET) return res.status(401).json({ error: "Unauthorized" });
+  const isVercel = req.headers.authorization === `Bearer ${process.env.CRON_SECRET}`;
+  const isManual = req.headers["x-cron-secret"] === process.env.CRON_SECRET || req.query.secret === process.env.CRON_SECRET;
+  if (!isVercel && !isManual) return res.status(401).json({ error: "Unauthorized" });
 
   // Todos los usuarios con token de Google (no solo los con racha activa)
   const { data: users } = await supabaseAdmin

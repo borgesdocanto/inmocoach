@@ -122,8 +122,9 @@ function getMonday(): string {
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  const cronSecret = req.headers["x-cron-secret"];
-  if (cronSecret !== process.env.CRON_SECRET) return res.status(401).json({ error: "No autorizado" });
+  const isVercel = req.headers.authorization === `Bearer ${process.env.CRON_SECRET}`;
+  const isManual = req.headers["x-cron-secret"] === process.env.CRON_SECRET;
+  if (!isVercel && !isManual) return res.status(401).json({ error: "No autorizado" });
 
   const { targetEmail } = req.body || {};
   let subscriptions = await getAllActiveSubscriptions();

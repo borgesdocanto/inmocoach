@@ -10,7 +10,9 @@ const resend = new Resend(process.env.RESEND_API_KEY!);
 // vercel.json: "0 21 * * 1-5"
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (req.headers["x-cron-secret"] !== process.env.CRON_SECRET) {
+  const isVercel = req.headers.authorization === `Bearer ${process.env.CRON_SECRET}`;
+  const isManual = req.headers["x-cron-secret"] === process.env.CRON_SECRET;
+  if (!isVercel && !isManual) {
     return res.status(401).json({ error: "No autorizado" });
   }
 

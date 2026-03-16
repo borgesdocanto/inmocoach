@@ -16,8 +16,9 @@ import { IAC_GOAL } from "../../../lib/calendarSync";
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "GET" && req.method !== "POST") return res.status(405).end();
 
-  const secret = req.headers["x-cron-secret"] || req.query.secret;
-  if (secret !== process.env.CRON_SECRET) {
+  const isVercel = req.headers.authorization === `Bearer ${process.env.CRON_SECRET}`;
+  const isManual = req.headers["x-cron-secret"] === process.env.CRON_SECRET || req.query.secret === process.env.CRON_SECRET;
+  if (!isVercel && !isManual) {
     const session = await getServerSession(req, res, authOptions);
     if (!session?.user?.email || !isSuperAdmin(session.user.email))
       return res.status(401).json({ error: "Unauthorized" });
