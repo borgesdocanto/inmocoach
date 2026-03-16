@@ -39,7 +39,7 @@ export default function AdminPanel() {
   const router = useRouter();
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [users, setUsers] = useState<AdminUser[]>([]);
-  const [tab, setTab] = useState<"overview" | "users" | "teams" | "ops" | "precios" | "eventos" | "goals" | "coach">("overview");
+  const [tab, setTab] = useState<"overview" | "users" | "teams" | "ops" | "precios" | "eventos" | "goals" | "coach" | "midweek">("overview");
   const [goalsConfig, setGoalsConfig] = useState({ weekly_goal: "15", productive_day_min: "2", streak_min_greens: "1" });
   const [goalsSaving, setGoalsSaving] = useState(false);
   const [goalsMsg, setGoalsMsg] = useState("");
@@ -48,6 +48,12 @@ export default function AdminPanel() {
   const [coachPromptMsg, setCoachPromptMsg] = useState("");
   const [coachPreview, setCoachPreview] = useState("");
   const [coachPreviewing, setCoachPreviewing] = useState(false);
+  const [midweekPrompt, setMidweekPrompt] = useState("");
+  const [midweekMinGreens, setMidweekMinGreens] = useState("5");
+  const [midweekSaving, setMidweekSaving] = useState(false);
+  const [midweekMsg, setMidweekMsg] = useState("");
+  const [midweekPreview, setMidweekPreview] = useState("");
+  const [midweekPreviewing, setMidweekPreviewing] = useState(false);
   const [eventTypes, setEventTypes] = useState<any[]>([]);
   const [eventTypesSaving, setEventTypesSaving] = useState(false);
   const [etForm, setEtForm] = useState<any | null>(null); // null = closed, {} = new, {...} = editing
@@ -108,6 +114,14 @@ export default function AdminPanel() {
       fetch("/api/admin/coach-prompt")
         .then(r => r.json())
         .then(d => setCoachPrompt(d.prompt ?? ""))
+        .catch(console.error);
+    }
+  }, [tab]);
+  useEffect(() => {
+    if (tab === "midweek") {
+      fetch("/api/admin/midweek-prompt")
+        .then(r => r.json())
+        .then(d => { setMidweekPrompt(d.prompt ?? ""); setMidweekMinGreens(d.minGreens ?? "5"); })
         .catch(console.error);
     }
   }, [tab]);
@@ -373,6 +387,7 @@ export default function AdminPanel() {
             { key: "eventos", label: "Tipos de evento", icon: <Settings size={13} /> },
             { key: "goals", label: "Goals", icon: <Target size={13} /> },
             { key: "coach", label: "Coach AI", icon: <MessageSquare size={13} /> },
+            { key: "midweek", label: "Miércoles", icon: <Mail size={13} /> },
           ] as const).map(t => (
             <button key={t.key} onClick={() => setTab(t.key)}
               className="flex items-center gap-1.5 px-4 py-2.5 text-xs font-bold border-b-2 transition-colors"
@@ -1202,6 +1217,90 @@ export default function AdminPanel() {
             )}
             <div className="bg-blue-50 rounded-2xl border border-blue-100 p-4">
               <p className="text-xs text-blue-700 font-medium">El prompt guardado se usa en el mail del lunes y en el análisis del dashboard. Los datos reales (eventos, métricas, período) se agregan automáticamente — no hace falta incluirlos acá.</p>
+            </div>
+          </div>
+        )}
+
+        {tab === "midweek" && (
+          <div className="max-w-3xl mx-auto px-5 py-8 space-y-6">
+            <div>
+              <h2 className="text-base font-bold text-gray-800 mb-1">Mail del Miércoles</h2>
+              <p className="text-xs text-gray-400">Se envía los miércoles a las 18hs a agentes que no llegaron al mínimo de eventos verdes en la semana. El mensaje es el mismo para todos — generado por IA con el prompt que configures acá.</p>
+            </div>
+
+            {/* Config */}
+            <div className="bg-white rounded-2xl border border-gray-100 p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1">Mínimo de eventos verdes lun–mié para recibir el mail</label>
+                <p className="text-xs text-gray-400 mb-2">Los agentes con menos de este número reciben el mail. Default: 5</p>
+                <input type="number" min="1" max="20"
+                  value={midweekMinGreens}
+                  onChange={e => setMidweekMinGreens(e.target.value)}
+                  className="w-32 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-gray-400" />
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1">Prompt para la IA</label>
+                <p className="text-xs text-gray-400 mb-2">Instrucciones para generar el mail. No incluyas datos del agente — el mismo mail va para todos.</p>
+                <textarea
+                  value={midweekPrompt}
+                  onChange={e => setMidweekPrompt(e.target.value)}
+                  rows={16}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-xs font-mono focus:outline-none focus:border-gray-400 resize-y"
+                  placeholder="Cargando prompt..." />
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={async () => {
+                    setMidweekSaving(true); setMidweekMsg("");
+                    try {
+                      await fetch("/api/admin/midweek-prompt", {
+                        method: "POST", headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ prompt: midweekPrompt, minGreens: midweekMinGreens }),
+                      });
+                      setMidweekMsg("✓ Guardado");
+                    } catch { setMidweekMsg("Error al guardar"); }
+                    setMidweekSaving(false);
+                  }}
+                  disabled={midweekSaving}
+                  className="px-5 py-2 rounded-xl text-xs font-bold text-white disabled:opacity-50"
+                  style={{ background: RED }}>
+                  {midweekSaving ? "Guardando..." : "Guardar"}
+                </button>
+                <button
+                  onClick={async () => {
+                    setMidweekPreviewing(true); setMidweekPreview("");
+                    try {
+                      const res = await fetch("https://api.anthropic.com/v1/messages", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          model: "claude-sonnet-4-6",
+                          max_tokens: 400,
+                          messages: [{ role: "user", content: midweekPrompt }],
+                        }),
+                      });
+                      const d = await res.json();
+                      setMidweekPreview(d.content?.map((b: any) => b.text || "").join("") || "Sin resultado");
+                    } catch { setMidweekPreview("Error al generar preview"); }
+                    setMidweekPreviewing(false);
+                  }}
+                  disabled={midweekPreviewing}
+                  className="px-5 py-2 rounded-xl text-xs font-bold border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-50">
+                  {midweekPreviewing ? "Generando..." : "Previsualizar mail"}
+                </button>
+                {midweekMsg && <span className={`text-xs font-semibold ${midweekMsg.startsWith("✓") ? "text-green-600" : "text-red-500"}`}>{midweekMsg}</span>}
+              </div>
+            </div>
+
+            {midweekPreview && (
+              <div className="bg-gray-50 rounded-2xl border border-gray-100 p-6">
+                <div className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Preview — cuerpo del mail</div>
+                <div className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{midweekPreview}</div>
+              </div>
+            )}
+
+            <div className="bg-blue-50 rounded-2xl border border-blue-100 p-4">
+              <p className="text-xs text-blue-700 font-medium">El cron corre los miércoles a las 18:00hs (Argentina). Genera un solo texto con IA y lo envía a todos los agentes que no llegaron al mínimo. Para testear manualmente usá el botón Run en Vercel → Cron Jobs.</p>
             </div>
           </div>
         )}
