@@ -451,8 +451,8 @@ export function computePeriodStats(events: SyncedEvent[], periodDays: number): P
 }
 
 // ── WeekStats (para el dashboard) ────────────────────────────────────────────
-export function computeWeekStats(events: SyncedEvent[], goalPerDay = 10): WeekStats {
-  const now = new Date();
+export function computeWeekStats(events: SyncedEvent[], goalPerDay = 10, referenceDate?: Date): WeekStats {
+  const now = referenceDate || new Date();
   const weekStart = startOfWeek(now, { weekStartsOn: 1 });
   const weekEnd = endOfWeek(now, { weekStartsOn: 1 });
 

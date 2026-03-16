@@ -1,5 +1,6 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import { Resend } from "resend";
+import { subDays, startOfWeek } from "date-fns";
 
 export const config = { maxDuration: 300 }; // 5 minutos
 
@@ -50,7 +51,9 @@ async function processUser(sub: any): Promise<"sent" | "failed" | "skipped"> {
 
     const { data: subData } = await supabaseAdmin.from("subscriptions").select("created_at, plan").eq("email", sub.email).single();
     const events = await fetchCalendarEvents(accessToken, 90);
-    const stats = computeWeekStats(events, PRODUCTIVITY_GOAL);
+    // El mail del lunes reporta la semana ANTERIOR (lun-dom pasados)
+    const lastSunday = subDays(startOfWeek(new Date(), { weekStartsOn: 1 }), 1);
+    const stats = computeWeekStats(events, PRODUCTIVITY_GOAL, lastSunday);
 
     const dailySummaries = Object.entries(
       events.filter(e => e.isGreen).reduce((acc: Record<string, number>, e) => {
