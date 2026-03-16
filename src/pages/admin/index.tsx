@@ -7,7 +7,7 @@ import { requireSuperAdmin } from "../../lib/adminGuard";
 import {
   Users, CreditCard, BarChart2, Zap, Search, RefreshCw, Settings,
   ChevronDown, CheckCircle, XCircle, Clock, Loader2,
-  Calendar, Mail, Shield, TrendingUp, AlertTriangle, Target
+  Calendar, Mail, Shield, TrendingUp, AlertTriangle, Target, MessageSquare
 } from "lucide-react";
 
 const RED = "#aa0000";
@@ -39,10 +39,15 @@ export default function AdminPanel() {
   const router = useRouter();
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [users, setUsers] = useState<AdminUser[]>([]);
-  const [tab, setTab] = useState<"overview" | "users" | "teams" | "ops" | "precios" | "eventos" | "goals">("overview");
+  const [tab, setTab] = useState<"overview" | "users" | "teams" | "ops" | "precios" | "eventos" | "goals" | "coach">("overview");
   const [goalsConfig, setGoalsConfig] = useState({ weekly_goal: "15", productive_day_min: "2" });
   const [goalsSaving, setGoalsSaving] = useState(false);
   const [goalsMsg, setGoalsMsg] = useState("");
+  const [coachPrompt, setCoachPrompt] = useState("");
+  const [coachPromptSaving, setCoachPromptSaving] = useState(false);
+  const [coachPromptMsg, setCoachPromptMsg] = useState("");
+  const [coachPreview, setCoachPreview] = useState("");
+  const [coachPreviewing, setCoachPreviewing] = useState(false);
   const [eventTypes, setEventTypes] = useState<any[]>([]);
   const [eventTypesSaving, setEventTypesSaving] = useState(false);
   const [etForm, setEtForm] = useState<any | null>(null); // null = closed, {} = new, {...} = editing
@@ -95,6 +100,14 @@ export default function AdminPanel() {
       fetch("/api/admin/config")
         .then(r => r.json())
         .then(d => setGoalsConfig(prev => ({ ...prev, ...d })))
+        .catch(console.error);
+    }
+  }, [tab]);
+  useEffect(() => {
+    if (tab === "coach") {
+      fetch("/api/admin/coach-prompt")
+        .then(r => r.json())
+        .then(d => setCoachPrompt(d.prompt ?? ""))
         .catch(console.error);
     }
   }, [tab]);
@@ -359,6 +372,7 @@ export default function AdminPanel() {
             { key: "precios", label: "Precios", icon: <CreditCard size={13} /> },
             { key: "eventos", label: "Tipos de evento", icon: <Settings size={13} /> },
             { key: "goals", label: "Goals", icon: <Target size={13} /> },
+            { key: "coach", label: "Coach AI", icon: <MessageSquare size={13} /> },
           ] as const).map(t => (
             <button key={t.key} onClick={() => setTab(t.key)}
               className="flex items-center gap-1.5 px-4 py-2.5 text-xs font-bold border-b-2 transition-colors"
@@ -1119,6 +1133,64 @@ export default function AdminPanel() {
             </div>
             <div className="bg-blue-50 rounded-2xl border border-blue-100 p-4">
               <p className="text-xs text-blue-700 font-medium">Los cambios se aplican en el próximo ciclo de sincronización. El mail semanal del lunes usará los nuevos valores automáticamente.</p>
+            </div>
+          </div>
+        )}
+
+        {tab === "coach" && (
+          <div className="max-w-3xl mx-auto px-5 py-8 space-y-6">
+            <div>
+              <h2 className="text-base font-bold text-gray-800 mb-1">Prompt del Coach AI</h2>
+              <p className="text-xs text-gray-400">Este texto define el tono, estructura y contexto del análisis. Los datos reales (métricas, eventos) se inyectan automáticamente.</p>
+            </div>
+            <div className="bg-white rounded-2xl border border-gray-100 p-6 space-y-4">
+              <textarea
+                value={coachPrompt}
+                onChange={e => setCoachPrompt(e.target.value)}
+                rows={20}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-xs font-mono focus:outline-none focus:border-gray-400 resize-y"
+                placeholder="Cargando prompt..."
+              />
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={async () => {
+                    setCoachPromptSaving(true); setCoachPromptMsg("");
+                    try {
+                      await fetch("/api/admin/coach-prompt", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ prompt: coachPrompt }) });
+                      setCoachPromptMsg("✓ Guardado");
+                    } catch { setCoachPromptMsg("Error al guardar"); }
+                    setCoachPromptSaving(false);
+                  }}
+                  disabled={coachPromptSaving}
+                  className="px-5 py-2 rounded-xl text-xs font-bold text-white disabled:opacity-50"
+                  style={{ background: RED }}>
+                  {coachPromptSaving ? "Guardando..." : "Guardar prompt"}
+                </button>
+                <button
+                  onClick={async () => {
+                    setCoachPreviewing(true); setCoachPreview("");
+                    try {
+                      const res = await fetch("/api/admin/coach-preview", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ prompt: coachPrompt }) });
+                      const d = await res.json();
+                      setCoachPreview(d.advice ?? "Sin resultado");
+                    } catch { setCoachPreview("Error al generar preview"); }
+                    setCoachPreviewing(false);
+                  }}
+                  disabled={coachPreviewing}
+                  className="px-5 py-2 rounded-xl text-xs font-bold border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-50">
+                  {coachPreviewing ? "Analizando..." : "Previsualizar con mis datos"}
+                </button>
+                {coachPromptMsg && <span className={`text-xs font-semibold ${coachPromptMsg.startsWith("✓") ? "text-green-600" : "text-red-500"}`}>{coachPromptMsg}</span>}
+              </div>
+            </div>
+            {coachPreview && (
+              <div className="bg-gray-50 rounded-2xl border border-gray-100 p-6">
+                <div className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Preview — análisis generado con tus datos</div>
+                <div className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{coachPreview}</div>
+              </div>
+            )}
+            <div className="bg-blue-50 rounded-2xl border border-blue-100 p-4">
+              <p className="text-xs text-blue-700 font-medium">El prompt guardado se usa en el mail del lunes y en el análisis del dashboard. Los datos reales (eventos, métricas, período) se agregan automáticamente — no hace falta incluirlos acá.</p>
             </div>
           </div>
         )}

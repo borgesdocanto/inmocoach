@@ -470,15 +470,6 @@ function InstaCoacPanel({ data, calView, monthOffset, weekOffset, days = 30 }: {
             {emailSending ? <Loader2 size={11} className="animate-spin" /> : emailSent ? <CheckCircle size={11} /> : <Mail size={11} />}
             {emailSent ? "Enviado!" : emailSending ? "Enviando..." : "Mail de prueba"}
           </button>
-          {/* Solo mostrar "Analizar" si no hay informe guardado, o si el período sigue abierto */}
-          {(!fromCache || !isClosed) && (
-            <button onClick={() => analyze(false)} disabled={loading || (fromCache && isClosed)}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white transition-all hover:opacity-90 disabled:opacity-50"
-              style={{ background: RED }}>
-              {loading ? <Loader2 size={11} className="animate-spin" /> : <Zap size={11} />}
-              {loading ? "Analizando..." : fromCache ? "Re-analizar" : "Analizar"}
-            </button>
-          )}
         </div>
       </div>
 

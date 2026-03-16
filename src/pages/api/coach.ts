@@ -5,6 +5,7 @@ import { getOrCreateSubscription, isFreemiumExpired } from "../../lib/subscripti
 import { supabaseAdmin } from "../../lib/supabase";
 import { IAC_GOAL, PROCESOS_GOAL, CARTERA_GOAL, EFECTIVIDAD, calcIAC, proyectarOperaciones } from "../../lib/calendarSync";
 import { getGoals } from "../../lib/appConfig";
+import { DEFAULT_COACH_PROMPT } from "./admin/coach-prompt";
 
 function buildPeriodKey(calView: string, periodStart: string): string {
   if (calView === "month") return `month:${periodStart.slice(0, 7)}`;
@@ -76,6 +77,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   // ── Calcular métricas ─────────────────────────────────────────────────────
   const { weeklyGoal, productiveDayMin } = await getGoals();
+
+  // Cargar prompt configurable desde DB
+  const { data: promptRow } = await supabaseAdmin
+    .from("app_config").select("value").eq("key", "coach_prompt").single();
+  const coachSystemPrompt = promptRow?.value ?? DEFAULT_COACH_PROMPT;
   const periodSummaries = (dailySummaries as any[]).filter(d => d.date >= start && d.date <= end);
   const allEvents = periodSummaries.flatMap((d: any) => d.events || []);
   const greenEvents = allEvents.filter((e: any) => e.isGreen);
@@ -133,28 +139,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     ? `el mes de ${periodLabel} (objetivo: ${iacGoalPeriodo} reuniones = ${weeklyGoal}/semana × 4 semanas, ${PROCESOS_GOAL * 4} procesos nuevos)`
     : `la semana del ${periodLabel} (objetivo: ${weeklyGoal} reuniones cara a cara, ${PROCESOS_GOAL} procesos nuevos)`;
 
-  const prompt = `Sos InmoCoach, entrenador de productividad comercial inmobiliaria. Analizás agendas reales con un modelo estadístico probado. ${nombreStr}
+  // Prompt = parte configurable (de DB) + datos dinámicos del período
+  const prompt = `${coachSystemPrompt}
 
-PRINCIPIO DEL MODELO:
-No hay carga horaria en el negocio inmobiliario — hay cantidad de reuniones cara a cara.
-Una persona puede trabajar 10 horas y no generar negocio. Otra puede tener 6 reuniones y mover todo el pipeline.
+${nombreStr}
 
 LAS 3 VARIABLES QUE MIDEN EL NEGOCIO:
-1. IAC (Índice de Actividad Comercial) = reuniones cara a cara / ${weeklyGoal} por semana
-   Objetivo: 100% = ${weeklyGoal} reuniones/semana
-2. Procesos nuevos = personas que entran realmente al embudo (tasaciones, primeras visitas, inicio de fotos/video)
-   Objetivo: ${PROCESOS_GOAL} por semana
-3. Cartera activa vendible: ${CARTERA_GOAL} propiedades a precio justo (no medible por agenda, pero es el sustento)
+1. IAC = reuniones cara a cara / ${weeklyGoal} por semana — Objetivo: 100% = ${weeklyGoal} reuniones/semana
+2. Procesos nuevos: objetivo ${PROCESOS_GOAL} por semana
+3. Cartera activa vendible: ${CARTERA_GOAL} propiedades (no medible por agenda)
 
-LÓGICA ESTADÍSTICA:
-- Efectividad promedio del mercado: ${EFECTIVIDAD * 100}%
-- 6 procesos = 1 transacción
-- ${PROCESOS_GOAL} procesos/semana sostenidos → operaciones predecibles
-- Sin ${CARTERA_GOAL} propiedades activas, el agente prospecta desde cero constantemente
-
-DIFERENCIA VERDE vs AMARILLO:
-- Verde (produce dinero): reuniones, visitas, tasaciones, propuestas, fotos/video, firmas — cara a cara con personas reales
-- Amarillo (no produce dinero): mails, redes, marketing, tareas admin, llamadas sin resultado comercial
+LÓGICA: Efectividad ${EFECTIVIDAD * 100}% — 6 procesos = 1 transacción
 
 PERÍODO ANALIZADO: ${periodoStr}
 
@@ -165,29 +160,12 @@ MÉTRICAS:
 - Reuniones cara a cara (verdes): ${totals.totalGreen} de ${iacGoalPeriodo} objetivo
 - IAC: ${totals.iac}% (${totals.iac >= 100 ? "✓ En objetivo" : `faltan ${faltanReuniones} reuniones`})
 - Procesos nuevos: ${totals.procesosNuevos} de ${PROCESOS_GOAL * semanas} objetivo (${faltanProcesos > 0 ? `faltan ${faltanProcesos}` : "✓ En objetivo"})
-  - Tasaciones/captaciones: ${totals.tasaciones}
-  - Primeras visitas: ${totals.primerasVisitas}
-  - Fotos y video: ${totals.fotosVideo}
-- Visitas totales: ${totals.visitas}
-- Propuestas de valor: ${totals.propuestas}
-- Cierres/firmas: ${totals.firmas}
-- Reuniones genéricas: ${totals.reuniones}
-- Días con actividad comercial: ${productiveDays} de ${totalDays}
-- Procesos/semana: ${procesosXSemana} → proyección: ${operacionesProyectadas} operación(es) potencial(es) si se mantiene
+  - Tasaciones: ${totals.tasaciones} | Primeras visitas: ${totals.primerasVisitas} | Fotos/video: ${totals.fotosVideo}
+- Visitas: ${totals.visitas} | Propuestas: ${totals.propuestas} | Firmas: ${totals.firmas} | Reuniones: ${totals.reuniones}
+- Días con actividad: ${productiveDays} de ${totalDays}
 - Diagnóstico: ${perfilDescripcion[perfil]}
 
-RESPONDÉ en español rioplatense (vos, tenés, hacés). Tono directo, claro, sin juicios — siempre orientado a acción.
-Usá el nombre cuando corresponda. Nunca inventes datos que no están en los eventos reales.
-
-ESTRUCTURA — exactamente 3 bloques separados por línea en blanco, sin títulos ni bullets:
-
-BLOQUE 1 — QUÉ HICISTE BIEN: algo real y concreto de este período. Máximo 2 oraciones.
-
-BLOQUE 2 — EL CUELLO DE BOTELLA: dónde se frena el negocio, con números reales. Mencioná el IAC y los procesos. 2-3 oraciones.
-
-BLOQUE 3 — LA ACCIÓN CONCRETA: una sola acción ejecutable esta ${isMonthly ? "semana" : "semana"}, basada en lo que se ve en la agenda. Máximo 2 oraciones.
-
-Después, en línea separada, el número crítico:
+Después del análisis, en línea separada:
 "IAC ${periodLabel}: ${totals.iac}% — ${totals.totalGreen} reuniones cara a cara, ${totals.procesosNuevos} proceso${totals.procesosNuevos !== 1 ? "s" : ""} nuevo${totals.procesosNuevos !== 1 ? "s" : ""}. ${totals.iac >= 100 ? `Motor encendido. El desafío ahora es sostenerlo.` : `Para llegar al 100% necesitás ${faltanReuniones} reunión${faltanReuniones !== 1 ? "es" : ""} más.`}"`;
 
   try {
