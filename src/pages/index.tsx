@@ -106,18 +106,23 @@ function WeeklyView({ summaries, weekOffset, onPrev, onNext }: {
   summaries: DaySummary[]; weekOffset: number; onPrev: () => void; onNext: () => void;
 }) {
   const today = new Date();
-  const startOfWeek = new Date(today);
-  startOfWeek.setDate(today.getDate() - today.getDay() + 1 + weekOffset * 7); // Monday
+  // Calcular lunes de la semana correctamente
+  const todayDay = today.getDay(); // 0=dom,1=lun,...6=sab
+  const diffToMonday = (todayDay === 0 ? -6 : 1 - todayDay); // días hasta el lunes
+  const monday = new Date(today);
+  monday.setDate(today.getDate() + diffToMonday + weekOffset * 7);
+  monday.setHours(0, 0, 0, 0);
 
   const days = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(startOfWeek);
-    d.setDate(startOfWeek.getDate() + i);
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
     return d;
   });
 
   const byDate = useMemo(() => {
     const m: Record<string, DaySummary> = {};
     summaries.forEach(s => { m[s.date] = s; });
+    console.log("[WeeklyView] summaries:", summaries.length, "keys:", Object.keys(m).slice(0,5), "looking for:", days.map(d => localDateStr(d)));
     return m;
   }, [summaries]);
 
