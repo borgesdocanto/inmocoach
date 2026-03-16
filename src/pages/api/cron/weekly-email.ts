@@ -1,5 +1,8 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import { Resend } from "resend";
+
+export const config = { maxDuration: 300 }; // 5 minutos
+
 import { getAllActiveSubscriptions } from "../../../lib/subscription";
 import { fetchCalendarEvents, computeWeekStats } from "../../../lib/calendarSync";
 import { computeAndSaveStreak } from "../../../lib/streak";
@@ -11,7 +14,7 @@ import { FREEMIUM_DAYS, PRODUCTIVITY_GOAL, IAC_WEEKLY_GOAL } from "../../../lib/
 import { getPlanById } from "../../../lib/plans";
 
 const resend = new Resend(process.env.RESEND_API_KEY!);
-const BATCH_SIZE = 5;
+const BATCH_SIZE = 3;
 
 async function generateCoachAdvice(stats: ReturnType<typeof computeWeekStats>, name: string, streak: number): Promise<string> {
   const prompt = `Sos Inmo Coach, un coach de ventas inmobiliarias argentino, directo, motivador y sin vueltas.
@@ -133,10 +136,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const total = subscriptions.length;
   console.log(`📋 ${total} usuarios — tandas de ${BATCH_SIZE}`);
 
-  // Responder inmediatamente — Vercel no corta
-  res.status(200).json({ ok: true, total, message: `Procesando ${total} usuarios en ${Math.ceil(total / BATCH_SIZE)} tandas` });
-
-  // Procesar en background después de responder
+  // Procesar primero, luego responder
   const results = await processBatch(subscriptions, BATCH_SIZE);
   console.log(`\n📊 Final: ${results.sent} enviados, ${results.failed} errores, ${results.skipped} sin token`);
+  res.status(200).json({ ok: true, total, ...results });
 }
