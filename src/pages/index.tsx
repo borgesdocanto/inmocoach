@@ -302,7 +302,7 @@ function InstaCoacPanel({ data, calView, monthOffset, weekOffset, days = 30 }: {
         periodStart: localDateStr(monday),
         periodEnd: localDateStr(sunday),
         periodLabel: weekLabel,
-        goal: 15,
+        goal: data.totals.iacGoal ?? 15,
         goalLabel: "meta semanal",
       };
     } else {
@@ -310,12 +310,13 @@ function InstaCoacPanel({ data, calView, monthOffset, weekOffset, days = 30 }: {
       const firstDay = new Date(target.getFullYear(), target.getMonth(), 1);
       const lastDay = new Date(target.getFullYear(), target.getMonth() + 1, 0);
       const monthName = target.toLocaleDateString("es-AR", { month: "long", year: "numeric" });
+      const weeklyGoal = data.totals.iacGoal ?? 15;
       return {
         periodStart: localDateStr(firstDay),
         periodEnd: localDateStr(lastDay),
         periodLabel: monthName,
-        goal: 60,
-        goalLabel: "meta mensual (15×4)",
+        goal: weeklyGoal * 4,
+        goalLabel: `meta mensual (${weeklyGoal}×4)`,
       };
     }
   }, [calView, monthOffset, weekOffset]);
@@ -507,7 +508,7 @@ function InstaCoacPanel({ data, calView, monthOffset, weekOffset, days = 30 }: {
           </div>
           <div className="flex items-center justify-between mt-1.5">
             <div className="text-xs text-gray-400">
-              {calView === "month" && <span>15/semana × 4 semanas = {goal} reuniones</span>}
+              {calView === "month" && <span>{data.totals.iacGoal ?? 15}/semana × 4 semanas = {goal} reuniones</span>}
             </div>
             <div className="text-xs font-semibold" style={{ color: barColor }}>{periodPct}% del objetivo</div>
           </div>
