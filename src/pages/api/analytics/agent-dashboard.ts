@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "../../../lib/auth";
 import { supabaseAdmin } from "../../../lib/supabase";
 import { getStoredEvents, IAC_GOAL, PROCESOS_GOAL, calcIAC } from "../../../lib/calendarSync";
+import { getGoals } from "../../../lib/appConfig";
 import { getAgentRankStats } from "../../../lib/ranks";
 import { subDays, addDays, startOfDay, endOfDay } from "date-fns";
 
@@ -47,7 +48,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const lastSyncedAt = events.length > 0 ? events[events.length - 1].start : null;
   const hasData = events.length > 0;
 
-  const productivityGoal = parseInt(process.env.NEXT_PUBLIC_PRODUCTIVITY_GOAL || "2");
+  const { weeklyGoal, productiveDayMin } = await getGoals();
+  const productivityGoal = productiveDayMin;
   const byDay: Record<string, typeof events> = {};
   events.forEach(ev => {
     const day = ev.start.slice(0, 10);
@@ -90,7 +92,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     totalGreen: greenEvents.length,
     totalEvents: events.length,
     iac: calcIAC(avgPorSemana),
-    iacGoal: IAC_GOAL,
+    iacGoal: weeklyGoal,
     procesosGoal: PROCESOS_GOAL,
   };
 
