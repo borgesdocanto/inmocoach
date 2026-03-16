@@ -1270,17 +1270,13 @@ export default function AdminPanel() {
                   onClick={async () => {
                     setMidweekPreviewing(true); setMidweekPreview("");
                     try {
-                      const res = await fetch("https://api.anthropic.com/v1/messages", {
+                      const res = await fetch("/api/admin/midweek-preview", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                          model: "claude-sonnet-4-6",
-                          max_tokens: 400,
-                          messages: [{ role: "user", content: midweekPrompt }],
-                        }),
+                        body: JSON.stringify({ prompt: midweekPrompt }),
                       });
                       const d = await res.json();
-                      setMidweekPreview(d.content?.map((b: any) => b.text || "").join("") || "Sin resultado");
+                      setMidweekPreview(d.advice ?? "Sin resultado");
                     } catch { setMidweekPreview("Error al generar preview"); }
                     setMidweekPreviewing(false);
                   }}
