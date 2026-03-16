@@ -605,7 +605,8 @@ export default function HomePage() {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch(`/api/calendar?days=${days}`);
+      const fetchDays = Math.max(days, 14); // mínimo 14 para poder navegar a semana anterior
+      const res = await fetch(`/api/calendar?days=${fetchDays}`);
       if (res.status === 401) {
         // Token expirado — forzar re-login
         window.location.href = "/api/auth/signin?callbackUrl=/";
@@ -656,6 +657,28 @@ export default function HomePage() {
         return { dateLabel: `${dt.getDate()}/${dt.getMonth() + 1}`, verdes: d.greenCount, meta: data.totals.iacGoal ?? 15 };
       });
   }, [data, days]);
+
+  // Totales de la semana visible (respeta weekOffset)
+  const visibleWeekTotals = useMemo(() => {
+    if (!data) return null;
+    const today = new Date();
+    const monday = new Date(today);
+    monday.setDate(today.getDate() - ((today.getDay() + 6) % 7) + weekOffset * 7);
+    monday.setHours(0, 0, 0, 0);
+    const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6); sunday.setHours(23, 59, 59, 999);
+    const monStr = localDateStr(monday);
+    const sunStr = localDateStr(sunday);
+    const weekSummaries = data.dailySummaries.filter(d => d.date >= monStr && d.date <= sunStr);
+    const totalGreen = weekSummaries.reduce((s, d) => s + d.greenCount, 0);
+    const totalEvents = weekSummaries.reduce((s, d) => s + (d.events?.length ?? 0), 0);
+    const tasaciones = weekSummaries.reduce((s, d) => s + (d.events?.filter((e: any) => e.type === "tasacion").length ?? 0), 0);
+    const visitas = weekSummaries.reduce((s, d) => s + (d.events?.filter((e: any) => ["visita","conocer","primera_visita"].includes(e.type)).length ?? 0), 0);
+    const propuestas = weekSummaries.reduce((s, d) => s + (d.events?.filter((e: any) => e.type === "propuesta").length ?? 0), 0);
+    const firmas = weekSummaries.reduce((s, d) => s + (d.events?.filter((e: any) => e.isCierre).length ?? 0), 0);
+    const iacGoal = data.totals.iacGoal ?? 15;
+    const iac = Math.min(100, Math.round((totalGreen / iacGoal) * 100));
+    return { totalGreen, totalEvents, tasaciones, visitas, propuestas, firmas, iacGoal, iac };
+  }, [data, weekOffset]);
 
   if (status === "loading" || (!data && !error && loading)) {
     return (
@@ -783,9 +806,11 @@ export default function HomePage() {
                 </p>
               </div>
               {(() => {
-                const iacPeriod = Math.round((data.totals.totalGreen / Math.max(1, days / 7)) / (data.totals.iacGoal ?? 15) * 100);
+                const wt = (days <= 14 && visibleWeekTotals) ? visibleWeekTotals : null;
+                const iacPeriod = wt ? wt.iac : Math.round((data.totals.totalGreen / Math.max(1, days / 7)) / (data.totals.iacGoal ?? 15) * 100);
                 const iacColor = iacPeriod >= 100 ? GREEN : iacPeriod >= 67 ? "#d97706" : RED;
                 const iacBg = iacPeriod >= 100 ? "#f0fdf4" : iacPeriod >= 67 ? "#fffbeb" : "#fef2f2";
+                const weekLabel = weekOffset === 0 ? `${days}d` : weekOffset === -1 ? "sem. pasada" : `hace ${Math.abs(weekOffset)} sem.`;
                 return (
                   <div className="flex flex-col items-end">
                     <div className="relative group">
@@ -797,12 +822,12 @@ export default function HomePage() {
                       </div>
                       <div className="absolute right-0 top-full mt-2 z-50 w-64 hidden group-hover:block">
                         <div className="bg-gray-900 text-white text-xs rounded-xl px-3 py-2.5 leading-relaxed shadow-xl">
-                          <strong>Índice de Actividad Comercial</strong><br/>Tu nivel de actividad comparado con lo esperable para convertirte en Top Producer. 100% = 15 reuniones cara a cara por semana.
+                          <strong>Índice de Actividad Comercial</strong><br/>Tu nivel de actividad comparado con lo esperable para convertirte en Top Producer. 100% = {data.totals.iacGoal ?? 15} reuniones cara a cara por semana.
                         </div>
                       </div>
                     </div>
                     <div className="text-xs text-gray-400 mt-1 text-right">
-                      {data.totals.totalGreen} reuniones · {days}d
+                      {(days <= 14 && visibleWeekTotals ? visibleWeekTotals.totalGreen : data.totals.totalGreen)} reuniones · {weekLabel}
                     </div>
                   </div>
                 );
@@ -810,33 +835,40 @@ export default function HomePage() {
             </div>
 
             {/* KPIs */}
+            {(() => {
+              const wt = (days <= 14 && visibleWeekTotals) ? visibleWeekTotals : null;
+              const totals = wt ? { ...data.totals, totalGreen: wt.totalGreen, tasaciones: wt.tasaciones, visitas: wt.visitas, propuestas: wt.propuestas, firmas: wt.firmas } : data.totals;
+              const weekLabel2 = weekOffset === 0 ? `${days}d` : weekOffset === -1 ? "sem. pasada" : `hace ${Math.abs(weekOffset)} sem.`;
+              return (
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 relative z-10">
               <KpiCard
                 label="Eventos verdes"
-                value={data.totals.totalGreen}
+                value={totals.totalGreen}
                 accent
-                sub={`${days}d · objetivo ${Math.round((data.totals.iacGoal ?? 15) * days / 7)}`}
+                sub={`${weekLabel2} · objetivo ${data.totals.iacGoal ?? 15}`}
                 tooltip="Cada vez que estás cara a cara con una persona hablando de tu negocio. Reuniones, visitas, tasaciones, propuestas — todo lo que genera dinero. El motor del negocio."
               />
               <KpiCard
                 label="Visitas"
-                value={data.totals.visitas}
+                value={totals.visitas}
                 sub={`venta · alquiler · propiedad`}
                 tooltip="Cantidad de visitas a propiedades: venta, alquiler o conocer propiedad. Toda visita mueve el pipeline. Enfocate en visitas de venta para maximizar ingresos."
               />
               <KpiCard
                 label="Tasaciones · Propuestas"
-                value={`${data.totals.tasaciones} · ${data.totals.propuestas}`}
+                value={`${totals.tasaciones} · ${totals.propuestas}`}
                 sub="captaciones + presentaciones"
-                tooltip={`Se muestran eventos con las palabras "tasación" o "captación" (${data.totals.tasaciones}) y eventos con "propuesta" o "presentación" (${data.totals.propuestas}). La propuesta de valor es la segunda fase de la captación: el momento donde te diferenciás para lograr captar en exclusiva.`}
+                tooltip={`Se muestran eventos con las palabras "tasación" o "captación" (${totals.tasaciones}) y eventos con "propuesta" o "presentación" (${totals.propuestas}). La propuesta de valor es la segunda fase de la captación: el momento donde te diferenciás para lograr captar en exclusiva.`}
               />
               <KpiCard
                 label="Firmas"
-                value={data.totals.firmas ?? 0}
+                value={totals.firmas ?? 0}
                 sub="cierres de operación"
                 tooltip='Operaciones cerradas. El evento debe tener la palabra "Firma" en el título (firma de contrato, firma de escritura, etc.).'
               />
             </div>
+              );
+            })()}
 
             {/* Push notifications prompt — solo si ya cerró el onboarding */}
             {!showOnboarding && <PushPrompt />}
