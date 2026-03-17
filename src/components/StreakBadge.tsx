@@ -15,7 +15,14 @@ function Tooltip({ text, children }: { text: string; children: React.ReactNode }
       onMouseEnter={() => setShow(true)} onMouseLeave={() => setShow(false)}>
       {children}
       {show && (
-        <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50 w-56 bg-gray-900 text-white text-xs rounded-xl px-3 py-2 leading-relaxed shadow-xl pointer-events-none">
+        <span style={{
+          position: "absolute", bottom: "calc(100% + 6px)", left: "50%",
+          transform: "translateX(-50%)", zIndex: 9999, width: 220,
+          background: "#111827", color: "white", fontSize: 11,
+          borderRadius: 10, padding: "8px 12px", lineHeight: 1.5,
+          boxShadow: "0 8px 24px rgba(0,0,0,0.3)", pointerEvents: "none",
+          whiteSpace: "normal",
+        }}>
           {text}
         </span>
       )}
@@ -48,7 +55,7 @@ export default function StreakBadge({ current, best, todayActive, minGreens = 1,
   const milestoneProgress = nextMilestone === prevMilestone ? 100 : Math.round(((current - prevMilestone) / (nextMilestone - prevMilestone)) * 100);
 
   return (
-    <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
+    <div className="bg-white border border-gray-100 rounded-2xl">
 
       {/* Header oscuro — mismo estilo que RankBadge */}
       <div className="px-5 pt-6 pb-5" style={{ background: headerGradient }}>

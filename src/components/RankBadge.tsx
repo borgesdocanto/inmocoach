@@ -17,13 +17,20 @@ interface RankStats {
 function Tip({ text }: { text: string }) {
   const [show, setShow] = useState(false);
   return (
-    <span className="relative inline-flex items-center ml-1">
+    <span className="relative inline-flex items-center ml-1" style={{ zIndex: show ? 9999 : "auto" }}>
       <button onMouseEnter={() => setShow(true)} onMouseLeave={() => setShow(false)}
         onTouchStart={() => setShow(s => !s)}
         className="w-3.5 h-3.5 rounded-full border border-gray-300 text-gray-400 flex items-center justify-center hover:border-gray-500 transition-colors"
         style={{ fontSize: 8, fontWeight: 900 }}>?</button>
       {show && (
-        <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 z-50 w-56 bg-gray-900 text-white text-xs rounded-xl px-3 py-2 leading-relaxed shadow-xl pointer-events-none">
+        <span style={{
+          position: "absolute", bottom: "calc(100% + 6px)", left: "50%",
+          transform: "translateX(-50%)", zIndex: 9999, width: 220,
+          background: "#111827", color: "white", fontSize: 11,
+          borderRadius: 10, padding: "8px 12px", lineHeight: 1.5,
+          boxShadow: "0 8px 24px rgba(0,0,0,0.3)", pointerEvents: "none",
+          whiteSpace: "normal",
+        }}>
           {text}
         </span>
       )}
@@ -48,7 +55,7 @@ export default function RankBadge({ stats }: { stats: RankStats }) {
   })();
 
   return (
-    <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
+    <div className="bg-white border border-gray-100 rounded-2xl">
 
       {/* Header con rango actual — grande, como juego */}
       <div className="px-5 pt-6 pb-4" style={{ background: "linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)" }}>
@@ -100,7 +107,7 @@ export default function RankBadge({ stats }: { stats: RankStats }) {
                   {r.label.split(" ")[0]}
                 </div>
                 {/* Tooltip al hover */}
-                <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 hidden group-hover:block z-50 w-40 bg-gray-900 text-white text-xs rounded-xl px-2 py-1.5 text-center shadow-xl pointer-events-none">
+                <div style={{ position:"absolute", bottom:"calc(100% + 6px)", left:"50%", transform:"translateX(-50%)", zIndex:9999, width:160, background:"#111827", color:"white", fontSize:11, borderRadius:10, padding:"6px 10px", lineHeight:1.5, boxShadow:"0 8px 24px rgba(0,0,0,0.3)", pointerEvents:"none", whiteSpace:"normal", textAlign:"center" }}>
                   {r.label}<br/>
                   <span className="text-gray-400">IAC ≥ {r.minIacUp}% para subir</span>
                 </div>

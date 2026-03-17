@@ -37,6 +37,7 @@ interface AdminUser {
 
 export default function AdminPanel() {
   const router = useRouter();
+  const { data: session } = useSession();
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [tab, setTab] = useState<"overview" | "users" | "teams" | "ops" | "precios" | "eventos" | "goals" | "coach" | "midweek" | "rangos">("overview");
@@ -1229,8 +1230,30 @@ export default function AdminPanel() {
             </div>
             {coachPreview && (
               <div className="bg-gray-50 rounded-2xl border border-gray-100 p-6">
-                <div className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Preview — análisis generado con tus datos</div>
-                <div className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{coachPreview}</div>
+                <div className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">Preview — análisis generado con tus datos</div>
+                {(() => {
+                  const blocks = coachPreview.split(/\n\n+/).filter(b => b.trim());
+                  const sections = blocks.slice(0, 3);
+                  const numero = blocks[3] ?? "";
+                  const labels = ["✓ Lo que hiciste bien", "↓ Dónde perdés oportunidades", "→ La acción para esta semana"];
+                  const bgs = ["#f0fdf4", "#fef2f2", "#fffbeb"];
+                  const colors = ["#15803d", "#991b1b", "#92400e"];
+                  return (
+                    <div className="space-y-3">
+                      {sections.map((block, i) => (
+                        <div key={i} className="rounded-xl p-4" style={{ background: bgs[i] }}>
+                          <div className="text-xs font-black uppercase tracking-widest mb-2" style={{ color: colors[i] }}>{labels[i]}</div>
+                          <p className="text-sm leading-relaxed" style={{ color: colors[i] }}>{block.trim()}</p>
+                        </div>
+                      ))}
+                      {numero && (
+                        <div className="border-t border-gray-200 pt-3">
+                          <p className="text-xs font-semibold text-gray-400">{numero}</p>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
             )}
             <div className="bg-blue-50 rounded-2xl border border-blue-100 p-4">
@@ -1302,6 +1325,22 @@ export default function AdminPanel() {
                   disabled={midweekPreviewing}
                   className="px-5 py-2 rounded-xl text-xs font-bold border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-50">
                   {midweekPreviewing ? "Generando..." : "Previsualizar mail"}
+                </button>
+                <button
+                  onClick={async () => {
+                    setMidweekMsg("Enviando...");
+                    try {
+                      const res = await fetch("/api/admin/ops", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ action: "send_midweek_test" }),
+                      });
+                      const d = await res.json();
+                      setMidweekMsg(d.ok ? "✓ Mail enviado a tu cuenta" : d.error || "Error al enviar");
+                    } catch { setMidweekMsg("Error al enviar"); }
+                  }}
+                  className="px-5 py-2 rounded-xl text-xs font-bold border border-gray-200 text-gray-600 hover:bg-gray-50">
+                  Enviarme el mail de prueba
                 </button>
                 {midweekMsg && <span className={`text-xs font-semibold ${midweekMsg.startsWith("✓") ? "text-green-600" : "text-red-500"}`}>{midweekMsg}</span>}
               </div>

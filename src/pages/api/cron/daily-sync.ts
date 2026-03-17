@@ -1,6 +1,6 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import { supabaseAdmin } from "../../../lib/supabase";
-import { syncAndPersist, computeWeekStats, IAC_GOAL } from "../../../lib/calendarSync";
+import { syncAndPersist, computeWeekStats } from "../../../lib/calendarSync";
 import { getGoals } from "../../../lib/appConfig";
 import { computeAndSaveStreak } from "../../../lib/streak";
 import { saveWeeklyStatsAndRank } from "../../../lib/ranks";

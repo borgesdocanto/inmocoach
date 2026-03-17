@@ -21,7 +21,6 @@ function localDateStr(d: Date = new Date()): string {
 
 const RED = "#aa0000";
 const GREEN = "#16a34a";
-const PRODUCTIVITY_GOAL = parseInt(process.env.NEXT_PUBLIC_PRODUCTIVITY_GOAL || "10");
 
 interface CalendarEvent { id: string; title: string; type: string; isGreen: boolean; isOrganizer: boolean; start: string; }
 interface DaySummary { date: string; greenCount: number; isProductive: boolean; events: CalendarEvent[]; }
@@ -683,10 +682,11 @@ export default function HomePage() {
     const weekSummaries = data.dailySummaries.filter(d => d.date >= monStr && d.date <= sunStr);
     const totalGreen = weekSummaries.reduce((s, d) => s + d.greenCount, 0);
     const totalEvents = weekSummaries.reduce((s, d) => s + (d.events?.length ?? 0), 0);
-    const tasaciones = weekSummaries.reduce((s, d) => s + (d.events?.filter((e: any) => e.type === "tasacion").length ?? 0), 0);
-    const visitas = weekSummaries.reduce((s, d) => s + (d.events?.filter((e: any) => ["visita","conocer","primera_visita"].includes(e.type)).length ?? 0), 0);
-    const propuestas = weekSummaries.reduce((s, d) => s + (d.events?.filter((e: any) => e.type === "propuesta").length ?? 0), 0);
-    const firmas = weekSummaries.reduce((s, d) => s + (d.events?.filter((e: any) => e.isCierre).length ?? 0), 0);
+    const greenEvs = weekSummaries.flatMap(d => (d.events ?? []).filter((e: any) => e.isGreen));
+    const tasaciones = greenEvs.filter((e: any) => e.type === "tasacion").length;
+    const visitas = greenEvs.filter((e: any) => ["visita","conocer","primera_visita"].includes(e.type)).length;
+    const propuestas = greenEvs.filter((e: any) => e.type === "propuesta").length;
+    const firmas = greenEvs.filter((e: any) => e.isCierre).length;
     const iacGoal = data.totals.iacGoal ?? 15;
     const iac = Math.min(100, Math.round((totalGreen / iacGoal) * 100));
     return { totalGreen, totalEvents, tasaciones, visitas, propuestas, firmas, iacGoal, iac };

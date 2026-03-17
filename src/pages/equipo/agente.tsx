@@ -15,7 +15,6 @@ function localDateStr(d: Date = new Date()): string {
 
 const RED = "#aa0000";
 const GREEN = "#16a34a";
-const PRODUCTIVITY_GOAL = parseInt(process.env.NEXT_PUBLIC_PRODUCTIVITY_GOAL || "2");
 
 interface CalendarEvent { id: string; title: string; type: string; isGreen: boolean; isOrganizer: boolean; start: string; end?: string; isProceso?: boolean; isCierre?: boolean; }
 interface DaySummary { date: string; greenCount: number; isProductive: boolean; events: CalendarEvent[]; }
@@ -365,7 +364,7 @@ export default function AgentDashboard() {
       .filter(d => d.date >= fromStr && d.date <= todayStr)
       .map(d => {
         const dt = new Date(d.date + "T12:00:00");
-        return { dateLabel: `${dt.getDate()}/${dt.getMonth() + 1}`, verdes: d.greenCount, meta: PRODUCTIVITY_GOAL };
+        return { dateLabel: `${dt.getDate()}/${dt.getMonth() + 1}`, verdes: d.greenCount, meta: data?.totals?.iacGoal ?? 15 };
       });
   }, [data, days]);
 

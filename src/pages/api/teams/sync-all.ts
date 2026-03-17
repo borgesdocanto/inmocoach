@@ -2,7 +2,7 @@ import { NextApiRequest, NextApiResponse } from "next";
 import { getServerSession } from "next-auth";
 import { authOptions } from "../../../lib/auth";
 import { supabaseAdmin } from "../../../lib/supabase";
-import { syncAndPersist, IAC_GOAL } from "../../../lib/calendarSync";
+import { syncAndPersist } from "../../../lib/calendarSync";
 import { getGoals } from "../../../lib/appConfig";
 import { getValidAccessToken } from "../../../lib/googleToken";
 import { computeAndSaveStreak } from "../../../lib/streak";

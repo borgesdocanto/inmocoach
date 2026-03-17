@@ -46,6 +46,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
   }
 
+  if (action === "send_midweek_test") {
+    try {
+      const adminEmail = session!.user!.email!;
+      const res2 = await fetch(`${baseUrl}/api/cron/midweek-alert`, {
+        method: "POST",
+        headers: { "x-cron-secret": secret!, "Content-Type": "application/json" },
+        body: JSON.stringify({ targetEmail: adminEmail }),
+      });
+      const data = await res2.json();
+      return res.status(200).json({ ok: true, ...data });
+    } catch (e: any) {
+      return res.status(500).json({ error: e.message });
+    }
+  }
+
   // Ver logs de sync errors de un usuario
   if (action === "get_sync_errors") {
     if (!email) return res.status(400).json({ error: "Email requerido" });

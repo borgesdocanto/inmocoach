@@ -8,7 +8,6 @@ import { getValidAccessToken } from "../../../lib/googleToken";
 import { saveWeeklyStatsAndRank } from "../../../lib/ranks";
 import { computeAndSaveStreak } from "../../../lib/streak";
 import { startOfWeek, format } from "date-fns";
-import { IAC_GOAL } from "../../../lib/calendarSync";
 import { getGoals } from "../../../lib/appConfig";
 
 // Cron: domingos a las 3am UTC — sync profundo 365 días para todos los usuarios activos
