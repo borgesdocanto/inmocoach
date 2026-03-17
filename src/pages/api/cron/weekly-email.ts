@@ -87,7 +87,7 @@ async function processUser(sub: any): Promise<"sent" | "failed" | "skipped"> {
       productivityRate: stats.productivityRate, coachAdvice, planName: plan.name,
       isExpiringSoon: (subData?.plan || "free") === "free" && daysLeft <= 2, daysLeft,
       streak: streakData.current, rankSlug: rank.slug, rankLabel: rank.label, rankIcon: rank.icon,
-      nextRankLabel: nextRank?.label, nextRankMinWeeks: nextRank?.minWeeks, nextRankMinIac: nextRank?.minIacAvg,
+      nextRankLabel: nextRank?.label, nextRankMinWeeks: nextRank?.minWeeks, nextRankMinIac: (nextRank as any)?.minIacUp ?? (nextRank as any)?.minIacAvg,
       activeWeeks, iacAvg,
     });
 

@@ -1,7 +1,7 @@
 import Head from "next/head";
 import { useRouter } from "next/router";
 import { ArrowLeft } from "lucide-react";
-import { RANKS } from "../lib/ranksConfig";
+import { DEFAULT_RANKS } from "../lib/ranksConfig";
 
 const RED = "#aa0000";
 
@@ -34,20 +34,20 @@ export default function RangosPage() {
         <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
           <div className="px-5 py-3.5 border-b border-gray-100"><div className="text-xs font-black text-gray-500 uppercase tracking-widest">Los 6 rangos</div></div>
           <div className="divide-y divide-gray-50">
-            {RANKS.map((rank, i) => (
+            {DEFAULT_RANKS.map((rank, i) => (
               <div key={rank.slug} className="px-5 py-5 flex items-start gap-4">
-                <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-2xl shrink-0" style={{ background: i === 0 ? "#f3f4f6" : i === RANKS.length - 1 ? "#fffbeb" : "#fff1f1" }}>{rank.icon}</div>
+                <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-2xl shrink-0" style={{ background: i === 0 ? "#f3f4f6" : i === DEFAULT_RANKS.length - 1 ? "#fffbeb" : "#fff1f1" }}>{rank.icon}</div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap mb-1">
                     <span className="font-black text-base text-gray-900" style={{ fontFamily: "Georgia, serif" }}>{rank.label}</span>
-                    {i === RANKS.length - 1 && <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700">Nivel máximo</span>}
+                    {i === DEFAULT_RANKS.length - 1 && <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700">Nivel máximo</span>}
                   </div>
                   <p className="text-sm text-gray-500 leading-relaxed mb-3">{rank.description}</p>
                   {rank.minWeeks > 0 ? (
                     <div className="flex flex-wrap gap-2">
                       <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-gray-100 text-gray-600">📅 {rank.minWeeks} semanas activas</span>
-                      <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-gray-100 text-gray-600">📊 IAC prom. ≥ {rank.minIacAvg}%</span>
-                      {rank.minStreak && <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-orange-50 text-orange-600">🔥 Racha máx. ≥ {rank.minStreak} días</span>}
+                      <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-gray-100 text-gray-600">📊 IAC prom. ≥ {rank.minIacUp ?? 0}%</span>
+                      {(rank as any).minStreak && <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-orange-50 text-orange-600">🔥 Racha máx. ≥ {(rank as any).minStreak} días</span>}
                     </div>
                   ) : (
                     <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-gray-100 text-gray-500">Automático al registrarte</span>

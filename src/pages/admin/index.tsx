@@ -39,7 +39,7 @@ export default function AdminPanel() {
   const router = useRouter();
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [users, setUsers] = useState<AdminUser[]>([]);
-  const [tab, setTab] = useState<"overview" | "users" | "teams" | "ops" | "precios" | "eventos" | "goals" | "coach" | "midweek">("overview");
+  const [tab, setTab] = useState<"overview" | "users" | "teams" | "ops" | "precios" | "eventos" | "goals" | "coach" | "midweek" | "rangos">("overview");
   const [goalsConfig, setGoalsConfig] = useState({ weekly_goal: "15", productive_day_min: "2", streak_min_greens: "1" });
   const [goalsSaving, setGoalsSaving] = useState(false);
   const [goalsMsg, setGoalsMsg] = useState("");
@@ -54,6 +54,11 @@ export default function AdminPanel() {
   const [midweekMsg, setMidweekMsg] = useState("");
   const [midweekPreview, setMidweekPreview] = useState("");
   const [midweekPreviewing, setMidweekPreviewing] = useState(false);
+  const [ranksData, setRanksData] = useState<any[]>([]);
+  const [weeksToUp, setWeeksToUp] = useState("4");
+  const [weeksToDown, setWeeksToDown] = useState("2");
+  const [ranksSaving, setRanksSaving] = useState(false);
+  const [ranksMsg, setRanksMsg] = useState("");
   const [eventTypes, setEventTypes] = useState<any[]>([]);
   const [eventTypesSaving, setEventTypesSaving] = useState(false);
   const [etForm, setEtForm] = useState<any | null>(null); // null = closed, {} = new, {...} = editing
@@ -122,6 +127,18 @@ export default function AdminPanel() {
       fetch("/api/admin/midweek-prompt")
         .then(r => r.json())
         .then(d => { setMidweekPrompt(d.prompt ?? ""); setMidweekMinGreens(d.minGreens ?? "5"); })
+        .catch(console.error);
+    }
+  }, [tab]);
+  useEffect(() => {
+    if (tab === "rangos") {
+      fetch("/api/admin/ranks-config")
+        .then(r => r.json())
+        .then(d => {
+          setRanksData(d.ranks ?? []);
+          setWeeksToUp(d.weeksToUp ?? "4");
+          setWeeksToDown(d.weeksToDown ?? "2");
+        })
         .catch(console.error);
     }
   }, [tab]);
@@ -388,6 +405,7 @@ export default function AdminPanel() {
             { key: "goals", label: "Goals", icon: <Target size={13} /> },
             { key: "coach", label: "Coach AI", icon: <MessageSquare size={13} /> },
             { key: "midweek", label: "Miércoles", icon: <Mail size={13} /> },
+            { key: "rangos", label: "Rangos", icon: <TrendingUp size={13} /> },
           ] as const).map(t => (
             <button key={t.key} onClick={() => setTab(t.key)}
               className="flex items-center gap-1.5 px-4 py-2.5 text-xs font-bold border-b-2 transition-colors"
@@ -1298,6 +1316,108 @@ export default function AdminPanel() {
 
             <div className="bg-blue-50 rounded-2xl border border-blue-100 p-4">
               <p className="text-xs text-blue-700 font-medium">El cron corre los miércoles a las 18:00hs (Argentina). Genera un solo texto con IA y lo envía a todos los agentes que no llegaron al mínimo. Para testear manualmente usá el botón Run en Vercel → Cron Jobs.</p>
+            </div>
+          </div>
+        )}
+
+        {tab === "rangos" && (
+          <div className="max-w-4xl mx-auto px-5 py-8 space-y-6">
+            <div>
+              <h2 className="text-base font-bold text-gray-800 mb-1">Configuración de Rangos</h2>
+              <p className="text-xs text-gray-400">Definí los umbrales de IAC para subir y mantener cada rango, y cuántas semanas consecutivas se necesitan.</p>
+            </div>
+
+            {/* Config global */}
+            <div className="bg-white rounded-2xl border border-gray-100 p-6">
+              <div className="text-sm font-bold text-gray-700 mb-4">Reglas globales</div>
+              <div className="grid grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-xs font-bold text-gray-600 mb-1">Semanas consecutivas para SUBIR</label>
+                  <p className="text-xs text-gray-400 mb-2">Cuántas semanas seguidas sobre el umbral para subir de rango. Default: 4</p>
+                  <input type="number" min="1" max="12" value={weeksToUp}
+                    onChange={e => setWeeksToUp(e.target.value)}
+                    className="w-24 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-gray-400" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-600 mb-1">Semanas consecutivas para BAJAR</label>
+                  <p className="text-xs text-gray-400 mb-2">Cuántas semanas seguidas bajo el umbral para bajar de rango. Default: 2</p>
+                  <input type="number" min="1" max="8" value={weeksToDown}
+                    onChange={e => setWeeksToDown(e.target.value)}
+                    className="w-24 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-gray-400" />
+                </div>
+              </div>
+            </div>
+
+            {/* Tabla de rangos */}
+            <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+              <div className="px-6 py-4 border-b border-gray-100">
+                <div className="text-sm font-bold text-gray-700">Umbrales por rango</div>
+                <div className="text-xs text-gray-400 mt-0.5">IAC para subir = necesitás este % para ascender. IAC para mantener = si caés debajo por N semanas, bajás.</div>
+              </div>
+              <div className="divide-y divide-gray-50">
+                {ranksData.map((r, idx) => (
+                  <div key={r.slug} className="px-6 py-4 flex items-center gap-4">
+                    <div className="text-3xl w-10 text-center">{r.icon}</div>
+                    <div className="w-36">
+                      <div className="text-sm font-bold text-gray-800">{r.label}</div>
+                      <div className="text-xs text-gray-400">{r.min_weeks} sem. activas</div>
+                    </div>
+                    <div className="flex-1 grid grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-xs text-gray-400 mb-1">IAC para subir (%)</label>
+                        <input type="number" min="0" max="100"
+                          value={r.min_iac_up}
+                          onChange={e => setRanksData(prev => prev.map((rr, i) => i === idx ? { ...rr, min_iac_up: parseInt(e.target.value) || 0 } : rr))}
+                          className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-gray-400" />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-400 mb-1">IAC para mantener (%)</label>
+                        <input type="number" min="0" max="100"
+                          value={r.min_iac_keep}
+                          onChange={e => setRanksData(prev => prev.map((rr, i) => i === idx ? { ...rr, min_iac_keep: parseInt(e.target.value) || 0 } : rr))}
+                          className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-gray-400" />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-400 mb-1">Sem. activas mínimas</label>
+                        <input type="number" min="0" max="52"
+                          value={r.min_weeks}
+                          onChange={e => setRanksData(prev => prev.map((rr, i) => i === idx ? { ...rr, min_weeks: parseInt(e.target.value) || 0 } : rr))}
+                          className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-gray-400" />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="px-6 py-4 border-t border-gray-100 flex items-center gap-3">
+                <button
+                  onClick={async () => {
+                    setRanksSaving(true); setRanksMsg("");
+                    try {
+                      const payload = ranksData.map(r => ({
+                        slug: r.slug, label: r.label, icon: r.icon,
+                        sortOrder: r.sort_order, minWeeks: r.min_weeks,
+                        minIacUp: r.min_iac_up, minIacKeep: r.min_iac_keep,
+                        minStreak: r.min_streak ?? null,
+                      }));
+                      await fetch("/api/admin/ranks-config", {
+                        method: "POST", headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ ranks: payload, weeksToUp, weeksToDown }),
+                      });
+                      setRanksMsg("✓ Guardado");
+                    } catch { setRanksMsg("Error al guardar"); }
+                    setRanksSaving(false);
+                  }}
+                  disabled={ranksSaving}
+                  className="px-5 py-2 rounded-xl text-xs font-bold text-white disabled:opacity-50"
+                  style={{ background: RED }}>
+                  {ranksSaving ? "Guardando..." : "Guardar cambios"}
+                </button>
+                {ranksMsg && <span className={`text-xs font-semibold ${ranksMsg.startsWith("✓") ? "text-green-600" : "text-red-500"}`}>{ranksMsg}</span>}
+              </div>
+            </div>
+
+            <div className="bg-blue-50 rounded-2xl border border-blue-100 p-4">
+              <p className="text-xs text-blue-700 font-medium">Los cambios aplican en la próxima sincronización de cada agente. Para aplicar a todos inmediatamente usá "Rebuild weekly stats" en el tab Operaciones.</p>
             </div>
           </div>
         )}
