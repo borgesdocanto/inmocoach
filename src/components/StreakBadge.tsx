@@ -66,24 +66,39 @@ export default function StreakBadge({ current, best, todayActive, minGreens = 1,
         </div>
 
         <div className="flex items-end justify-between">
-          <div>
-            <div className="flex items-baseline gap-2">
-              <span className="font-black text-white" style={{ fontSize: 72, fontFamily: "Georgia, serif", lineHeight: 1 }}>
-                {current}
-              </span>
-              <span className="text-gray-400 text-lg mb-2">días</span>
+          {/* Izquierda: emoji + días actuales */}
+          <div className="flex items-end gap-4">
+            <div style={{ fontSize: 64, lineHeight: 1, filter: "drop-shadow(0 4px 12px rgba(255,255,255,0.15))" }}>
+              {emoji}
             </div>
-            <div className="text-sm mt-1" style={{ color: accentColor }}>
-              {current === 0
-                ? `Agendá ${minGreens} ${reunionWord} hoy para arrancar`
-                : todayActive
-                  ? "Seguí así — ya sumaste hoy"
-                  : `Agendá ${minGreens} ${reunionWord} hoy para no perderla`}
+            <div>
+              <div className="flex items-baseline gap-2">
+                <span className="font-black text-white" style={{ fontSize: 72, fontFamily: "Georgia, serif", lineHeight: 1 }}>
+                  {current}
+                </span>
+                <span className="text-gray-400 text-lg mb-2">días</span>
+              </div>
+              <div className="text-sm mt-1" style={{ color: accentColor }}>
+                {current === 0
+                  ? `Agendá ${minGreens} ${reunionWord} hoy`
+                  : todayActive
+                    ? "Seguí así — ya sumaste hoy"
+                    : `Agendá ${minGreens} ${reunionWord} hoy`}
+              </div>
             </div>
           </div>
-          <div style={{ fontSize: 64, lineHeight: 1, filter: "drop-shadow(0 4px 12px rgba(255,255,255,0.15))" }}>
-            {emoji}
-          </div>
+
+          {/* Derecha: récord personal */}
+          {best > 0 && (
+            <div className="text-right">
+              <div className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">🚀 Récord</div>
+              <div className="font-black text-white" style={{ fontSize: 36, fontFamily: "Georgia, serif", lineHeight: 1, color: isBest ? "#fb923c" : "white" }}>
+                {best}
+                <span className="text-base font-normal text-gray-400 ml-1">días</span>
+              </div>
+              {isBest && <div className="text-xs font-bold mt-1" style={{ color: "#fb923c" }}>actual 🏆</div>}
+            </div>
+          )}
         </div>
       </div>
 
@@ -121,27 +136,6 @@ export default function StreakBadge({ current, best, todayActive, minGreens = 1,
           ))}
         </div>
       </div>
-
-      {/* Récord personal */}
-      {best > 0 && (
-        <div className="px-5 py-3 border-b border-gray-100">
-          <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl"
-            style={{ background: isBest ? "#fff7ed" : "#f9fafb" }}>
-            <span className="text-2xl">🚀</span>
-            <div className="flex-1">
-              <div className="text-xs text-gray-400 font-medium">Récord personal</div>
-              <div className="font-black text-xl" style={{ fontFamily: "Georgia, serif", color: isBest ? "#ea580c" : "#374151" }}>
-                {best} días {isBest && "🏆"}
-              </div>
-            </div>
-            {isBest && (
-              <span className="text-xs font-bold px-2 py-0.5 rounded-lg" style={{ background: "#fed7aa", color: "#ea580c" }}>
-                actual
-              </span>
-            )}
-          </div>
-        </div>
-      )}
 
       {/* Protectores de racha */}
       <div className="px-5 py-4">
