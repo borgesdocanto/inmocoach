@@ -262,8 +262,9 @@ export async function fetchCalendarEvents(
       c.accessRole === "owner" || c.accessRole === "writer"
     );
     if (owned.length > 0) calendarIds = owned.map(c => c.id!);
-  } catch {
-    // Token sin scope calendar.calendars.readonly — solo leer primary
+  } catch (e: any) {
+    // Token sin scope calendar.readonly — solo leer primary
+    console.warn("[calendarSync] calendarList error:", e?.message);
   }
 
   // Paginar cada calendario y acumular eventos
@@ -292,8 +293,8 @@ export async function fetchCalendarEvents(
         }
         pageToken = response.data.nextPageToken ?? undefined;
       } while (pageToken);
-    } catch {
-      // Ignorar calendarios sin acceso
+    } catch (e: any) {
+      console.warn("[calendarSync] events.list error for", calId, ":", e?.message);
     }
   }
 

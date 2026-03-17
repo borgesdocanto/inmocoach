@@ -615,16 +615,17 @@ export default function HomePage() {
     setLoading(true);
     setError("");
     try {
-      const fetchDays = Math.max(days, 14); // mínimo 14 para poder navegar a semana anterior
+      const fetchDays = Math.max(days, 14);
       const res = await fetch(`/api/calendar?days=${fetchDays}`);
       if (res.status === 401) {
         router.push("/relogin");
         return;
       }
-      if (!res.ok) throw new Error((await res.json()).error || "Error de sincronización");
-      const json = await res.json();
-      console.log("[calendar API] dailySummaries:", json.dailySummaries?.length, "sample:", json.dailySummaries?.slice(0,3));
-      setData(json);
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || "Error de sincronización");
+      }
+      setData(await res.json());
     } catch (e: any) { setError(e.message); }
     setLoading(false);
   };
@@ -798,9 +799,24 @@ export default function HomePage() {
       <main className="max-w-6xl mx-auto px-5 py-6 pb-16 space-y-5">
 
         {error && (
-          <div className="bg-red-50 border border-red-100 rounded-2xl px-5 py-4 flex items-center gap-3">
-            <AlertTriangle size={15} style={{ color: RED }} />
-            <p className="text-sm font-medium text-red-700">{error}</p>
+          <div className="bg-red-50 border border-red-100 rounded-2xl px-5 py-4">
+            <div className="flex items-start gap-3">
+              <AlertTriangle size={15} style={{ color: RED }} className="mt-0.5 shrink-0" />
+              <div className="flex-1">
+                <p className="text-sm font-bold text-red-700 mb-0.5">No se pudo conectar con Google Calendar</p>
+                <p className="text-xs text-red-500">{error}</p>
+              </div>
+              <button onClick={sync} className="text-xs font-bold px-3 py-1.5 rounded-xl border border-red-200 text-red-600 hover:bg-red-100 transition-all shrink-0">
+                Reintentar
+              </button>
+            </div>
+            {error.includes("token") || error.includes("auth") || error.includes("permission") ? (
+              <div className="mt-3 pt-3 border-t border-red-100">
+                <button onClick={() => router.push("/relogin")} className="text-xs font-bold text-red-600 underline">
+                  Reconectar Google Calendar →
+                </button>
+              </div>
+            ) : null}
           </div>
         )}
 

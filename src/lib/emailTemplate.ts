@@ -463,9 +463,15 @@ export function generateWelcomeEmailHtml(userName: string): string {
           </td>
         </tr>
 
-        <!-- Footer -->
+        <!-- Trial info -->
         <tr>
-          <td style="background:#f9fafb;border-top:1px solid #e5e7eb;border-radius:0 0 12px 12px;padding:28px 40px;text-align:center;">
+          <td style="background:#fffbeb;padding:20px 40px;border-top:1px solid #fde68a;">
+            <p style="margin:0 0 6px;font-size:12px;font-weight:700;color:#92400e;text-transform:uppercase;letter-spacing:0.05em;">🎁 Prueba gratis por 7 días</p>
+            <p style="margin:0;font-size:13px;color:#78350f;line-height:1.6;">Tenés acceso completo durante 7 días. Si querés seguir usándolo después, activá un plan desde <a href="https://inmocoach.com.ar/pricing" style="color:#aa0000;font-weight:700;text-decoration:none;">inmocoach.com.ar/pricing</a>.</p>
+          </td>
+        </tr>
+
+        <!-- Footer -->
             <p style="margin:0 0 6px;font-family:Georgia,serif;font-size:15px;font-weight:900;color:#111827;">
               Inmo<span style="color:#aa0000;">Coach</span>
             </p>

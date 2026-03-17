@@ -8,7 +8,7 @@ export const config = { maxDuration: 300 }; // 5 minutos
 import { getAllActiveSubscriptions } from "../../../lib/subscription";
 import { fetchCalendarEvents, computeWeekStats } from "../../../lib/calendarSync";
 import { computeAndSaveStreak } from "../../../lib/streak";
-import { saveWeeklyStatsAndRank, getNextRank } from "../../../lib/ranks";
+import { saveWeeklyStatsAndRank, getNextRank, getRanksFromDB } from "../../../lib/ranks";
 import { generateWeeklyEmailHtml } from "../../../lib/emailTemplate";
 import { supabaseAdmin } from "../../../lib/supabase";
 import { getValidAccessToken } from "../../../lib/googleToken";
@@ -78,7 +78,8 @@ async function processUser(sub: any): Promise<"sent" | "failed" | "skipped"> {
     const daysUsed = (Date.now() - createdAt.getTime()) / (1000 * 60 * 60 * 24);
     const daysLeft = Math.max(0, Math.ceil(FREEMIUM_DAYS - daysUsed));
     const plan = getPlanById(sub.plan);
-    const nextRank = getNextRank(rank.slug);
+    const dbRanks = await getRanksFromDB();
+    const nextRank = getNextRank(rank.slug, dbRanks);
 
     const html = generateWeeklyEmailHtml({
       userName: sub.name || sub.email, email: sub.email, weekDates: stats.weekDates,

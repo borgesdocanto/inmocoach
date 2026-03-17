@@ -161,8 +161,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       );
       if (owned.length > 0) calendarIds = owned.map((c: any) => c.id!);
     } catch (e: any) {
-      console.log("[calendar.ts] calendarList error:", e?.message);
-      /* token sin scope — solo primary */
+      /* token sin scope calendar.readonly — solo primary */
     }
 
     // Paginar cada calendario y acumular, deduplicando por event id
@@ -183,10 +182,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           pageToken = response.data.nextPageToken ?? undefined;
         } while (pageToken);
       } catch (e: any) {
-        console.log("[calendar.ts] events.list error for", calId, ":", e?.message);
+        /* ignorar calendarios sin acceso */
       }
     }
-    console.log("[calendar.ts] allItems:", allItems.length, "calendarIds:", calendarIds);
 
     const items = allItems;
     // Usar config dinámica de tipos de evento (misma que calendarSync)
