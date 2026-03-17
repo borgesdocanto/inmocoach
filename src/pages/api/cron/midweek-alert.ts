@@ -172,7 +172,7 @@ function buildHtml(params: {
         <tr>
           <td style="background:#f9fafb;padding:20px 32px;border-top:1px solid #e5e7eb;border-radius:0 0 12px 12px;">
             <p style="margin:0;font-size:11px;color:#9ca3af;text-align:center;">
-              InmoCoach · <a href="https://inmocoach.com.ar" style="color:#9ca3af;">inmocoach.com.ar</a> · coach@inmocoach.com.ar
+              InmoCoach · <a href="https://inmocoach.com.ar" style="color:#9ca3af;">inmocoach.com.ar</a>
             </p>
           </td>
         </tr>

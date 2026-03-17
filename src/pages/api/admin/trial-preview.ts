@@ -44,7 +44,7 @@ function buildDay3Html(name: string, greenTotal: number, iacGoal: number): strin
         <a href="https://inmocoach.com.ar/pricing" style="display:inline-block;background:${RED};color:white;font-weight:900;font-size:14px;padding:14px 36px;border-radius:12px;text-decoration:none;">Ver planes y precios →</a>
       </div>
     </div>
-    <div style="padding:16px 28px;border-top:1px solid #f3f4f6;text-align:center;font-size:11px;color:#9ca3af;">InmoCoach · coach@inmocoach.com.ar</div>
+    <div style="padding:16px 28px;border-top:1px solid #f3f4f6;text-align:center;font-size:11px;color:#9ca3af;">InmoCoach · <a href="https://inmocoach.com.ar" style="color:#9ca3af;text-decoration:none;">inmocoach.com.ar</a></div>
   </div>
 </div></body></html>`;
 }
@@ -86,7 +86,7 @@ function buildDay5Html(name: string, greenTotal: number, iacGoal: number): strin
       </div>
       <div style="text-align:center;font-size:12px;color:#9ca3af;">¿Tenés dudas? Respondé este mail y te ayudamos.</div>
     </div>
-    <div style="padding:16px 28px;border-top:1px solid #f3f4f6;text-align:center;font-size:11px;color:#9ca3af;">InmoCoach · coach@inmocoach.com.ar</div>
+    <div style="padding:16px 28px;border-top:1px solid #f3f4f6;text-align:center;font-size:11px;color:#9ca3af;">InmoCoach · <a href="https://inmocoach.com.ar" style="color:#9ca3af;text-decoration:none;">inmocoach.com.ar</a></div>
   </div>
 </div></body></html>`;
 }

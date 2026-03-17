@@ -261,7 +261,6 @@ export function generateWeeklyEmailHtml(data: WeeklyReportData): string {
             </p>
             <p style="margin:0 0 6px;font-size:11px;color:#9ca3af;line-height:1.7;">
               Este es un email automático — por favor no respondas este mensaje.<br>
-              Para consultas escribí a <a href="mailto:hola@inmocoach.com.ar" style="color:#aa0000;text-decoration:none;">hola@inmocoach.com.ar</a>
             </p>
             <p style="margin:0;font-size:11px;color:#d1d5db;">
               Recibís este mail porque usás InmoCoach ·
@@ -472,7 +471,6 @@ export function generateWelcomeEmailHtml(userName: string): string {
             </p>
             <p style="margin:0 0 6px;font-size:11px;color:#9ca3af;line-height:1.7;">
               Este es un email automático — por favor no respondas este mensaje.<br>
-              Para consultas escribí a <a href="mailto:hola@inmocoach.com.ar" style="color:#aa0000;text-decoration:none;">hola@inmocoach.com.ar</a>
             </p>
             <p style="margin:0;font-size:11px;color:#d1d5db;">
               Recibís este mail porque te registraste en InmoCoach ·

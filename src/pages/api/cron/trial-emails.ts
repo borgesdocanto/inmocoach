@@ -58,7 +58,7 @@ function buildDay3Html(name: string, greenTotal: number, iacGoal: number): strin
       </div>
     </div>
     <div style="padding:16px 28px;border-top:1px solid #f3f4f6;text-align:center;font-size:11px;color:#9ca3af;">
-      InmoCoach · coach@inmocoach.com.ar · <a href="https://inmocoach.com.ar" style="color:#9ca3af;">inmocoach.com.ar</a>
+      InmoCoach · <a href="https://inmocoach.com.ar" style="color:#9ca3af;">inmocoach.com.ar</a>
     </div>
   </div>
 </div>
@@ -119,7 +119,7 @@ function buildDay5Html(name: string, greenTotal: number, iacGoal: number): strin
       </div>
     </div>
     <div style="padding:16px 28px;border-top:1px solid #f3f4f6;text-align:center;font-size:11px;color:#9ca3af;">
-      InmoCoach · coach@inmocoach.com.ar · <a href="https://inmocoach.com.ar" style="color:#9ca3af;">inmocoach.com.ar</a>
+      InmoCoach · <a href="https://inmocoach.com.ar" style="color:#9ca3af;">inmocoach.com.ar</a>
     </div>
   </div>
 </div>
