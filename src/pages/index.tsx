@@ -905,11 +905,13 @@ export default function HomePage() {
                 </ResponsiveContainer>
               </div>
               {(() => {
+                const wt = (days <= 14 && visibleWeekTotals) ? visibleWeekTotals : null;
                 const semanas = Math.max(1, days / 7);
-                const iacPeriod = Math.round((data.totals.totalGreen / semanas) / (data.totals.iacGoal ?? 15) * 100);
+                const greenCount = wt ? wt.totalGreen : data.totals.totalGreen;
+                const iacGoal = wt ? wt.iacGoal : (data.totals.iacGoal ?? 15);
+                const iacPeriod = wt ? wt.iac : Math.round((greenCount / semanas) / iacGoal * 100);
                 const iacColor = iacPeriod >= 100 ? GREEN : iacPeriod >= 67 ? "#d97706" : RED;
-                const avgSem = Math.round((data.totals.totalGreen / semanas) * 10) / 10;
-                const goalPeriod = Math.round((data.totals.iacGoal ?? 15) * semanas);
+                const goalPeriod = Math.round(iacGoal * semanas);
                 return (
                   <div className="bg-white border border-gray-100 rounded-2xl p-5 flex flex-row sm:flex-col justify-between sm:justify-center gap-4">
                     <div>
@@ -920,7 +922,7 @@ export default function HomePage() {
                         {iacPeriod}%
                       </div>
                       <div className="text-xs text-gray-400 mt-1">
-                        {data.totals.totalGreen} reuniones · meta {goalPeriod}
+                        {greenCount} reuniones · meta {goalPeriod}
                       </div>
                       <div className="mt-3 h-1.5 rounded-full bg-gray-100 overflow-hidden">
                         <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(100, iacPeriod)}%`, background: iacColor }} />
@@ -928,7 +930,7 @@ export default function HomePage() {
                     </div>
                     <div>
                       <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1">Objetivo semanal</div>
-                      <div className="text-4xl font-black text-gray-900" style={{ fontFamily: "Georgia, serif" }}>{data.totals.iacGoal ?? 15}</div>
+                      <div className="text-4xl font-black text-gray-900" style={{ fontFamily: "Georgia, serif" }}>{iacGoal}</div>
                       <div className="text-xs text-gray-400 mt-1">reuniones cara a cara / semana</div>
                     </div>
                   </div>
