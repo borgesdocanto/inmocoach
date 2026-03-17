@@ -2,6 +2,7 @@ interface WeeklyReportData {
   userName: string;
   email: string;
   weekDates: string;
+  weekStart?: string; // YYYY-MM-DD para deep link
   greenTotal: number;
   tasaciones: number;
   visitas: number;
@@ -245,7 +246,7 @@ export function generateWeeklyEmailHtml(data: WeeklyReportData): string {
         <!-- CTA -->
         <tr>
           <td style="background:#ffffff;padding:0 32px 32px;text-align:center;">
-            <a href="https://inmocoach.com.ar"
+            <a href="https://inmocoach.com.ar${data.weekStart ? "?week=" + data.weekStart : ""}"
               style="display:inline-block;background:#aa0000;color:#ffffff;font-weight:900;font-size:14px;padding:15px 36px;border-radius:12px;text-decoration:none;letter-spacing:0.5px;">
               Ver mi dashboard completo →
             </a>

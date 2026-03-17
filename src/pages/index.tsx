@@ -553,6 +553,19 @@ export default function HomePage() {
   const [daysLeft, setDaysLeft] = useState<number | null>(null);
   // calView is derived from days selector — no separate state needed
   const [weekOffset, setWeekOffset] = useState(0);
+  // Deep link desde mail: ?week=YYYY-MM-DD
+  useEffect(() => {
+    const weekParam = new URLSearchParams(window.location.search).get("week");
+    if (!weekParam) return;
+    const targetMonday = new Date(weekParam + "T12:00:00");
+    const now = new Date();
+    const thisMonday = new Date(now);
+    thisMonday.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+    thisMonday.setHours(0, 0, 0, 0);
+    const diffMs = targetMonday.getTime() - thisMonday.getTime();
+    const offset = Math.round(diffMs / (7 * 24 * 60 * 60 * 1000));
+    if (offset !== 0) setWeekOffset(offset);
+  }, []);
   const [monthOffset, setMonthOffset] = useState(0);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [brokerExpiredModal, setBrokerExpiredModal] = useState<{ brokerName: string; brokerEmail: string } | null>(null);
@@ -605,8 +618,7 @@ export default function HomePage() {
       const fetchDays = Math.max(days, 14); // mínimo 14 para poder navegar a semana anterior
       const res = await fetch(`/api/calendar?days=${fetchDays}`);
       if (res.status === 401) {
-        // Token expirado — forzar re-login
-        window.location.href = "/api/auth/signin?callbackUrl=/";
+        router.push("/relogin");
         return;
       }
       if (!res.ok) throw new Error((await res.json()).error || "Error de sincronización");
@@ -980,7 +992,7 @@ export default function HomePage() {
           </>
         )}
       </main>
-      {showOnboarding && <OnboardingModal onClose={handleOnboardingClose} />}
+      {showOnboarding && <OnboardingModal onClose={handleOnboardingClose} weeklyGoal={data?.totals?.iacGoal ?? 15} />}
 
       {brokerExpiredModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">

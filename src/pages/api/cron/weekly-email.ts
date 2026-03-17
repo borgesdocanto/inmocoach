@@ -82,6 +82,7 @@ async function processUser(sub: any): Promise<"sent" | "failed" | "skipped"> {
 
     const html = generateWeeklyEmailHtml({
       userName: sub.name || sub.email, email: sub.email, weekDates: stats.weekDates,
+      weekStart: lastSunday.toISOString().slice(0, 10),
       greenTotal: stats.greenTotal, tasaciones: stats.tasaciones, visitas: stats.visitas,
       propuestas: stats.propuestas, productiveDays: stats.productiveDays, totalDays: stats.totalDays,
       productivityRate: stats.productivityRate, coachAdvice, planName: plan.name,
