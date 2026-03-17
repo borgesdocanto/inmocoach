@@ -64,14 +64,20 @@ function motivationalMsg(rank: number, total: number): string {
 function Tooltip({ text }: { text: string }) {
   const [show, setShow] = useState(false);
   return (
-    <span className="relative inline-flex items-center ml-1">
+    <span className="relative inline-flex items-center ml-1" style={{ zIndex: show ? 9999 : "auto" }}>
       <button onMouseEnter={() => setShow(true)} onMouseLeave={() => setShow(false)}
         onTouchStart={() => setShow(s => !s)}
-        className="w-3.5 h-3.5 rounded-full border border-gray-500 flex items-center justify-center text-gray-400 hover:border-gray-300 transition-colors"
-        style={{ fontSize: 8, fontWeight: 900 }}>?</button>
+        className="w-4 h-4 rounded-full flex items-center justify-center text-gray-400 hover:text-white transition-colors"
+        style={{ fontSize: 9, fontWeight: 900, border: "1px solid rgba(255,255,255,0.3)" }}>?</button>
       {show && (
-        <span className="fixed z-[9999] w-56 bg-gray-900 text-white text-xs rounded-xl px-3 py-2 leading-relaxed shadow-2xl pointer-events-none"
-          style={{ transform: "translateX(-50%) translateY(-110%)", left: "50%", top: 0 }}>
+        <span style={{
+          position: "absolute", bottom: "calc(100% + 8px)", left: "50%",
+          transform: "translateX(-50%)", zIndex: 9999, width: 220,
+          background: "#111827", color: "white", fontSize: 11,
+          borderRadius: 10, padding: "8px 12px", lineHeight: 1.5,
+          boxShadow: "0 8px 24px rgba(0,0,0,0.4)", pointerEvents: "none",
+          whiteSpace: "normal",
+        }}>
           {text}
         </span>
       )}
@@ -126,11 +132,11 @@ export default function RankingPosition() {
   const currentMode = MODES.find(m => m.value === mode)!;
 
   return (
-    <div className="rounded-2xl overflow-hidden border border-gray-100"
+    <div className="rounded-2xl border border-gray-100"
       style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" }}>
 
       {/* Header oscuro */}
-      <div style={{ background: "linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)" }}>
+      <div className="rounded-2xl" style={{ background: "linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)" }}>
         <div className="px-5 pt-5 pb-4">
           {/* Título + modos */}
           <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
