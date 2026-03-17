@@ -91,6 +91,56 @@ function buildDay5Html(name: string, greenTotal: number, iacGoal: number): strin
 </div></body></html>`;
 }
 
+function buildDay8Html(name: string, greenTotal: number, iacGoal: number): string {
+  const iac = Math.min(100, Math.round((greenTotal / iacGoal) * 100));
+  const firstName = name.split(" ")[0];
+  const RED = "#aa0000";
+  return `<!DOCTYPE html>
+<html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tu prueba terminó — InmoCoach</title></head>
+<body style="margin:0;padding:0;background:#f9fafb;font-family:system-ui,-apple-system,sans-serif;">
+<div style="max-width:560px;margin:0 auto;padding:32px 16px;">
+  <div style="background:white;border-radius:16px;overflow:hidden;border:1px solid #e5e7eb;">
+    <div style="background:linear-gradient(135deg,#1a1a2e 0%,#111827 100%);padding:24px 28px;">
+      <div style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.5);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:4px;">InmoCoach</div>
+      <div style="font-size:22px;font-weight:900;color:white;font-family:Georgia,serif;">Tu prueba de 7 días terminó</div>
+      <div style="font-size:13px;color:rgba(255,255,255,0.6);margin-top:4px;">${firstName}, no perdás lo que construiste</div>
+    </div>
+    <div style="padding:28px;">
+      <p style="font-size:15px;line-height:1.7;color:#374151;margin:0 0 20px;">Durante estos 7 días InmoCoach estuvo midiendo tu actividad comercial en tiempo real. <strong>Tu historial, tus datos y tu progreso están guardados</strong> — pero necesitás activar un plan para seguir accediendo.</p>
+      <div style="background:#fef2f2;border-radius:12px;padding:16px 20px;margin-bottom:24px;border:1px solid #fecaca;">
+        <div style="font-size:12px;font-weight:700;color:${RED};text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;">Tu actividad esta semana</div>
+        <div style="display:flex;align-items:baseline;gap:8px;">
+          <span style="font-size:36px;font-weight:900;font-family:Georgia,serif;color:${iac >= 67 ? "#15803d" : RED};">${iac}%</span>
+          <span style="font-size:13px;color:#6b7280;">IAC · ${greenTotal}/${iacGoal} reuniones</span>
+        </div>
+        <div style="margin-top:10px;height:6px;background:#f3f4f6;border-radius:99px;overflow:hidden;">
+          <div style="height:100%;background:${iac >= 67 ? "#16a34a" : RED};width:${Math.min(100, iac)}%;border-radius:99px;"></div>
+        </div>
+      </div>
+      <div style="background:#f9fafb;border-radius:12px;padding:20px;margin-bottom:24px;">
+        <div style="font-size:13px;font-weight:700;color:#374151;margin-bottom:12px;">Lo que perdés si no activás</div>
+        ${["❌ Acceso al dashboard con tu IAC en tiempo real", "❌ El análisis del Coach todos los lunes", "❌ Tu historial de actividad y rachas", "❌ Tu posición en el ranking del equipo"].map(item =>
+          `<div style="margin-bottom:8px;font-size:13px;color:#6b7280;">${item}</div>`
+        ).join("")}
+      </div>
+      <div style="background:#f0fdf4;border-radius:12px;padding:20px;margin-bottom:24px;border:1px solid #bbf7d0;">
+        <div style="font-size:13px;font-weight:700;color:#15803d;margin-bottom:4px;">Plan Individual</div>
+        <div style="font-size:28px;font-weight:900;color:#111827;font-family:Georgia,serif;">$10.500<span style="font-size:14px;font-weight:400;color:#9ca3af;">/mes</span></div>
+        <div style="font-size:12px;color:#16a34a;margin-top:4px;">✓ Cancelás cuando querés · sin permanencia</div>
+      </div>
+      <div style="text-align:center;">
+        <a href="https://inmocoach.com.ar/pricing" style="display:inline-block;background:${RED};color:white;font-weight:900;font-size:15px;padding:16px 40px;border-radius:12px;text-decoration:none;">Activar mi plan y recuperar acceso →</a>
+      </div>
+    </div>
+    <div style="padding:16px 28px;border-top:1px solid #f3f4f6;text-align:center;font-size:11px;color:#9ca3af;">
+      Este mail es automático — no hace falta que respondas. · <a href="https://inmocoach.com.ar" style="color:#9ca3af;text-decoration:none;">inmocoach.com.ar</a>
+    </div>
+  </div>
+</div>
+</body></html>`;
+}
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const session = await getServerSession(req, res, authOptions);
   if (!isSuperAdmin(session?.user?.email)) return res.status(403).end();
@@ -113,9 +163,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const greenTotal = count ?? 0;
   const iacGoal = 15;
 
-  const html = day === 5
-    ? buildDay5Html(name, greenTotal, iacGoal)
-    : buildDay3Html(name, greenTotal, iacGoal);
+  const html = day === 8
+    ? buildDay8Html(name, greenTotal, iacGoal)
+    : day === 5
+      ? buildDay5Html(name, greenTotal, iacGoal)
+      : buildDay3Html(name, greenTotal, iacGoal);
 
   // Devolver HTML directo para preview en browser
   res.setHeader("Content-Type", "text/html");
