@@ -699,17 +699,36 @@ export default function HomePage() {
     return () => { clearTimeout(t); clearInterval(i); };
   }, [status]);
 
-  // Refrescar automáticamente cuando el usuario vuelve a la pestaña
+  // Polling liviano — detecta cambios del webhook y actualiza el dashboard
   useEffect(() => {
     if (status !== "authenticated") return;
-    const onVisible = () => {
-      if (document.visibilityState === "visible") {
-        loadFromCache(days);
-        syncWithGoogle(days, true);
-      }
+    let lastKnown: string | undefined = undefined;
+
+    const poll = async () => {
+      try {
+        const res = await fetch("/api/calendar/last-updated", { cache: "no-store" });
+        if (!res.ok) return;
+        const { lastUpdated } = await res.json();
+        if (!lastUpdated) return;
+
+        // Primera vez — solo guardar baseline
+        if (lastKnown === undefined) { lastKnown = lastUpdated; return; }
+
+        // Cambió — recargar desde DB
+        if (lastUpdated !== lastKnown) {
+          lastKnown = lastUpdated;
+          const fetchDays = Math.max(days, 14);
+          const r = await fetch(`/api/calendar/cached?days=${fetchDays}`, { cache: "no-store" });
+          if (r.ok) { setData(await r.json()); setFromCache(true); }
+        }
+      } catch {}
     };
+
+    const t = setTimeout(poll, 4000); // inicializar baseline a los 4s
+    const i = setInterval(poll, 20000); // chequear cada 20s
+    const onVisible = () => { if (document.visibilityState === "visible") poll(); };
     document.addEventListener("visibilitychange", onVisible);
-    return () => document.removeEventListener("visibilitychange", onVisible);
+    return () => { clearTimeout(t); clearInterval(i); document.removeEventListener("visibilitychange", onVisible); };
   }, [status, days]);
 
   // Auto-navegar a semana anterior si hoy es lunes/martes y esta semana no tiene eventos aún
