@@ -2,6 +2,7 @@ import GoogleProvider from "next-auth/providers/google";
 import type { NextAuthOptions } from "next-auth";
 import { supabaseAdmin } from "./supabase";
 import { isVipEmail } from "./plans";
+import { registerOrRenewWatch } from "./calendarWatch";
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -71,6 +72,10 @@ export const authOptions: NextAuthOptions = {
               })
               .eq("email", profile.email!);
           });
+
+        // Registrar/renovar watch de Google Calendar para push notifications
+        // (best-effort: no bloquea el login si falla)
+        registerOrRenewWatch(profile.email).catch(e => console.warn("Watch register failed:", e));
 
         // Enviar mail de bienvenida solo al registrarse por primera vez
         if (isNewUser) {

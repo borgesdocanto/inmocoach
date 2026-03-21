@@ -6,6 +6,7 @@
     { "path": "/api/cron/streak-alert",    "schedule": "0 21 * * 1-5" },
     { "path": "/api/cron/midweek-alert",   "schedule": "0 21 * * 3"   },
     { "path": "/api/cron/trial-emails",    "schedule": "0 14 * * *"   },
-    { "path": "/api/cron/keepalive",       "schedule": "0 10 */3 * *" }
+    { "path": "/api/cron/keepalive",       "schedule": "0 10 */3 * *" },
+    { "path": "/api/cron/renew-watches",   "schedule": "0 6,18 * * *" }
   ]
 }
