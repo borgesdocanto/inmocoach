@@ -394,6 +394,11 @@ export default function AgentDashboard() {
             </div>
           </div>
 
+          <button onClick={() => router.push(`/equipo/historial?email=${encodeURIComponent(email as string)}`)}
+            className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-xl border border-gray-200 text-gray-500 hover:bg-gray-50 transition-colors shrink-0">
+            📈 Historial
+          </button>
+
           {/* Days selector */}
           <div className="flex items-center gap-1 bg-gray-100 rounded-xl p-1">
             {([7, 14, 30, 60, 90] as const).map(d => (

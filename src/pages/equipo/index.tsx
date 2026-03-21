@@ -429,10 +429,16 @@ export default function BrokerDashboard() {
                         <div className="text-xs text-gray-400 mb-1">7 días</div>
                         <Sparkline data={agent.sparkline} color={color} />
                       </div>
-                      <button onClick={() => router.push(`/equipo/agente?email=${encodeURIComponent(agent.email)}`)}
-                        className="shrink-0 text-gray-300 hover:text-gray-600 transition-colors">
-                        <ChevronRight size={16} />
-                      </button>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button onClick={() => router.push(`/equipo/historial?email=${encodeURIComponent(agent.email)}`)}
+                          title="Ver historial" className="text-sm px-1.5 py-1 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors">
+                          📈
+                        </button>
+                        <button onClick={() => router.push(`/equipo/agente?email=${encodeURIComponent(agent.email)}`)}
+                          className="shrink-0 text-gray-300 hover:text-gray-600 transition-colors">
+                          <ChevronRight size={16} />
+                        </button>
+                      </div>
                     </div>
                     <div className="sm:hidden mt-3 flex items-center justify-between ml-11 pl-4">
                       <div className="text-sm font-black" style={{ color }}>{agent.weekTotal}/{agent.weeklyGoal ?? 15} reuniones</div>
