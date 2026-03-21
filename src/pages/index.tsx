@@ -677,6 +677,44 @@ export default function HomePage() {
     loadFromCache(days).then(() => syncWithGoogle(days).then(() => setLoading(false)));
   }, [days]);
 
+  // Polling en tiempo real — cada 30s verifica si el webhook actualizó la DB
+  useEffect(() => {
+    if (status !== "authenticated") return;
+    let lastKnown: string | null = null;
+    let missed = 0; // veces que falló el fetch
+
+    const poll = async () => {
+      try {
+        const res = await fetch("/api/calendar/last-updated");
+        if (!res.ok) return;
+        const { lastUpdated } = await res.json();
+        missed = 0;
+
+        if (!lastUpdated) return;
+        if (lastKnown === null) { lastKnown = lastUpdated; return; }
+
+        // Si el timestamp cambió, hay datos nuevos en DB — recargar caché silenciosamente
+        if (lastUpdated !== lastKnown) {
+          lastKnown = lastUpdated;
+          const fetchDays = Math.max(days, 14);
+          const cached = await fetch(`/api/calendar/cached?days=${fetchDays}`);
+          if (cached.ok) {
+            const json = await cached.json();
+            setData(json);
+            setFromCache(true);
+          }
+        }
+      } catch {
+        missed++;
+      }
+    };
+
+    // Primer poll a los 5 segundos, luego cada 30s
+    const timeout = setTimeout(poll, 5000);
+    const interval = setInterval(poll, 30000);
+    return () => { clearTimeout(timeout); clearInterval(interval); };
+  }, [status, days]);
+
   // Auto-navegar a semana anterior si hoy es lunes/martes y esta semana no tiene eventos aún
   useEffect(() => {
     if (!data || weekOffset !== 0) return;

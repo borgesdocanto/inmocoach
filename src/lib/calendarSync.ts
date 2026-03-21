@@ -352,6 +352,7 @@ export async function persistEvents(
       is_cierre: e.isCierre,
       is_user_colored: e.isUserColored,
       is_organizer: e.isOrganizer,
+      updated_at: new Date().toISOString(),
     }));
 
   await supabaseAdmin
