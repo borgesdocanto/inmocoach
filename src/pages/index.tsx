@@ -680,8 +680,8 @@ export default function HomePage() {
   // Polling en tiempo real — cada 30s verifica si el webhook actualizó la DB
   useEffect(() => {
     if (status !== "authenticated") return;
-    let lastKnown: string | null = null;
-    let missed = 0; // veces que falló el fetch
+    let lastKnown: string | null | undefined = undefined; // undefined = no inicializado
+    let missed = 0;
 
     const poll = async () => {
       try {
@@ -690,10 +690,10 @@ export default function HomePage() {
         const { lastUpdated } = await res.json();
         missed = 0;
 
-        if (!lastUpdated) return;
-        if (lastKnown === null) { lastKnown = lastUpdated; return; }
+        // Primera vez — inicializar sin actualizar
+        if (lastKnown === undefined) { lastKnown = lastUpdated; return; }
 
-        // Si el timestamp cambió, hay datos nuevos en DB — recargar caché silenciosamente
+        // Si cambió (incluso de null a un valor), hay datos nuevos
         if (lastUpdated !== lastKnown) {
           lastKnown = lastUpdated;
           const fetchDays = Math.max(days, 14);

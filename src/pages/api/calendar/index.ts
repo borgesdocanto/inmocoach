@@ -304,6 +304,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           const weekGreen = mappedEvents.filter(e => e.isGreen && e.start.slice(0, 10) >= weekStart);
           const weekIac = Math.min(100, Math.round((weekGreen.length / weeklyGoal) * 100));
           await saveWeeklyStatsAndRank(session.user?.email!, weekStart, weekIac, weekGreen.length, streakData?.best ?? 0);
+
+          // Actualizar timestamp — el polling detecta cambios futuros del webhook
+          supabaseAdmin.from("subscriptions")
+            .update({ last_webhook_sync: new Date().toISOString() })
+            .eq("email", session.user?.email!)
+            .then(() => {}, () => {});
           const rankStats = await getAgentRankStats(session.user?.email!);
 
           // Registrar watch de Google Calendar si no existe (fire-and-forget)
