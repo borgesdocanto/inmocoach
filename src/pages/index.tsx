@@ -6,7 +6,7 @@ import RankingPosition from "../components/RankingPosition";
 import PushPrompt from "../components/PushPrompt";
 import { usePushNotifications } from "../hooks/usePushNotifications";
 import { useRouter } from "next/router";
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import EmptyDashboard from "../components/EmptyDashboard";
 import Head from "next/head";
 import Link from "next/link";
@@ -610,7 +610,11 @@ export default function HomePage() {
     }
   };
 
+  const syncingRef = useRef(false);
+
   const sync = async () => {
+    if (syncingRef.current) return; // evitar syncs concurrentes
+    syncingRef.current = true;
     setLoading(true);
     setError("");
     try {
@@ -627,9 +631,29 @@ export default function HomePage() {
       setData(await res.json());
     } catch (e: any) { setError(e.message); }
     setLoading(false);
+    syncingRef.current = false;
   };
 
   useEffect(() => { if (status === "authenticated") sync(); }, [status, days]);
+
+  // Re-sincronizar cuando el usuario vuelve a la pestaña (ej: venía del día anterior con sesión activa)
+  useEffect(() => {
+    if (status !== "authenticated") return;
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") sync();
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
+  }, [status]);
+
+  // Polling cada 5 minutos mientras la app está visible — mantiene el espejo actualizado
+  useEffect(() => {
+    if (status !== "authenticated") return;
+    const interval = setInterval(() => {
+      if (document.visibilityState === "visible") sync();
+    }, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [status]);
 
   // Auto-navegar a semana anterior si hoy es lunes/martes y esta semana no tiene eventos aún
   useEffect(() => {

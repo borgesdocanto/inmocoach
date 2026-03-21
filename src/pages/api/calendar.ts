@@ -124,9 +124,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
 
-  const sessionToken = (session as any).accessToken;
-  const accessToken = sessionToken || await getValidAccessToken(session.user!.email!);
-  if (!accessToken) return res.status(401).json({ error: "Sin token de Calendar" });
+  // Siempre usar getValidAccessToken() — refresca el token si está vencido.
+  // NO usar session.accessToken directamente: ese token viene del JWT de la cookie
+  // y se queda con el valor del momento del login (expira en 1 hora sin refrescarse).
+  const accessToken = await getValidAccessToken(session.user!.email!);
+  if (!accessToken) {
+    return res.status(401).json({ error: "Sin token de Calendar" });
+  }
 
   const requestedDays = parseInt(req.query.days as string) || 30;
 
