@@ -72,20 +72,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const { targetEmail } = req.body || {};
 
-  // Usuarios activos con plan pago (no queremos molestar a trials)
+  // Usuarios activos — excluir solo free puro (sin ser VIP)
   const { data: users } = await supabaseAdmin
     .from("subscriptions")
     .select("email, name, streak_current, streak_last_active_date, last_webhook_sync, plan")
-    .eq("status", "active")
-    .not("plan", "eq", "free");
+    .eq("status", "active");
 
   if (!users?.length) return res.status(200).json({ ok: true, sent: 0 });
+
+  // Cargar emails VIP
+  const { isVipEmail } = await import("../../../lib/plans");
 
   const now = new Date();
   let sent = 0;
 
   for (const user of users) {
     if (targetEmail && user.email !== targetEmail) continue;
+
+    // Solo usuarios con plan pago o VIP
+    const isPaid = user.plan !== "free" || isVipEmail(user.email);
+    if (!isPaid) continue;
 
     // Calcular días desde última actividad
     const lastActive = user.streak_last_active_date
