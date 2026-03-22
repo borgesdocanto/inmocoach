@@ -73,12 +73,6 @@ export default function BrokerDashboard() {
   const [sortBy, setSortBy] = useState<"iac" | "trend" | "streak">("iac");
   const [syncing, setSyncing] = useState(false);
   const [syncErrors, setSyncErrors] = useState<{email: string; status: string}[]>([]);
-  const [tokkoApiKey, setTokkoApiKey] = useState("");
-  const [tokkoSaving, setTokkoSaving] = useState(false);
-  const [tokkoMsg, setTokkoMsg] = useState("");
-  const [tokkoTesting, setTokkoTesting] = useState(false);
-  const [tokkoTestResult, setTokkoTestResult] = useState<{ok: boolean; message: string; properties?: number; users?: number} | null>(null);
-  const [showTokkoConfig, setShowTokkoConfig] = useState(false);
   const [weekOffset, setWeekOffset] = useState(0);
 
   useEffect(() => { if (status === "unauthenticated") router.replace("/login"); }, [status, router]);
@@ -94,9 +88,6 @@ export default function BrokerDashboard() {
       if (agRes.ok) { const ag = await agRes.json(); setAgencyName(ag.agencyName || ""); }
       const stRes = await fetch("/api/teams/settings");
       if (stRes.ok) { const st = await stRes.json(); setShowTeamLeaders(st.showTeamLeaders ?? true); setShowBroker(st.showBroker ?? true); }
-      // Cargar API key de Tokko si es owner
-      const tokkoRes = await fetch("/api/teams/tokko-config");
-      if (tokkoRes.ok) { const t = await tokkoRes.json(); if (t.hasKey) setTokkoApiKey(t.keyPreview || "configurada"); }
     } catch {}
     setLoading(false);
   };
@@ -220,98 +211,6 @@ export default function BrokerDashboard() {
           </div>
         )}
 
-        {/* ── TOKKO CONFIG (solo owner) ── */}
-        {isOwner && (
-          <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
-            <button
-              onClick={() => setShowTokkoConfig(s => !s)}
-              className="w-full px-5 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors">
-              <div className="flex items-center gap-2">
-                <span className="text-base">🏢</span>
-                <div className="text-left">
-                  <div className="text-sm font-bold text-gray-800">Integración Tokko Broker</div>
-                  <div className="text-xs text-gray-400 mt-0.5">
-                    {tokkoApiKey ? "API key configurada ✓" : "Sin configurar — conectá tu CRM"}
-                  </div>
-                </div>
-              </div>
-              <span className="text-gray-400 text-xs">{showTokkoConfig ? "▲" : "▼"}</span>
-            </button>
-
-            {showTokkoConfig && (
-              <div className="px-5 pb-5 border-t border-gray-100 space-y-4 pt-4">
-                <p className="text-xs text-gray-500">
-                  Encontrá tu API key en Tokko → Mi empresa → Permisos → Clave API.
-                </p>
-                <div className="flex gap-3">
-                  <input
-                    type="password"
-                    placeholder={tokkoApiKey ? "API key guardada (ocultada)" : "Pegá tu API key de Tokko"}
-                    onChange={e => setTokkoApiKey(e.target.value)}
-                    className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm font-mono focus:outline-none focus:border-gray-400"
-                  />
-                  <button
-                    onClick={async () => {
-                      setTokkoSaving(true); setTokkoMsg("");
-                      try {
-                        await fetch("/api/teams/tokko-config", {
-                          method: "POST",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({ apiKey: tokkoApiKey }),
-                        });
-                        setTokkoMsg("✓ Guardada");
-                      } catch { setTokkoMsg("Error al guardar"); }
-                      setTokkoSaving(false);
-                    }}
-                    disabled={tokkoSaving || !tokkoApiKey}
-                    className="px-4 py-2 rounded-xl text-xs font-bold text-white disabled:opacity-50"
-                    style={{ background: RED }}>
-                    {tokkoSaving ? "..." : "Guardar"}
-                  </button>
-                </div>
-                {tokkoMsg && <p className={`text-xs font-semibold ${tokkoMsg.startsWith("✓") ? "text-green-600" : "text-red-500"}`}>{tokkoMsg}</p>}
-
-                <div className="flex gap-2 flex-wrap">
-                  <button
-                    onClick={async () => {
-                      setTokkoTesting(true); setTokkoTestResult(null);
-                      const res = await fetch("/api/admin/tokko-test", { method: "POST" }).catch(() => null);
-                      const d = res ? await res.json() : { ok: false, message: "Error de conexión" };
-                      setTokkoTestResult(d);
-                      setTokkoTesting(false);
-                    }}
-                    disabled={tokkoTesting}
-                    className="px-4 py-2 rounded-xl text-xs font-bold border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-50">
-                    {tokkoTesting ? "Probando..." : "Probar conexión"}
-                  </button>
-                  <button
-                    onClick={async () => {
-                      setTokkoMsg("Sincronizando...");
-                      const res = await fetch("/api/admin/ops", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ action: "sync_tokko" }),
-                      }).catch(() => null);
-                      const d = res ? await res.json() : null;
-                      setTokkoMsg(d?.ok ? "✓ Sync completo" : "Error al sincronizar");
-                    }}
-                    className="px-4 py-2 rounded-xl text-xs font-bold border border-gray-200 text-gray-600 hover:bg-gray-50">
-                    Sincronizar ahora
-                  </button>
-                </div>
-
-                {tokkoTestResult && (
-                  <div className={`rounded-xl p-3 text-xs ${tokkoTestResult.ok ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>
-                    <p className="font-bold mb-1">{tokkoTestResult.ok ? "✓ Conexión exitosa" : "✗ " + tokkoTestResult.message}</p>
-                    {tokkoTestResult.ok && (
-                      <p>🏠 {tokkoTestResult.properties} propiedades · 👥 {tokkoTestResult.users} usuarios</p>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        )}
         {agents.length > 0 && (needsAttention.length > 0 || onStreak.length > 0) && (
           <div className="grid sm:grid-cols-2 gap-4">
             <div className="rounded-2xl overflow-hidden border border-red-100" style={{ background: "#fff5f5" }}>
