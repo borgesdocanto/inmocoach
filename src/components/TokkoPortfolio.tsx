@@ -14,10 +14,22 @@ interface Property {
   currency: string | null;
   status: number;
   photosCount: number;
+  hasVideo: boolean;
+  hasTour360: boolean;
   daysOnline: number | null;
   daysSinceUpdate: number | null;
   thumbnail: string | null;
+  editUrl: string;
   branch: string | null;
+}
+
+// Ficha completa = más de 15 fotos + (video o tour360) + actualizada hace menos de 30 días
+function fichaScore(prop: Property): { complete: boolean; missing: string[] } {
+  const missing: string[] = [];
+  if (prop.photosCount < 15) missing.push(`fotos (${prop.photosCount}/15)`);
+  if (!prop.hasVideo && !prop.hasTour360) missing.push("video o tour 360");
+  if (prop.daysSinceUpdate !== null && prop.daysSinceUpdate > 30) missing.push(`actualización (${prop.daysSinceUpdate}d)`);
+  return { complete: missing.length === 0, missing };
 }
 
 interface PortfolioData {
@@ -93,11 +105,11 @@ export default function TokkoPortfolio({ agentEmail }: { agentEmail?: string }) 
             <div className="text-3xl font-black" style={{ fontFamily: "Georgia, serif", color: "#fbbf24" }}>{stats.reserved}</div>
           </div>
           <div>
-            <div className="text-xs text-gray-400 mb-0.5">Con fotos ≥5</div>
+            <div className="text-xs text-gray-400 mb-0.5">Fichas OK</div>
             <div className="text-3xl font-black" style={{ fontFamily: "Georgia, serif", color: stats.withPhotos >= stats.active * 0.8 ? "#4ade80" : "#fb923c" }}>{stats.withPhotos}</div>
           </div>
           <div>
-            <div className="text-xs text-gray-400 mb-0.5">Sin actualizar</div>
+            <div className="text-xs text-gray-400 mb-0.5">Por actualizar</div>
             <div className="text-3xl font-black" style={{ fontFamily: "Georgia, serif", color: stats.stale > 0 ? "#f87171" : "#4ade80" }}>{stats.stale}</div>
           </div>
         </div>
@@ -121,6 +133,7 @@ export default function TokkoPortfolio({ agentEmail }: { agentEmail?: string }) 
           <div className="px-5 py-6 text-center text-xs text-gray-400">Sin propiedades disponibles o reservadas</div>
         ) : filtered.slice(0, 30).map(prop => {
           const st = statusLabel(prop.status);
+          const ficha = fichaScore(prop);
           return (
             <div key={prop.id} className="px-4 py-3 flex items-center gap-3">
               {/* Thumbnail */}
@@ -131,24 +144,37 @@ export default function TokkoPortfolio({ agentEmail }: { agentEmail?: string }) 
               </div>
 
               <div className="flex-1 min-w-0">
-                {/* Dirección destacada */}
-                <div className="text-sm font-bold text-gray-800 truncate mb-0.5">
-                  {prop.address || prop.title || "Sin dirección"}
+                {/* Dirección + link a Tokko */}
+                <div className="flex items-center gap-1.5 mb-0.5">
+                  <a href={prop.editUrl} target="_blank" rel="noopener noreferrer"
+                    className="text-sm font-bold text-gray-800 truncate hover:underline">
+                    {prop.address || prop.title || "Sin dirección"}
+                  </a>
+                  <a href={prop.editUrl} target="_blank" rel="noopener noreferrer"
+                    className="shrink-0 text-gray-300 hover:text-gray-500">
+                    <ExternalLink size={11} />
+                  </a>
                 </div>
+
                 <div className="flex items-center gap-1.5 flex-wrap">
                   <span className="text-xs font-bold px-1.5 py-0.5 rounded-lg shrink-0"
                     style={{ background: st.bg, color: st.color }}>{st.label}</span>
                   {prop.type && <span className="text-xs text-gray-400">{prop.type}</span>}
-                  {prop.operationType && <span className="text-xs text-gray-400">· {prop.operationType}</span>}
                   {prop.price && <span className="text-xs font-semibold text-gray-600">· {formatPrice(prop.price, prop.currency)}</span>}
                 </div>
-                <div className="flex items-center gap-2 mt-0.5 text-xs text-gray-300">
-                  <span>📷 {prop.photosCount}</span>
-                  {prop.daysOnline !== null && <span>· {prop.daysOnline}d online</span>}
-                  {prop.daysSinceUpdate !== null && prop.daysSinceUpdate > 30 && (
-                    <span style={{ color: "#f87171" }}>· sin actualizar {prop.daysSinceUpdate}d</span>
+
+                {/* Indicador ficha */}
+                <div className="flex items-center gap-2 mt-1 flex-wrap">
+                  {ficha.complete ? (
+                    <span className="text-xs font-bold text-green-600 bg-green-50 px-1.5 py-0.5 rounded-lg">✓ Ficha completa</span>
+                  ) : (
+                    <span className="text-xs font-bold text-red-500 bg-red-50 px-1.5 py-0.5 rounded-lg">
+                      ⚠ Falta: {ficha.missing.join(", ")}
+                    </span>
                   )}
-                  {prop.referenceCode && <span className="font-mono">{prop.referenceCode}</span>}
+                  {prop.hasVideo && <span className="text-xs text-gray-400">🎥</span>}
+                  {prop.hasTour360 && <span className="text-xs text-gray-400">🔄 360</span>}
+                  {prop.daysOnline !== null && <span className="text-xs text-gray-300">{prop.daysOnline}d online</span>}
                 </div>
               </div>
             </div>

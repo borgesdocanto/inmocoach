@@ -68,6 +68,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const op = p.operations?.[0];
       const price = op?.prices?.[0];
       const photos = (p.photos || []).filter((ph: any) => !ph.is_blueprint);
+      const videos = (p.videos || []);
+      const hasVideo = videos.some((v: any) => {
+        const url = (v.url || v.provider || "").toLowerCase();
+        return url.includes("youtube") || url.includes("vimeo") || url.includes("video");
+      });
+      const hasTour360 = videos.some((v: any) => {
+        const url = (v.url || v.provider || "").toLowerCase();
+        return url.includes("360") || url.includes("tour") || url.includes("matterport") || url.includes("roundme");
+      });
+
       return {
         id: p.id,
         referenceCode: p.reference_code || null,
@@ -79,7 +89,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         currency: price?.currency || null,
         status: p.status ?? 2,
         photosCount: photos.length,
+        hasVideo,
+        hasTour360,
         thumbnail: photos[0]?.thumb || null,
+        editUrl: `https://www.tokkobroker.com/property/${p.id}/`,
         daysOnline: p.created_date
           ? Math.floor((now.getTime() - new Date(p.created_date).getTime()) / 86400000)
           : null,
