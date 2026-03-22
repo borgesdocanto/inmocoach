@@ -139,12 +139,40 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     ? `el mes de ${periodLabel} (objetivo: ${iacGoalPeriodo} reuniones = ${weeklyGoal}/semana × 4 semanas, ${PROCESOS_GOAL * 4} procesos nuevos)`
     : `la semana del ${periodLabel} (objetivo: ${weeklyGoal} reuniones cara a cara, ${PROCESOS_GOAL} procesos nuevos)`;
 
+  // Obtener datos de cartera Tokko si el equipo está conectado (silencioso — no bloquea si falla)
+  let tokkoSection = "";
+  try {
+    const { data: teamSub } = await supabaseAdmin
+      .from("subscriptions").select("team_id").eq("email", userEmail).single();
+    if (teamSub?.team_id) {
+      const { data: team } = await supabaseAdmin
+        .from("teams").select("tokko_api_key").eq("id", teamSub.team_id).single();
+      if (team?.tokko_api_key) {
+        const { data: tokkoAgent } = await supabaseAdmin
+          .from("tokko_agents").select("tokko_id")
+          .eq("team_id", teamSub.team_id).ilike("email", userEmail).single();
+        if (tokkoAgent?.tokko_id) {
+          const { data: props } = await supabaseAdmin
+            .from("tokko_properties")
+            .select("status, photos_count, days_since_update")
+            .eq("team_id", teamSub.team_id)
+            .eq("producer_id", tokkoAgent.tokko_id);
+          if (props && props.length > 0) {
+            const active = props.filter((p: any) => p.status === 2);
+            const stale = active.filter((p: any) => (p.days_since_update || 0) > 30);
+            const goodPhotos = active.filter((p: any) => (p.photos_count || 0) >= 15);
+            const avgDays = stale.length
+              ? Math.round(stale.reduce((s: number, p: any) => s + (p.days_since_update || 0), 0) / stale.length)
+              : 0;
+            tokkoSection = `\nCARTERA DE PROPIEDADES (datos de Tokko Broker):\n- Propiedades disponibles: ${active.length}\n- Con ficha completa (≥15 fotos): ${goodPhotos.length} de ${active.length}\n- Sin actualizar hace más de 30 días: ${stale.length}${stale.length > 0 ? ` (promedio ${avgDays} días sin editar)` : ""}\n${stale.length > 0 ? "⚠ Tiene propiedades abandonadas que podrían frenar operaciones." : "✓ Cartera al día."}`;
+          }
+        }
+      }
+    }
+  } catch { /* silencioso — Tokko es opcional */ }
+
   // Prompt = parte configurable (de DB) + datos dinámicos del período
-  const prompt = `${coachSystemPrompt}
-
-${nombreStr}
-
-LAS 3 VARIABLES QUE MIDEN EL NEGOCIO:
+  const prompt = `${coachSystemPrompt}\n\n${nombreStr}\n\nLAS 3 VARIABLES QUE MIDEN EL NEGOCIO:
 1. IAC = reuniones cara a cara / ${weeklyGoal} por semana — Objetivo: 100% = ${weeklyGoal} reuniones/semana
 2. Procesos nuevos: objetivo ${PROCESOS_GOAL} por semana
 3. Cartera activa vendible: ${CARTERA_GOAL} propiedades (no medible por agenda)
@@ -164,6 +192,7 @@ MÉTRICAS:
 - Visitas: ${totals.visitas} | Propuestas: ${totals.propuestas} | Firmas: ${totals.firmas} | Reuniones: ${totals.reuniones}
 - Días con actividad: ${productiveDays} de ${totalDays}
 - Diagnóstico: ${perfilDescripcion[perfil]}
+${tokkoSection}
 
 Después del análisis, en línea separada:
 "IAC ${periodLabel}: ${totals.iac}% — ${totals.totalGreen} reuniones cara a cara, ${totals.procesosNuevos} proceso${totals.procesosNuevos !== 1 ? "s" : ""} nuevo${totals.procesosNuevos !== 1 ? "s" : ""}. ${totals.iac >= 100 ? `Motor encendido. El desafío ahora es sostenerlo.` : `Para llegar al 100% necesitás ${faltanReuniones} reunión${faltanReuniones !== 1 ? "es" : ""} más.`}"`;
