@@ -40,10 +40,16 @@ interface PortfolioData {
     total: number;
     active: number;
     reserved: number;
-    withPhotos: number;
+    complete: number;
+    incomplete: number;
     stale: number;
     avgDaysOnline: number;
   };
+}
+
+function weekLabel(dateStr: string): string {
+  const d = new Date(dateStr + "T12:00:00");
+  return `${d.getDate()}/${d.getMonth() + 1}`;
 }
 
 function formatPrice(price: number | null, currency: string | null): string {
@@ -63,6 +69,7 @@ function statusLabel(status: number): { label: string; color: string; bg: string
 export default function TokkoPortfolio({ agentEmail }: { agentEmail?: string }) {
   const [data, setData] = useState<PortfolioData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showIncomplete, setShowIncomplete] = useState(false);
 
   useEffect(() => {
     const url = agentEmail
@@ -79,7 +86,10 @@ export default function TokkoPortfolio({ agentEmail }: { agentEmail?: string }) 
 
   const { stats, properties } = data;
 
-  const filtered = properties.filter(p => p.status === 2 || p.status === 3);
+  const base = properties.filter(p => p.status === 2 || p.status === 3);
+  const filtered = showIncomplete
+    ? base.filter(p => p.status === 2 && !fichaScore(p).complete)
+    : base;
 
   return (
     <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
@@ -106,12 +116,14 @@ export default function TokkoPortfolio({ agentEmail }: { agentEmail?: string }) 
           </div>
           <div>
             <div className="text-xs text-gray-400 mb-0.5">Fichas OK</div>
-            <div className="text-3xl font-black" style={{ fontFamily: "Georgia, serif", color: stats.withPhotos >= stats.active * 0.8 ? "#4ade80" : "#fb923c" }}>{stats.withPhotos}</div>
+            <div className="text-3xl font-black" style={{ fontFamily: "Georgia, serif", color: stats.complete === stats.active ? "#4ade80" : "#fb923c" }}>{stats.complete}</div>
           </div>
-          <div>
-            <div className="text-xs text-gray-400 mb-0.5">Por actualizar</div>
-            <div className="text-3xl font-black" style={{ fontFamily: "Georgia, serif", color: stats.stale > 0 ? "#f87171" : "#4ade80" }}>{stats.stale}</div>
-          </div>
+          <button onClick={() => setShowIncomplete(s => !s)} className="text-left">
+            <div className="text-xs mb-0.5" style={{ color: showIncomplete ? "#fbbf24" : "rgba(255,255,255,0.5)" }}>
+              {showIncomplete ? "▼ Por actualizar" : "Por actualizar"}
+            </div>
+            <div className="text-3xl font-black" style={{ fontFamily: "Georgia, serif", color: stats.incomplete > 0 ? "#f87171" : "#4ade80" }}>{stats.incomplete}</div>
+          </button>
         </div>
 
         {/* Alertas */}
@@ -120,17 +132,27 @@ export default function TokkoPortfolio({ agentEmail }: { agentEmail?: string }) 
             ⚠️ {stats.stale} propiedad{stats.stale !== 1 ? "es" : ""} sin actualizar hace más de 30 días
           </div>
         )}
-        {stats.withPhotos < stats.active && (
+        {stats.incomplete > 0 && (
           <div className="mt-1 text-xs font-medium" style={{ color: "#fcd34d" }}>
-            📷 {stats.active - stats.withPhotos} propiedad{stats.active - stats.withPhotos !== 1 ? "es" : ""} con pocas fotos
+            ⚠ {stats.incomplete} ficha{stats.incomplete !== 1 ? "s" : ""} por mejorar — tocá el número
           </div>
         )}
       </div>
 
-      {/* Lista — solo disponibles y reservadas */}
+      {/* Banner modo "por actualizar" */}
+      {showIncomplete && (
+        <div className="px-4 py-2 bg-red-50 border-b border-red-100 flex items-center justify-between">
+          <span className="text-xs font-bold text-red-600">⚠ Mostrando {filtered.length} ficha{filtered.length !== 1 ? "s" : ""} por mejorar</span>
+          <button onClick={() => setShowIncomplete(false)} className="text-xs text-red-400 hover:text-red-600">Ver todas ×</button>
+        </div>
+      )}
+
+      {/* Lista */}
       <div className="divide-y divide-gray-50 max-h-96 overflow-y-auto">
         {filtered.length === 0 ? (
-          <div className="px-5 py-6 text-center text-xs text-gray-400">Sin propiedades disponibles o reservadas</div>
+          <div className="px-5 py-6 text-center text-xs text-gray-400">
+            {showIncomplete ? "🎉 Todas las fichas están completas" : "Sin propiedades disponibles o reservadas"}
+          </div>
         ) : filtered.slice(0, 30).map(prop => {
           const st = statusLabel(prop.status);
           const ficha = fichaScore(prop);
@@ -182,9 +204,9 @@ export default function TokkoPortfolio({ agentEmail }: { agentEmail?: string }) 
         })}
       </div>
 
-      {filtered.length > 20 && (
+      {filtered.length > 30 && (
         <div className="px-5 py-3 text-center text-xs text-gray-400 border-t border-gray-50">
-          Mostrando 20 de {filtered.length} — abrí Tokko para ver todas
+          Mostrando 30 de {filtered.length} — abrí Tokko para ver todas
         </div>
       )}
     </div>

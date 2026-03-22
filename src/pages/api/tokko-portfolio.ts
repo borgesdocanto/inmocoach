@@ -105,7 +105,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const active = properties.filter((p: any) => p.status === 2);
     const reserved = properties.filter((p: any) => p.status === 3);
-    const withPhotos = active.filter((p: any) => p.photosCount >= 5);
+
+    // Ficha completa = 15+ fotos + (video o tour360) + actualizada hace menos de 30 días
+    const completeListings = active.filter((p: any) => {
+      const goodPhotos = p.photosCount >= 15;
+      const hasMedia = p.hasVideo || p.hasTour360;
+      const fresh = p.daysSinceUpdate === null || p.daysSinceUpdate <= 30;
+      return goodPhotos && hasMedia && fresh;
+    });
+    const incompleteListings = active.filter((p: any) => {
+      const goodPhotos = p.photosCount >= 15;
+      const hasMedia = p.hasVideo || p.hasTour360;
+      const fresh = p.daysSinceUpdate === null || p.daysSinceUpdate <= 30;
+      return !(goodPhotos && hasMedia && fresh);
+    });
     const stale = active.filter((p: any) => (p.daysSinceUpdate || 0) > 30);
 
     return res.status(200).json({
@@ -115,7 +128,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         total: properties.length,
         active: active.length,
         reserved: reserved.length,
-        withPhotos: withPhotos.length,
+        complete: completeListings.length,
+        incomplete: incompleteListings.length,
         stale: stale.length,
         avgDaysOnline: active.length
           ? Math.round(active.reduce((s: number, p: any) => s + (p.daysOnline || 0), 0) / active.length)
