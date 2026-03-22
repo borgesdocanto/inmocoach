@@ -96,7 +96,7 @@ export default function BrokerDashboard() {
       if (stRes.ok) { const st = await stRes.json(); setShowTeamLeaders(st.showTeamLeaders ?? true); setShowBroker(st.showBroker ?? true); }
       // Cargar API key de Tokko si es owner
       const tokkoRes = await fetch("/api/teams/tokko-config");
-      if (tokkoRes.ok) { const t = await tokkoRes.json(); if (t.apiKey) setTokkoApiKey(t.apiKey); }
+      if (tokkoRes.ok) { const t = await tokkoRes.json(); if (t.hasKey) setTokkoApiKey(t.keyPreview || "configurada"); }
     } catch {}
     setLoading(false);
   };
@@ -551,7 +551,125 @@ export default function BrokerDashboard() {
           )}
         </div>
 
+        {/* Tokko Broker — solo para owners */}
+        {isOwner && <TokkoConfig />}
+
       </main>
+    </div>
+  );
+}
+
+function TokkoConfig() {
+  const [apiKey, setApiKey] = useState("");
+  const [hasKey, setHasKey] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [msg, setMsg] = useState("");
+  const [testResult, setTestResult] = useState<{ok: boolean; message: string; properties?: number; users?: number} | null>(null);
+  const [syncing, setSyncing] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/teams/tokko-config")
+      .then(r => r.json())
+      .then(d => { setHasKey(d.hasKey); if (d.keyPreview) setApiKey(d.keyPreview); })
+      .catch(() => {});
+  }, []);
+
+  const RED = "#aa0000";
+
+  return (
+    <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden mt-5">
+      <div className="px-5 py-4 border-b border-gray-100">
+        <div className="flex items-center gap-2">
+          <span className="text-base">🏠</span>
+          <div>
+            <div className="text-sm font-bold text-gray-800">Tokko Broker</div>
+            <div className="text-xs text-gray-400">Conectá tu CRM para ver cartera activa por agente</div>
+          </div>
+          {hasKey && <span className="ml-auto text-xs font-bold px-2 py-0.5 rounded-lg bg-green-50 text-green-600">✓ Conectado</span>}
+        </div>
+      </div>
+      <div className="px-5 py-4 space-y-3">
+        <div>
+          <label className="block text-xs font-bold text-gray-600 mb-1">API Key de Tokko</label>
+          <p className="text-xs text-gray-400 mb-2">Encontrala en Tokko → Mi empresa → Permisos → Clave API.</p>
+          <div className="flex gap-2">
+            <input
+              type="password"
+              placeholder={hasKey ? "••••••••••••" : "Pegá tu API key acá"}
+              value={apiKey}
+              onChange={e => setApiKey(e.target.value)}
+              className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm font-mono focus:outline-none focus:border-gray-400"
+            />
+            <button
+              onClick={async () => {
+                setSaving(true); setMsg("");
+                try {
+                  const r = await fetch("/api/admin/tokko-config", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ apiKey }),
+                  });
+                  const d = await r.json();
+                  if (d.ok) { setMsg("✓ Guardada"); setHasKey(true); }
+                  else setMsg(d.error || "Error");
+                } catch { setMsg("Error"); }
+                setSaving(false);
+              }}
+              disabled={saving || !apiKey || apiKey.includes("...")}
+              className="px-4 py-2 rounded-xl text-xs font-bold text-white disabled:opacity-50"
+              style={{ background: RED }}>
+              {saving ? "..." : "Guardar"}
+            </button>
+          </div>
+          {msg && <p className={`text-xs mt-1 font-semibold ${msg.startsWith("✓") ? "text-green-600" : "text-red-500"}`}>{msg}</p>}
+        </div>
+
+        {hasKey && (
+          <div className="flex gap-2 flex-wrap">
+            <button
+              onClick={async () => {
+                setTesting(true); setTestResult(null);
+                try {
+                  const r = await fetch("/api/admin/tokko-test", { method: "POST" });
+                  setTestResult(await r.json());
+                } catch { setTestResult({ ok: false, message: "Error de conexión" }); }
+                setTesting(false);
+              }}
+              disabled={testing}
+              className="text-xs font-bold px-3 py-1.5 rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50">
+              {testing ? "Probando..." : "Probar conexión"}
+            </button>
+            <button
+              onClick={async () => {
+                setSyncing(true); setMsg("");
+                try {
+                  const r = await fetch("/api/admin/ops", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ action: "sync_tokko" }),
+                  });
+                  const d = await r.json();
+                  setMsg(d.ok ? `✓ ${d.properties ?? 0} propiedades, ${d.users ?? 0} agentes sincronizados` : d.error || "Error");
+                } catch { setMsg("Error"); }
+                setSyncing(false);
+              }}
+              disabled={syncing}
+              className="text-xs font-bold px-3 py-1.5 rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50">
+              {syncing ? "Sincronizando..." : "Sincronizar ahora"}
+            </button>
+          </div>
+        )}
+
+        {testResult && (
+          <div className={`rounded-xl p-3 text-xs ${testResult.ok ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>
+            <span className="font-bold">{testResult.ok ? "✓ " : "✗ "}</span>{testResult.message}
+            {testResult.ok && testResult.properties !== undefined && (
+              <span className="ml-2 font-bold">· 🏠 {testResult.properties} props · 👥 {testResult.users} agentes</span>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

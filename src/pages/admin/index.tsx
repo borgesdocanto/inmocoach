@@ -148,9 +148,9 @@ export default function AdminPanel() {
         .catch(console.error);
     }
     if (tab === "tokko") {
-      fetch("/api/admin/config?key=tokko_api_key")
+      fetch("/api/teams/tokko-config")
         .then(r => r.json())
-        .then(d => { if (d.value) setTokkoApiKey(d.value); })
+        .then(d => { if (d.keyPreview) setTokkoApiKey(d.keyPreview); })
         .catch(console.error);
     }
   }, [tab]);

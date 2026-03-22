@@ -1,5 +1,5 @@
-// Sincroniza propiedades y usuarios de Tokko por equipo
-// Cada equipo tiene su propia API key guardada en teams.tokko_api_key
+// Sincroniza propiedades y agentes de Tokko por equipo
+// Cada equipo tiene su propia API key en teams.tokko_api_key
 import { NextApiRequest, NextApiResponse } from "next";
 import { supabaseAdmin } from "../../../lib/supabase";
 
@@ -8,70 +8,74 @@ export const config = { maxDuration: 300 };
 async function syncTeam(teamId: string, apiKey: string): Promise<{ properties: number; users: number; errors: string[] }> {
   const results = { properties: 0, users: 0, errors: [] as string[] };
 
-  // ── Propiedades ──────────────────────────────────────────────────────────
+  // Propiedades
   try {
-    let allProps: any[] = [];
+    let allProperties: any[] = [];
     let nextUrl: string | null = `https://www.tokkobroker.com/api/v1/property/?key=${apiKey}&format=json&limit=500&lang=es_ar`;
-
     while (nextUrl) {
-      const r: Response = await fetch(nextUrl);
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      const d: any = await r.json();
-      allProps = allProps.concat(d.objects || []);
-      nextUrl = d.meta?.next ? `https://www.tokkobroker.com${d.meta.next}` : null;
+      const fr: Response = await fetch(nextUrl);
+      if (!fr.ok) throw new Error(`Tokko properties ${fr.status}`);
+      const pd: any = await fr.json();
+      allProperties = allProperties.concat(pd.objects || []);
+      nextUrl = pd.meta?.next ? `https://www.tokkobroker.com${pd.meta.next}` : null;
     }
 
     const BATCH = 50;
-    for (let i = 0; i < allProps.length; i += BATCH) {
-      const batch = allProps.slice(i, i + BATCH);
-      const rows = batch.map((p: any) => {
-        const op = p.operations?.[0];
+    for (let i = 0; i < allProperties.length; i += BATCH) {
+      const rows = allProperties.slice(i, i + BATCH).map((prop: any) => {
+        const op = prop.operations?.[0];
         const price = op?.prices?.[0];
-        const photosCount = (p.photos || []).filter((ph: any) => !ph.is_blueprint).length;
-        const daysSinceUpdate = p.last_update
-          ? Math.floor((Date.now() - new Date(p.last_update).getTime()) / 86400000)
-          : null;
+        const now = new Date();
         return {
-          tokko_id: p.id,
+          tokko_id: prop.id,
           team_id: teamId,
-          reference_code: p.reference_code || null,
-          title: p.publication_title || null,
-          address: p.address || null,
-          property_type: p.type?.name || null,
+          reference_code: prop.reference_code || null,
+          title: prop.publication_title || null,
+          address: prop.address || null,
+          property_type: prop.type?.name || null,
           operation_type: op?.operation_type || null,
-          status: p.status ?? null,
+          status: prop.status ?? null,
           price: price?.price || null,
           currency: price?.currency || null,
-          photos_count: photosCount,
-          days_since_update: daysSinceUpdate,
-          producer_id: p.producer?.id || null,
-          producer_name: p.producer?.name || null,
-          producer_email: p.producer?.email || null,
-          branch_id: p.branch?.id || null,
-          branch_name: p.branch?.name || null,
-          synced_at: new Date().toISOString(),
+          photos_count: (prop.photos || []).filter((p: any) => !p.is_blueprint).length,
+          days_since_update: prop.last_update
+            ? Math.floor((now.getTime() - new Date(prop.last_update).getTime()) / 86400000)
+            : null,
+          producer_id: prop.producer?.id || null,
+          producer_name: prop.producer?.name || null,
+          producer_email: prop.producer?.email?.toLowerCase() || null,
+          branch_id: prop.branch?.id || null,
+          branch_name: prop.branch?.name || null,
+          synced_at: now.toISOString(),
         };
       });
       await supabaseAdmin.from("tokko_properties").upsert(rows, { onConflict: "tokko_id" });
-      results.properties += batch.length;
+      results.properties += rows.length;
+    }
+
+    // Borrar propiedades que ya no existen en Tokko
+    const activeIds = allProperties.map((p: any) => p.id);
+    if (activeIds.length > 0) {
+      await supabaseAdmin.from("tokko_properties").delete()
+        .eq("team_id", teamId)
+        .not("tokko_id", "in", `(${activeIds.join(",")})`);
     }
   } catch (e: any) {
     results.errors.push(`properties: ${e.message}`);
   }
 
-  // ── Usuarios/Agentes ─────────────────────────────────────────────────────
+  // Agentes
   try {
-    const r: Response = await fetch(`https://www.tokkobroker.com/api/v1/user/?key=${apiKey}&format=json&limit=200`);
-    if (!r.ok) throw new Error(`HTTP ${r.status}`);
-    const d: any = await r.json();
-    const users: any[] = d.objects || [];
-
+    const fr: Response = await fetch(`https://www.tokkobroker.com/api/v1/user/?key=${apiKey}&format=json&limit=200`);
+    if (!fr.ok) throw new Error(`Tokko users ${fr.status}`);
+    const ud: any = await fr.json();
+    const users: any[] = ud.objects || [];
     if (users.length > 0) {
       const rows = users.map((u: any) => ({
         tokko_id: u.id,
         team_id: teamId,
         name: u.name,
-        email: u.email || null,
+        email: u.email?.toLowerCase() || null,
         phone: u.phone || u.cellphone || null,
         picture: u.picture || null,
         position: u.position || null,
@@ -94,21 +98,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const isManual = req.headers["x-cron-secret"] === process.env.CRON_SECRET;
   if (!isVercel && !isManual) return res.status(401).json({ error: "No autorizado" });
 
-  // Traer todos los equipos con API key configurada
-  const { data: teams } = await supabaseAdmin
-    .from("teams")
-    .select("id, name, tokko_api_key")
-    .not("tokko_api_key", "is", null)
-    .eq("status", "active");
+  const { targetTeamId } = req.body || {};
 
-  if (!teams?.length) return res.status(200).json({ ok: true, message: "No hay equipos con Tokko configurado" });
+  let query = supabaseAdmin.from("teams").select("id, name, tokko_api_key").not("tokko_api_key", "is", null);
+  if (targetTeamId) query = query.eq("id", targetTeamId);
+  const { data: teams } = await query;
 
-  const summary: any[] = [];
+  if (!teams?.length) return res.status(200).json({ ok: true, message: "No hay equipos con API key de Tokko" });
+
+  const allResults: Record<string, any> = {};
   for (const team of teams) {
-    const result = await syncTeam(team.id, team.tokko_api_key!);
-    summary.push({ team: team.name, ...result });
-    console.log(`[tokko-sync] ${team.name}:`, result);
+    console.log(`[tokko-sync] equipo: ${team.name}`);
+    allResults[team.name] = await syncTeam(team.id, team.tokko_api_key);
+    await new Promise(r => setTimeout(r, 500));
   }
 
-  return res.status(200).json({ ok: true, teams: summary.length, summary });
+  return res.status(200).json({
+    ok: true,
+    teams: teams.length,
+    properties: Object.values(allResults).reduce((s: number, r: any) => s + (r.properties || 0), 0),
+    users: Object.values(allResults).reduce((s: number, r: any) => s + (r.users || 0), 0),
+    details: allResults,
+  });
 }
