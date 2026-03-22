@@ -62,6 +62,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   // Ver logs de sync errors de un usuario
+  if (action === "sync_tokko") {
+    try {
+      const res2 = await fetch(`${baseUrl}/api/cron/tokko-sync`, {
+        method: "POST",
+        headers: { "x-cron-secret": secret! },
+      });
+      const data = await res2.json();
+      return res.status(200).json({ ok: true, ...data });
+    } catch (e: any) {
+      return res.status(500).json({ error: e.message });
+    }
+  }
+
   if (action === "revoke_google_token") {
     if (!email) return res.status(400).json({ error: "Email requerido" });
     await supabaseAdmin.from("subscriptions").update({

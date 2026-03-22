@@ -7,7 +7,7 @@ import { requireSuperAdmin } from "../../lib/adminGuard";
 import {
   Users, CreditCard, BarChart2, Zap, Search, RefreshCw, Settings,
   ChevronDown, CheckCircle, XCircle, Clock, Loader2,
-  Calendar, Mail, Shield, TrendingUp, AlertTriangle, Target, MessageSquare
+  Calendar, Mail, Shield, TrendingUp, AlertTriangle, Target, MessageSquare, Building2
 } from "lucide-react";
 
 const RED = "#aa0000";
@@ -40,7 +40,7 @@ export default function AdminPanel() {
   const { data: session } = useSession();
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [users, setUsers] = useState<AdminUser[]>([]);
-  const [tab, setTab] = useState<"overview" | "users" | "teams" | "ops" | "precios" | "eventos" | "goals" | "coach" | "midweek" | "rangos">("overview");
+  const [tab, setTab] = useState<"overview" | "users" | "teams" | "ops" | "precios" | "eventos" | "goals" | "coach" | "midweek" | "rangos" | "tokko">("overview");
   const [goalsConfig, setGoalsConfig] = useState({ weekly_goal: "15", productive_day_min: "2", streak_min_greens: "1" });
   const [goalsSaving, setGoalsSaving] = useState(false);
   const [goalsMsg, setGoalsMsg] = useState("");
@@ -60,6 +60,11 @@ export default function AdminPanel() {
   const [weeksToDown, setWeeksToDown] = useState("2");
   const [ranksSaving, setRanksSaving] = useState(false);
   const [ranksMsg, setRanksMsg] = useState("");
+  const [tokkoApiKey, setTokkoApiKey] = useState("");
+  const [tokkoSaving, setTokkoSaving] = useState(false);
+  const [tokkoMsg, setTokkoMsg] = useState("");
+  const [tokkoTesting, setTokkoTesting] = useState(false);
+  const [tokkoTestResult, setTokkoTestResult] = useState<{ok: boolean; message: string; properties?: number; users?: number} | null>(null);
   const [eventTypes, setEventTypes] = useState<any[]>([]);
   const [eventTypesSaving, setEventTypesSaving] = useState(false);
   const [etForm, setEtForm] = useState<any | null>(null); // null = closed, {} = new, {...} = editing
@@ -140,6 +145,12 @@ export default function AdminPanel() {
           setWeeksToUp(d.weeksToUp ?? "4");
           setWeeksToDown(d.weeksToDown ?? "2");
         })
+        .catch(console.error);
+    }
+    if (tab === "tokko") {
+      fetch("/api/admin/config?key=tokko_api_key")
+        .then(r => r.json())
+        .then(d => { if (d.value) setTokkoApiKey(d.value); })
         .catch(console.error);
     }
   }, [tab]);
@@ -407,6 +418,7 @@ export default function AdminPanel() {
             { key: "coach", label: "Coach AI", icon: <MessageSquare size={13} /> },
             { key: "midweek", label: "Miércoles", icon: <Mail size={13} /> },
             { key: "rangos", label: "Rangos", icon: <TrendingUp size={13} /> },
+            { key: "tokko", label: "Tokko", icon: <Building2 size={13} /> },
           ] as const).map(t => (
             <button key={t.key} onClick={() => setTab(t.key)}
               className="flex items-center gap-1.5 px-4 py-2.5 text-xs font-bold border-b-2 transition-colors"
@@ -1457,6 +1469,115 @@ export default function AdminPanel() {
 
             <div className="bg-blue-50 rounded-2xl border border-blue-100 p-4">
               <p className="text-xs text-blue-700 font-medium">Los cambios aplican en la próxima sincronización de cada agente. Para aplicar a todos inmediatamente usá "Rebuild weekly stats" en el tab Operaciones.</p>
+            </div>
+          </div>
+        )}
+
+        {tab === "tokko" && (
+          <div className="max-w-2xl mx-auto px-5 py-8 space-y-6">
+            <div>
+              <h2 className="text-base font-bold text-gray-800 mb-1">Integración Tokko Broker</h2>
+              <p className="text-xs text-gray-400">Conectá InmoCoach con tu CRM para ver cartera activa, operaciones y datos de los agentes.</p>
+            </div>
+
+            {/* API Key */}
+            <div className="bg-white rounded-2xl border border-gray-100 p-6 space-y-4">
+              <div className="text-sm font-bold text-gray-700">API Key de Tokko</div>
+              <p className="text-xs text-gray-400">Encontrala en Tokko → Mi empresa → Permisos → Clave API.</p>
+              <div className="flex gap-3">
+                <input
+                  type="password"
+                  placeholder="Pegá tu API key acá"
+                  value={tokkoApiKey}
+                  onChange={e => setTokkoApiKey(e.target.value)}
+                  className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm font-mono focus:outline-none focus:border-gray-400"
+                />
+                <button
+                  onClick={async () => {
+                    setTokkoSaving(true); setTokkoMsg("");
+                    try {
+                      await fetch("/api/admin/config", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ key: "tokko_api_key", value: tokkoApiKey }),
+                      });
+                      setTokkoMsg("✓ Guardada");
+                    } catch { setTokkoMsg("Error al guardar"); }
+                    setTokkoSaving(false);
+                  }}
+                  disabled={tokkoSaving || !tokkoApiKey}
+                  className="px-5 py-2 rounded-xl text-xs font-bold text-white disabled:opacity-50"
+                  style={{ background: RED }}>
+                  {tokkoSaving ? "Guardando..." : "Guardar"}
+                </button>
+              </div>
+              {tokkoMsg && <span className={`text-xs font-semibold ${tokkoMsg.startsWith("✓") ? "text-green-600" : "text-red-500"}`}>{tokkoMsg}</span>}
+            </div>
+
+            {/* Test conexión */}
+            <div className="bg-white rounded-2xl border border-gray-100 p-6 space-y-4">
+              <div className="text-sm font-bold text-gray-700">Probar conexión</div>
+              <p className="text-xs text-gray-400">Verificá que la API key esté correcta y ves cuántas propiedades y usuarios tiene tu cuenta.</p>
+              <button
+                onClick={async () => {
+                  setTokkoTesting(true); setTokkoTestResult(null);
+                  try {
+                    const res = await fetch("/api/admin/tokko-test", { method: "POST" });
+                    const d = await res.json();
+                    setTokkoTestResult(d);
+                  } catch { setTokkoTestResult({ ok: false, message: "Error de conexión" }); }
+                  setTokkoTesting(false);
+                }}
+                disabled={tokkoTesting || !tokkoApiKey}
+                className="px-5 py-2 rounded-xl text-xs font-bold border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-50">
+                {tokkoTesting ? "Probando..." : "Probar conexión con Tokko"}
+              </button>
+
+              {tokkoTestResult && (
+                <div className={`rounded-xl p-4 ${tokkoTestResult.ok ? "bg-green-50 border border-green-200" : "bg-red-50 border border-red-200"}`}>
+                  <p className={`text-sm font-bold mb-1 ${tokkoTestResult.ok ? "text-green-700" : "text-red-700"}`}>
+                    {tokkoTestResult.ok ? "✓ Conexión exitosa" : "✗ Error"}
+                  </p>
+                  <p className="text-xs text-gray-600">{tokkoTestResult.message}</p>
+                  {tokkoTestResult.ok && (
+                    <div className="flex gap-4 mt-2">
+                      {tokkoTestResult.properties !== undefined && (
+                        <span className="text-xs font-bold text-green-700">🏠 {tokkoTestResult.properties} propiedades</span>
+                      )}
+                      {tokkoTestResult.users !== undefined && (
+                        <span className="text-xs font-bold text-green-700">👥 {tokkoTestResult.users} usuarios</span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Sync manual */}
+            <div className="bg-white rounded-2xl border border-gray-100 p-6 space-y-4">
+              <div className="text-sm font-bold text-gray-700">Sincronización</div>
+              <p className="text-xs text-gray-400">La sync automática corre una vez al día. También podés forzarla manualmente.</p>
+              <button
+                onClick={async () => {
+                  setTokkoMsg("Sincronizando...");
+                  try {
+                    const res = await fetch("/api/admin/ops", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ action: "sync_tokko" }),
+                    });
+                    const d = await res.json();
+                    setTokkoMsg(d.ok ? `✓ Sync completo — ${d.properties ?? 0} propiedades, ${d.users ?? 0} usuarios` : d.error || "Error");
+                  } catch { setTokkoMsg("Error al sincronizar"); }
+                }}
+                disabled={!tokkoApiKey}
+                className="px-5 py-2 rounded-xl text-xs font-bold border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-50">
+                Sincronizar ahora
+              </button>
+            </div>
+
+            <div className="bg-amber-50 rounded-2xl border border-amber-100 p-4">
+              <p className="text-xs text-amber-700 font-medium">💡 Una vez conectado, cada agente va a ver su cartera activa (propiedades publicadas) en su dashboard. Los datos se actualizan automáticamente cada día.</p>
             </div>
           </div>
         )}
