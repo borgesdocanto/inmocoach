@@ -64,7 +64,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     photosCount: p.photos_count ?? 0,
     daysOnline: p.days_online ?? null,
     daysSinceUpdate: p.days_since_update ?? null,
-    thumbnail: null,
+    thumbnail: p.thumbnail || null,
     branch: p.branch_name,
   }));
 

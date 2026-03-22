@@ -38,6 +38,7 @@ async function syncTeam(teamId: string, apiKey: string): Promise<{ properties: n
           price: price?.price || null,
           currency: price?.currency || null,
           photos_count: (prop.photos || []).filter((p: any) => !p.is_blueprint).length,
+          thumbnail: (prop.photos || []).find((p: any) => !p.is_blueprint)?.thumb || null,
           days_since_update: prop.last_update
             ? Math.floor((now.getTime() - new Date(prop.last_update).getTime()) / 86400000)
             : null,

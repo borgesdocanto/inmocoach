@@ -51,7 +51,6 @@ function statusLabel(status: number): { label: string; color: string; bg: string
 export default function TokkoPortfolio() {
   const [data, setData] = useState<PortfolioData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<"all" | "active" | "stale">("active");
 
   useEffect(() => {
     fetch("/api/tokko-portfolio")
@@ -65,11 +64,7 @@ export default function TokkoPortfolio() {
 
   const { stats, properties } = data;
 
-  const filtered = properties.filter(p => {
-    if (filter === "active") return p.status === 2;
-    if (filter === "stale") return p.status === 2 && (p.daysSinceUpdate || 0) > 30;
-    return true;
-  });
+  const filtered = properties.filter(p => p.status === 2 || p.status === 3);
 
   return (
     <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
@@ -117,64 +112,42 @@ export default function TokkoPortfolio() {
         )}
       </div>
 
-      {/* Filtros */}
-      <div className="px-5 py-3 border-b border-gray-100 flex gap-2">
-        {[
-          { key: "active", label: `Disponibles (${stats.active})` },
-          { key: "stale", label: `Sin actualizar (${stats.stale})` },
-          { key: "all", label: `Todas (${stats.total})` },
-        ].map(f => (
-          <button key={f.key} onClick={() => setFilter(f.key as any)}
-            className="text-xs font-bold px-3 py-1.5 rounded-xl transition-all"
-            style={{
-              background: filter === f.key ? RED : "#f3f4f6",
-              color: filter === f.key ? "white" : "#9ca3af",
-            }}>
-            {f.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Lista */}
-      <div className="divide-y divide-gray-50 max-h-80 overflow-y-auto">
+      {/* Lista — solo disponibles y reservadas */}
+      <div className="divide-y divide-gray-50 max-h-96 overflow-y-auto">
         {filtered.length === 0 ? (
-          <div className="px-5 py-6 text-center text-xs text-gray-400">
-            {filter === "stale" ? "No hay propiedades sin actualizar 🎉" : "Sin propiedades en este filtro"}
-          </div>
-        ) : filtered.slice(0, 20).map(prop => {
+          <div className="px-5 py-6 text-center text-xs text-gray-400">Sin propiedades disponibles o reservadas</div>
+        ) : filtered.slice(0, 30).map(prop => {
           const st = statusLabel(prop.status);
           return (
-            <div key={prop.id} className="px-5 py-3 flex items-center gap-3">
+            <div key={prop.id} className="px-4 py-3 flex items-center gap-3">
               {/* Thumbnail */}
-              <div className="w-12 h-12 rounded-xl overflow-hidden shrink-0 bg-gray-100 flex items-center justify-center">
+              <div className="w-16 h-14 rounded-xl overflow-hidden shrink-0 bg-gray-100 flex items-center justify-center">
                 {prop.thumbnail
                   ? <img src={prop.thumbnail} alt="" className="w-full h-full object-cover" />
-                  : <span className="text-lg">🏠</span>}
+                  : <span className="text-xl">🏠</span>}
               </div>
 
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-0.5">
-                  <span className="text-xs font-bold text-gray-700 truncate">{prop.title}</span>
+                {/* Dirección destacada */}
+                <div className="text-sm font-bold text-gray-800 truncate mb-0.5">
+                  {prop.address || prop.title || "Sin dirección"}
+                </div>
+                <div className="flex items-center gap-1.5 flex-wrap">
                   <span className="text-xs font-bold px-1.5 py-0.5 rounded-lg shrink-0"
                     style={{ background: st.bg, color: st.color }}>{st.label}</span>
-                </div>
-                <div className="flex items-center gap-2 text-xs text-gray-400">
-                  {prop.type && <span>{prop.type}</span>}
-                  {prop.operationType && <span>· {prop.operationType}</span>}
-                  {prop.price && <span className="font-semibold text-gray-600">· {formatPrice(prop.price, prop.currency)}</span>}
+                  {prop.type && <span className="text-xs text-gray-400">{prop.type}</span>}
+                  {prop.operationType && <span className="text-xs text-gray-400">· {prop.operationType}</span>}
+                  {prop.price && <span className="text-xs font-semibold text-gray-600">· {formatPrice(prop.price, prop.currency)}</span>}
                 </div>
                 <div className="flex items-center gap-2 mt-0.5 text-xs text-gray-300">
-                  <span>📷 {prop.photosCount} fotos</span>
+                  <span>📷 {prop.photosCount}</span>
                   {prop.daysOnline !== null && <span>· {prop.daysOnline}d online</span>}
                   {prop.daysSinceUpdate !== null && prop.daysSinceUpdate > 30 && (
                     <span style={{ color: "#f87171" }}>· sin actualizar {prop.daysSinceUpdate}d</span>
                   )}
+                  {prop.referenceCode && <span className="font-mono">{prop.referenceCode}</span>}
                 </div>
               </div>
-
-              {prop.referenceCode && (
-                <span className="text-xs text-gray-300 shrink-0 font-mono">{prop.referenceCode}</span>
-              )}
             </div>
           );
         })}
