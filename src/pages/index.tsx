@@ -799,29 +799,19 @@ export default function HomePage() {
 
       {/* Header */}
       <header className="bg-white border-b border-gray-100 sticky top-0 z-40">
-        <div className="max-w-6xl mx-auto px-5 py-3 flex items-center gap-4">
-          <div className="flex items-center gap-2 mr-auto">
-            <div className="font-black text-lg tracking-tight" style={{ color: RED, fontFamily: "Georgia, serif" }}>
-              Inmo<span className="text-gray-900">Coach</span>
-            </div>
-            {subPlan === "free" ? (
-              <Link href="/pricing">
-                <span className="text-xs font-bold px-2.5 py-1 rounded-lg cursor-pointer hover:opacity-80 transition-opacity"
-                  style={{ background: "#fef2f2", color: RED }}>
-                  {daysLeft !== null ? `${daysLeft}d gratis` : "Activar →"}
-                </span>
-              </Link>
-            ) : (
-              <Link href="/cuenta">
-                <span className="text-xs font-semibold px-2.5 py-1 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors"
-                  style={{ background: "#f3f4f6", color: "#6b7280" }}>
-                  Mi cuenta
-                </span>
-              </Link>
-            )}
-
+        <div className="max-w-6xl mx-auto px-4 py-2 flex items-center gap-2">
+          <div className="font-black text-base tracking-tight shrink-0" style={{ color: RED, fontFamily: "Georgia, serif" }}>
+            Inmo<span className="text-gray-900">Coach</span>
           </div>
-
+          {subPlan === "free" ? (
+            <Link href="/pricing">
+              <span className="text-xs font-bold px-2 py-0.5 rounded-lg cursor-pointer hover:opacity-80 shrink-0"
+                style={{ background: "#fef2f2", color: RED }}>
+                {daysLeft !== null ? `${daysLeft}d` : "→"}
+              </span>
+            </Link>
+          ) : null}
+          <div className="flex-1" />
           <div style={{ display: "flex", alignItems: "center", background: "#f3f4f6", borderRadius: "12px", padding: "4px", gap: "2px" }} className="hidden sm:flex">
             {([7, 14, 30, 60, 90] as const).map(d => (
               <button key={d} onClick={() => handleSetDays(d)}
@@ -832,40 +822,33 @@ export default function HomePage() {
               </button>
             ))}
           </div>
-
           {isOwner ? (
             <button onClick={() => router.push("/equipo")}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-gray-500 hover:bg-gray-100 transition-colors border border-gray-200">
-              <Users size={11} />
-              <span className="hidden sm:inline">Mi equipo</span>
+              className="flex items-center p-1.5 rounded-xl text-gray-500 hover:bg-gray-100 border border-gray-200 shrink-0">
+              <Users size={14} />
             </button>
           ) : !hasTeam ? (
             <button onClick={() => router.push(subPlan === "free" ? "/pricing" : "/cuenta")}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold hover:opacity-90 transition-all border"
+              className="flex items-center p-1.5 rounded-xl hover:opacity-90 border shrink-0"
               style={{ background: "#fef2f2", color: RED, borderColor: "#fecaca" }}>
-              <Users size={11} />
-              <span className="hidden sm:inline">{subPlan === "free" ? "Sumar agentes" : "Invitar agentes"}</span>
+              <Users size={14} />
             </button>
-          ) : null}
-
+          ) : (
+            <Link href="/cuenta">
+              <span className="hidden sm:inline text-xs font-semibold px-2.5 py-1 rounded-lg cursor-pointer hover:bg-gray-100"
+                style={{ background: "#f3f4f6", color: "#6b7280" }}>Mi cuenta</span>
+            </Link>
+          )}
           <button onClick={sync} disabled={loading || syncing}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors border"
-            style={{
-              color: syncing ? "#d97706" : "#6b7280",
-              borderColor: syncing ? "#fcd34d" : "#e5e7eb",
-              background: syncing ? "#fffbeb" : "white",
-            }}>
-            <RefreshCw size={11} className={loading || syncing ? "animate-spin" : ""} />
-            <span className="hidden sm:inline">
-              {loading ? "Cargando" : syncing ? "Actualizando" : fromCache ? "Actualizar" : "Actualizar"}
-            </span>
+            className="flex items-center p-1.5 rounded-xl border shrink-0"
+            style={{ color: syncing ? "#d97706" : "#6b7280", borderColor: syncing ? "#fcd34d" : "#e5e7eb", background: syncing ? "#fffbeb" : "white" }}>
+            <RefreshCw size={14} className={loading || syncing ? "animate-spin" : ""} />
           </button>
-
           {session?.user?.image ? (
-            <img src={session.user.image} alt="" className="w-7 h-7 rounded-full cursor-pointer ring-2"
+            <img src={session.user.image} alt="" className="w-7 h-7 rounded-full cursor-pointer shrink-0"
               style={{ outline: `2px solid ${RED}`, outlineOffset: "2px" }} onClick={() => signOut({ callbackUrl: "/login" })} />
           ) : (
-            <button onClick={() => signOut({ callbackUrl: "/login" })} className="text-gray-400 hover:text-gray-700">
+            <button onClick={() => signOut({ callbackUrl: "/login" })} className="text-gray-400 hover:text-gray-700 shrink-0">
               <LogOut size={15} />
             </button>
           )}
