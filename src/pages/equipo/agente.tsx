@@ -382,45 +382,44 @@ export default function AgentDashboard() {
 
       {/* Header */}
       <header className="bg-white border-b border-gray-100 sticky top-0 z-40">
-        <div className="max-w-6xl mx-auto px-5 py-3 flex items-center gap-3">
-          <button onClick={() => router.push("/equipo")} className="flex items-center gap-1.5 text-xs font-semibold text-gray-400 hover:text-gray-700 transition-colors">
-            <ArrowLeft size={13} /> Mi equipo
-          </button>
-
-          {/* Banner "viendo como broker" */}
-          <div className="flex-1 flex items-center justify-center">
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold" style={{ background: "#fef2f2", color: RED }}>
-              <Eye size={11} />
-              Viendo dashboard de <span className="font-black">{data?.user.name || (email as string)?.split("@")[0]}</span> como Broker / Team Leader
+        <div className="max-w-6xl mx-auto px-4 py-2">
+          {/* Fila 1: back + banner + historial */}
+          <div className="flex items-center gap-2 mb-2">
+            <button onClick={() => router.push("/equipo")} className="flex items-center gap-1 text-xs font-semibold text-gray-400 hover:text-gray-700 transition-colors shrink-0">
+              <ArrowLeft size={13} /> Equipo
+            </button>
+            <div className="flex-1 flex items-center justify-center">
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-bold text-center" style={{ background: "#fef2f2", color: RED }}>
+                <Eye size={11} className="shrink-0" />
+                <span className="truncate">{data?.user.name || (email as string)?.split("@")[0]}</span>
+              </div>
             </div>
+            <button onClick={() => router.push(`/equipo/historial?email=${encodeURIComponent(email as string)}`)}
+              className="flex items-center gap-1 text-xs font-bold px-2.5 py-1.5 rounded-xl border border-gray-200 text-gray-500 hover:bg-gray-50 shrink-0">
+              📈 Historial
+            </button>
+            <button onClick={() => sync()} disabled={syncing || loading} title="Sincronizar"
+              className="flex items-center text-xs text-gray-400 hover:text-gray-700 disabled:opacity-50 p-1.5 rounded-lg hover:bg-gray-100 shrink-0">
+              <RefreshCw size={13} className={syncing ? "animate-spin" : ""} />
+            </button>
           </div>
-
-          <button onClick={() => router.push(`/equipo/historial?email=${encodeURIComponent(email as string)}`)}
-            className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-xl border border-gray-200 text-gray-500 hover:bg-gray-50 transition-colors shrink-0">
-            📈 Historial
-          </button>
-
-          {/* Days selector */}
-          <div className="flex items-center gap-1 bg-gray-100 rounded-xl p-1">
-            {([7, 14, 30, 60, 90] as const).map(d => (
-              <button key={d} onClick={() => setDays(d)}
-                className="text-xs font-bold px-2.5 py-1 rounded-lg transition-all"
-                style={{ background: days === d ? "white" : "transparent", color: days === d ? "#111827" : "#9ca3af", boxShadow: days === d ? "0 1px 3px rgba(0,0,0,0.08)" : "none" }}>
-                {d}d
-              </button>
-            ))}
+          {/* Fila 2: days selector + sync msg */}
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-0.5 bg-gray-100 rounded-xl p-1 flex-1 justify-center">
+              {([7, 14, 30, 60, 90] as const).map(d => (
+                <button key={d} onClick={() => setDays(d)}
+                  className="text-xs font-bold px-2.5 py-1 rounded-lg transition-all flex-1"
+                  style={{ background: days === d ? "white" : "transparent", color: days === d ? "#111827" : "#9ca3af", boxShadow: days === d ? "0 1px 3px rgba(0,0,0,0.08)" : "none" }}>
+                  {d}d
+                </button>
+              ))}
+            </div>
+            {syncMsg && (
+              <span className="text-xs font-semibold px-2 py-1 rounded-lg shrink-0" style={{ background: syncMsg.startsWith("✓") ? "#f0fdf4" : "#fef2f2", color: syncMsg.startsWith("✓") ? "#16a34a" : RED }}>
+                {syncMsg}
+              </span>
+            )}
           </div>
-
-          {syncMsg && (
-            <span className="text-xs font-semibold px-2 py-1 rounded-lg" style={{ background: syncMsg.startsWith("✓") ? "#f0fdf4" : "#fef2f2", color: syncMsg.startsWith("✓") ? "#16a34a" : RED }}>
-              {syncMsg}
-            </span>
-          )}
-          <button onClick={() => sync()} disabled={syncing || loading} title="Sincronizar calendario del agente"
-            className="flex items-center gap-1 text-xs font-semibold text-gray-400 hover:text-gray-700 transition-colors disabled:opacity-50 px-2 py-1 rounded-lg hover:bg-gray-100">
-            <RefreshCw size={12} className={syncing ? "animate-spin" : ""} />
-            <span className="hidden sm:inline">{syncing ? "Sync..." : "Sync"}</span>
-          </button>
         </div>
       </header>
 

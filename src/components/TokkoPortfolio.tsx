@@ -81,7 +81,11 @@ export default function TokkoPortfolio({ agentEmail }: { agentEmail?: string }) 
       .catch(() => setLoading(false));
   }, []);
 
-  if (loading) return null;
+  if (loading) return (
+    <div className="bg-white border border-gray-100 rounded-2xl p-5 text-center">
+      <div className="text-xs text-gray-400 animate-pulse">Cargando cartera Tokko...</div>
+    </div>
+  );
   if (!data?.connected) return null; // No mostrar nada si no hay Tokko conectado
 
   const { stats, properties } = data;
