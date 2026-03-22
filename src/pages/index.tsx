@@ -847,6 +847,24 @@ export default function HomePage() {
     <div style={{ display: "flex", minHeight: "100vh", background: "#f4f5f7", fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" }}>
       <Head>
         <title>InmoCoach</title>
+        <style>{`
+          .ic-sidebar { display: flex; }
+          .ic-topbar-greeting { display: block; }
+          .ic-topbar-logo { display: none; }
+          .ic-hamburger { display: none; }
+          .ic-days-desktop { display: flex; }
+          .ic-days-mobile { display: none; }
+          .ic-cards-grid { display: grid; grid-template-columns: repeat(2, 1fr); }
+          @media (max-width: 767px) {
+            .ic-sidebar { display: none !important; }
+            .ic-topbar-greeting { display: none; }
+            .ic-topbar-logo { display: block; }
+            .ic-hamburger { display: flex; }
+            .ic-days-desktop { display: none; }
+            .ic-days-mobile { display: flex; }
+            .ic-cards-grid { grid-template-columns: 1fr; }
+          }
+        `}</style>
       </Head>
 
       {/* ── SIDEBAR desktop ── */}
@@ -854,7 +872,7 @@ export default function HomePage() {
         width: "210px", background: "#fff", borderRight: "0.5px solid #e5e7eb",
         flexShrink: 0, display: "flex", flexDirection: "column",
         position: "sticky", top: 0, height: "100vh"
-      }} className="hidden md:flex">
+      }} className="ic-sidebar">
         <div style={{ padding: "18px 16px", borderBottom: "0.5px solid #f3f4f6", display: "flex", alignItems: "center", gap: "10px" }}>
           <div style={{ width: 36, height: 36, background: RED, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: "#fff", flexShrink: 0 }}>G</div>
           <div style={{ fontSize: 15, fontWeight: 500, color: "#111827", letterSpacing: "-0.3px", fontFamily: "Georgia, serif" }}>
@@ -899,12 +917,12 @@ export default function HomePage() {
         {/* Topbar */}
         <header style={{ background: "#fff", borderBottom: "0.5px solid #e5e7eb", padding: "11px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 40 }}>
           {/* Hamburger mobile */}
-          <button onClick={() => setMobileMenu(true)} className="md:hidden" style={{ background: "none", border: "none", cursor: "pointer", padding: "4px", display: "flex", flexDirection: "column", gap: 4 }}>
+          <button onClick={() => setMobileMenu(true)} className="ic-hamburger" style={{ background: "none", border: "none", cursor: "pointer", padding: "4px", flexDirection: "column", gap: 4 }}>
             <span style={{ width: 18, height: 1.5, background: "#374151", display: "block", borderRadius: 1 }} />
             <span style={{ width: 18, height: 1.5, background: "#374151", display: "block", borderRadius: 1 }} />
             <span style={{ width: 18, height: 1.5, background: "#374151", display: "block", borderRadius: 1 }} />
           </button>
-          <div className="hidden md:block">
+          <div className="ic-topbar-greeting">
             <div style={{ fontSize: 14, color: "#374151" }}>
               Buenos días, <strong style={{ fontWeight: 500, color: "#111827" }}>{data?.user.name?.split(" ")[0] ?? "..."}</strong>
             </div>
@@ -912,12 +930,12 @@ export default function HomePage() {
               {data ? `Última sync: ${new Date(data.syncedAt).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })} hs` : "Sincronizando..."}
             </div>
           </div>
-          <div className="md:hidden" style={{ fontSize: 15, fontWeight: 500, color: "#111827", fontFamily: "Georgia, serif" }}>
+          <div className="ic-topbar-logo" style={{ fontSize: 15, fontWeight: 500, color: "#111827", fontFamily: "Georgia, serif" }}>
             Inmo<span style={{ color: RED }}>Coach</span>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             {/* Days selector desktop */}
-            <div className="hidden md:flex" style={{ alignItems: "center", background: "#f3f4f6", borderRadius: 9, padding: "3px", gap: 2 }}>
+            <div className="ic-days-desktop" style={{ alignItems: "center", background: "#f3f4f6", borderRadius: 9, padding: "3px", gap: 2 }}>
               {([7, 14, 30] as const).map(d => (
                 <button key={d} onClick={() => handleSetDays(d)} style={{
                   background: days === d ? "#fff" : "transparent",
@@ -944,7 +962,7 @@ export default function HomePage() {
         </header>
 
         {/* Days selector mobile strip */}
-        <div className="md:hidden" style={{ background: "#fff", borderBottom: "0.5px solid #e5e7eb", padding: "8px 16px", display: "flex", gap: 6, overflowX: "auto" }}>
+        <div className="ic-days-mobile" style={{ background: "#fff", borderBottom: "0.5px solid #e5e7eb", padding: "8px 16px", gap: 6, overflowX: "auto" }}>
           {([7, 14, 30, 60, 90] as const).map(d => (
             <button key={d} onClick={() => handleSetDays(d)} style={{
               background: days === d ? "#111827" : "transparent",
@@ -985,7 +1003,7 @@ export default function HomePage() {
           {/* Cards grid */}
           {data && (
             <>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 10, marginBottom: 10 }}>
+              <div className="ic-cards-grid" style={{ gap: 10, marginBottom: 10 }}>
 
                 {/* IAC Card */}
                 <div onClick={() => router.push("/iac")} style={{
