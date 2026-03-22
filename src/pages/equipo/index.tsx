@@ -605,7 +605,7 @@ function TokkoConfig() {
               onClick={async () => {
                 setSaving(true); setMsg("");
                 try {
-                  const r = await fetch("/api/admin/tokko-config", {
+                  const r = await fetch("/api/teams/tokko-config", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ apiKey }),
