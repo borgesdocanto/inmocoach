@@ -64,10 +64,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const agentProps = allProps.filter((p: any) => p.producer?.id === tokkoAgent.tokko_id);
     if (agentProps[0]) {
       const p0 = agentProps[0];
-      console.log("[tokko-portfolio] sample fields:", {
-        id: p0.id, last_update: p0.last_update, modified_date: p0.modified_date,
-        videos: p0.videos?.length, photos: p0.photos?.length,
-      });
+      const dateKeys = Object.keys(p0).filter(k => k.includes("date") || k.includes("update") || k.includes("created") || k.includes("modified") || k.includes("time"));
+      const dateVals: any = {};
+      dateKeys.forEach(k => dateVals[k] = p0[k]);
+      console.log("[tokko-portfolio] ALL date fields:", JSON.stringify(dateVals));
+      console.log("[tokko-portfolio] ALL keys:", Object.keys(p0).join(", "));
     }
     const now = new Date();
 
