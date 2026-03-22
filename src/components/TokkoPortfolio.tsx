@@ -197,6 +197,22 @@ export default function TokkoPortfolio({ agentEmail }: { agentEmail?: string }) 
                   {prop.hasVideo && <span className="text-xs text-gray-400">🎥</span>}
                   {prop.hasTour360 && <span className="text-xs text-gray-400">🔄 360</span>}
                   {prop.daysOnline !== null && <span className="text-xs text-gray-300">{prop.daysOnline}d online</span>}
+                  {/* Fecha de última edición */}
+                  {prop.daysSinceUpdate !== null && (
+                    <span
+                      title={prop.daysSinceUpdate > 30
+                        ? "Hay algo que cambiar para poder vender esta propiedad: la foto de portada, la descripción, el título, el video o corregir el precio."
+                        : `Actualizada hace ${prop.daysSinceUpdate} días`}
+                      className="text-xs font-bold px-1.5 py-0.5 rounded-lg cursor-help"
+                      style={{
+                        background: prop.daysSinceUpdate > 30 ? "#fef2f2" : "#f0fdf4",
+                        color: prop.daysSinceUpdate > 30 ? "#ef4444" : "#16a34a",
+                      }}>
+                      {prop.daysSinceUpdate > 30
+                        ? `⚠ Sin editar ${prop.daysSinceUpdate}d`
+                        : `✓ Editada hace ${prop.daysSinceUpdate}d`}
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
