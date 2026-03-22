@@ -48,12 +48,15 @@ function statusLabel(status: number): { label: string; color: string; bg: string
   return { label: "Disponible", color: "#15803d", bg: "#f0fdf4" };
 }
 
-export default function TokkoPortfolio() {
+export default function TokkoPortfolio({ agentEmail }: { agentEmail?: string }) {
   const [data, setData] = useState<PortfolioData | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/tokko-portfolio")
+    const url = agentEmail
+      ? `/api/tokko-portfolio?email=${encodeURIComponent(agentEmail)}`
+      : "/api/tokko-portfolio";
+    fetch(url)
       .then(r => r.ok ? r.json() : null)
       .then(d => { setData(d); setLoading(false); })
       .catch(() => setLoading(false));

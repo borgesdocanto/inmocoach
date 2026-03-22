@@ -4,6 +4,7 @@ import { useEffect, useState, useMemo } from "react";
 import Head from "next/head";
 import RankBadge from "../../components/RankBadge";
 import StreakBadge from "../../components/StreakBadge";
+import TokkoPortfolio from "../../components/TokkoPortfolio";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LineChart, Line } from "recharts";
 import { ArrowLeft, RefreshCw, AlertTriangle, Calendar, Target, Eye, Zap, TrendingUp, Brain, ChevronLeft, ChevronRight, Loader2, DollarSign } from "lucide-react";
 
@@ -470,6 +471,9 @@ export default function AgentDashboard() {
 
             {/* Rango */}
             {data.rankStats && <RankBadge stats={data.rankStats} />}
+
+            {/* Cartera Tokko */}
+            <TokkoPortfolio agentEmail={email as string} />
 
             {/* Tendencia + IAC */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
