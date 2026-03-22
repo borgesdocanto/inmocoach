@@ -144,7 +144,8 @@ function WeeklyView({ summaries, weekOffset, onPrev, onNext }: {
         </div>
       </div>
       {/* Day columns */}
-      <div className="grid grid-cols-7 divide-x divide-gray-100 min-h-[320px]">
+      <div className="overflow-x-auto">
+      <div className="grid grid-cols-7 divide-x divide-gray-100 min-h-[320px] min-w-[500px]">
         {days.map((day, i) => {
           const dateStr = localDateStr(day);
           const summary = byDate[dateStr];
@@ -181,6 +182,7 @@ function WeeklyView({ summaries, weekOffset, onPrev, onNext }: {
             </div>
           );
         })}
+      </div>
       </div>
     </div>
   );
