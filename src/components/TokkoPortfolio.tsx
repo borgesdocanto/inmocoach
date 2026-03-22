@@ -94,10 +94,11 @@ export default function TokkoPortfolio({ agentEmail }: { agentEmail?: string }) 
 
   const { stats, properties } = data;
 
-  const base = properties.filter(p => p.status === 2 || p.status === 3);
-  const filtered = showIncomplete
-    ? base.filter(p => p.status === 2 && !fichaScore(p).complete)
-    : base;
+  const available = properties.filter(p => p.status === 2);
+  const reserved = properties.filter(p => p.status === 3);
+  const base = showIncomplete
+    ? available.filter(p => !fichaScore(p).complete)
+    : available;
 
   return (
     <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
@@ -150,18 +151,56 @@ export default function TokkoPortfolio({ agentEmail }: { agentEmail?: string }) 
       {/* Banner modo "por actualizar" */}
       {showIncomplete && (
         <div className="px-4 py-2 bg-red-50 border-b border-red-100 flex items-center justify-between">
-          <span className="text-xs font-bold text-red-600">⚠ Mostrando {filtered.length} ficha{filtered.length !== 1 ? "s" : ""} por mejorar</span>
+          <span className="text-xs font-bold text-red-600">⚠ Mostrando {base.length} ficha{base.length !== 1 ? "s" : ""} por mejorar</span>
           <button onClick={() => setShowIncomplete(false)} className="text-xs text-red-400 hover:text-red-600">Ver todas ×</button>
         </div>
       )}
 
-      {/* Lista */}
-      <div className="divide-y divide-gray-50 max-h-96 overflow-y-auto">
-        {filtered.length === 0 ? (
-          <div className="px-5 py-6 text-center text-xs text-gray-400">
-            {showIncomplete ? "🎉 Todas las fichas están completas" : "Sin propiedades disponibles o reservadas"}
+      {/* Reservadas — sección destacada */}
+      {reserved.length > 0 && !showIncomplete && (
+        <div className="border-b border-gray-100">
+          <div className="px-4 py-2 bg-amber-50 flex items-center gap-2">
+            <span className="text-xs font-bold text-amber-700">🤝 Reservadas ({reserved.length})</span>
+            <span className="text-xs text-amber-600">— operaciones en curso</span>
           </div>
-        ) : filtered.slice(0, 30).map(prop => {
+          {reserved.map(prop => {
+            const ficha = fichaScore(prop);
+            return (
+              <div key={prop.id} className="px-4 py-3 flex items-center gap-3 bg-amber-50/30">
+                <div className="w-14 h-12 rounded-xl overflow-hidden shrink-0 bg-amber-100 flex items-center justify-center">
+                  {prop.thumbnail
+                    ? <img src={prop.thumbnail} alt="" className="w-full h-full object-cover" />
+                    : <span className="text-lg">🤝</span>}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5 mb-0.5">
+                    <a href={prop.editUrl} target="_blank" rel="noopener noreferrer"
+                      className="text-sm font-bold text-gray-800 truncate hover:underline">
+                      {prop.address || prop.title || "Sin dirección"}
+                    </a>
+                    <a href={prop.editUrl} target="_blank" rel="noopener noreferrer" className="shrink-0 text-gray-300 hover:text-gray-500">
+                      <ExternalLink size={11} />
+                    </a>
+                  </div>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-xs font-bold px-1.5 py-0.5 rounded-lg" style={{ background: "#fffbeb", color: "#d97706" }}>Reservada</span>
+                    {prop.type && <span className="text-xs text-gray-400">{prop.type}</span>}
+                    {prop.price && <span className="text-xs font-semibold text-gray-600">· {formatPrice(prop.price, prop.currency)}</span>}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Lista — disponibles */}
+      <div className="divide-y divide-gray-50 max-h-96 overflow-y-auto">
+        {base.length === 0 ? (
+          <div className="px-5 py-6 text-center text-xs text-gray-400">
+            {showIncomplete ? "🎉 Todas las fichas están completas" : "Sin propiedades disponibles"}
+          </div>
+        ) : base.slice(0, 30).map(prop => {
           const st = statusLabel(prop.status);
           const ficha = fichaScore(prop);
           return (
@@ -229,9 +268,9 @@ export default function TokkoPortfolio({ agentEmail }: { agentEmail?: string }) 
         })}
       </div>
 
-      {filtered.length > 30 && (
+      {base.length > 30 && (
         <div className="px-5 py-3 text-center text-xs text-gray-400 border-t border-gray-50">
-          Mostrando 30 de {filtered.length} — abrí Tokko para ver todas
+          Mostrando 30 de {base.length} — abrí Tokko para ver todas
         </div>
       )}
     </div>
