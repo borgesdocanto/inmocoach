@@ -62,6 +62,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     const agentProps = allProps.filter((p: any) => p.producer?.id === tokkoAgent.tokko_id);
+    if (agentProps[0]) {
+      const p0 = agentProps[0];
+      console.log("[tokko-portfolio] sample fields:", {
+        id: p0.id, last_update: p0.last_update, modified_date: p0.modified_date,
+        videos: p0.videos?.length, photos: p0.photos?.length,
+      });
+    }
     const now = new Date();
 
     const properties = agentProps.map((p: any) => {
@@ -96,8 +103,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         daysOnline: p.created_date
           ? Math.floor((now.getTime() - new Date(p.created_date).getTime()) / 86400000)
           : null,
-        daysSinceUpdate: p.last_update
-          ? Math.floor((now.getTime() - new Date(p.last_update).getTime()) / 86400000)
+        daysSinceUpdate: (p.last_update || p.modified_date)
+          ? Math.floor((now.getTime() - new Date(p.last_update || p.modified_date).getTime()) / 86400000)
           : null,
         branch: p.branch?.name || null,
       };
