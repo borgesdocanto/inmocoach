@@ -195,47 +195,67 @@ export default function IACPage() {
 
         <div className="iac-grid" style={{ marginBottom: 16 }}>
 
-          {/* Calendario semanal */}
+          {/* Calendario semanal — columna por día */}
           <div style={{ background: "#fff", border: "0.5px solid #e5e7eb", borderRadius: 14, overflow: "hidden" }}>
             <div style={{ padding: "14px 16px", borderBottom: "0.5px solid #f3f4f6" }}>
               <div style={{ fontSize: 12, fontWeight: 500, color: "#374151" }}>Calendario — {weekLabel}</div>
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", borderBottom: "0.5px solid #f3f4f6" }}>
-              {weekData?.map((d: any) => (
-                <div key={d.date} style={{ borderRight: "0.5px solid #f3f4f6", padding: "10px 4px", textAlign: "center" }}>
-                  <div style={{ fontSize: 10, color: "#9ca3af", textTransform: "uppercase" }}>{d.dayShort}</div>
+            {/* Grid 7 columnas — header + eventos por columna */}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)" }}>
+              {weekData?.map((d: any, di: number) => (
+                <div key={d.date} style={{
+                  borderRight: di < 6 ? "0.5px solid #f3f4f6" : "none",
+                  display: "flex", flexDirection: "column",
+                }}>
+                  {/* Header día */}
                   <div style={{
-                    width: 28, height: 28, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center",
-                    margin: "4px auto", fontSize: 13, fontWeight: 500,
-                    background: d.isToday ? RED : "transparent",
-                    color: d.isToday ? "#fff" : "#111827",
-                  }}>{d.dayNum}</div>
-                  {d.greens > 0 && (
-                    <div style={{ fontSize: 11, fontWeight: 700, color: "#16a34a" }}>{d.greens}✦</div>
-                  )}
-                </div>
-              ))}
-            </div>
-            <div>
-              {weekData?.map((d: any) => d.events.length > 0 && (
-                <div key={d.date}>
-                  {d.events.filter((e: any) => e.isGreen).map((ev: any) => (
-                    <div key={ev.id} style={{ padding: "8px 14px", borderBottom: "0.5px solid #f9fafb", display: "flex", alignItems: "center", gap: 8 }}>
-                      <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#16a34a", flexShrink: 0 }} />
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 12, color: "#374151", fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{ev.title}</div>
-                        <div style={{ fontSize: 11, color: "#9ca3af" }}>{d.dayShort} · {ev.start?.slice(11, 16)}</div>
+                    padding: "10px 4px 8px", textAlign: "center",
+                    borderBottom: "0.5px solid #f3f4f6",
+                    background: d.isToday ? "#fef2f2" : "transparent",
+                  }}>
+                    <div style={{ fontSize: 9, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.05em" }}>{d.dayShort}</div>
+                    <div style={{
+                      width: 26, height: 26, borderRadius: "50%",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      margin: "3px auto 0",
+                      fontSize: 12, fontWeight: 500,
+                      background: d.isToday ? RED : "transparent",
+                      color: d.isToday ? "#fff" : "#374151",
+                    }}>{d.dayNum}</div>
+                  </div>
+                  {/* Eventos del día */}
+                  <div style={{ padding: "6px 4px", display: "flex", flexDirection: "column", gap: 3, minHeight: 40 }}>
+                    {d.events.filter((e: any) => e.isGreen).length === 0 && (
+                      <div style={{ flex: 1 }} />
+                    )}
+                    {d.events.filter((e: any) => e.isGreen).map((ev: any) => (
+                      <div key={ev.id} title={ev.title} style={{
+                        background: "#f0fdf4",
+                        border: "0.5px solid #bbf7d0",
+                        borderLeft: `2px solid #16a34a`,
+                        borderRadius: 4,
+                        padding: "3px 5px",
+                        cursor: "default",
+                      }}>
+                        <div style={{
+                          fontSize: 10, color: "#166534", fontWeight: 500,
+                          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                          lineHeight: 1.3,
+                        }}>{ev.title}</div>
+                        {ev.start?.slice(11, 16) !== "00:00" && (
+                          <div style={{ fontSize: 9, color: "#4ade80", marginTop: 1 }}>{ev.start?.slice(11, 16)}</div>
+                        )}
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
               ))}
-              {weekTotal === 0 && (
-                <div style={{ padding: "24px 16px", textAlign: "center", color: "#9ca3af", fontSize: 13 }}>
-                  Sin reuniones verdes {weekLabel}
-                </div>
-              )}
             </div>
+            {weekTotal === 0 && (
+              <div style={{ padding: "20px 16px", textAlign: "center", color: "#9ca3af", fontSize: 12, borderTop: "0.5px solid #f3f4f6" }}>
+                Sin reuniones comerciales {weekLabel}
+              </div>
+            )}
           </div>
 
           {/* Desglose por tipo */}
