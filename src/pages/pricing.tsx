@@ -18,57 +18,53 @@ function AgentSimulator({ onCheckout }: { onCheckout: (count: number) => void })
   const saving = BASE_PRICE * count - total;
 
   return (
-    <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
-      <div className="px-6 py-5 border-b border-gray-100">
-        <div className="text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Calculá tu precio</div>
-        <div className="text-sm text-gray-500">¿Cuántos agentes tiene tu equipo?</div>
-      </div>
-      <div className="px-6 py-5">
-        {/* Slider */}
-        <div className="flex items-center gap-4 mb-5">
-          <input type="range" min={1} max={30} value={count} onChange={e => setCount(Number(e.target.value))}
-            className="flex-1 accent-red-700" />
-          <div className="w-16 text-center">
-            <span className="font-black text-2xl" style={{ fontFamily: "Georgia, serif", color: RED }}>{count}</span>
-            <div className="text-xs text-gray-400">agentes</div>
-          </div>
+    <div>
+      <div style={{ fontSize: 10, fontWeight: 500, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 4 }}>Teams</div>
+      <div style={{ fontSize: 20, fontWeight: 500, color: "#111827", fontFamily: "Georgia, serif", marginBottom: 4 }}>Para brokers con equipo</div>
+      <div style={{ fontSize: 13, color: "#6b7280", marginBottom: 20 }}>Precio por agente baja al sumar más.</div>
+
+      {/* Slider */}
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+        <input type="range" min={1} max={30} value={count} onChange={e => setCount(Number(e.target.value))}
+          style={{ flex: 1, accentColor: RED }} />
+        <div style={{ textAlign: "center", minWidth: 52 }}>
+          <div style={{ fontSize: 28, fontWeight: 500, fontFamily: "Georgia, serif", color: RED, lineHeight: 1 }}>{count}</div>
+          <div style={{ fontSize: 11, color: "#9ca3af" }}>agentes</div>
         </div>
-
-        {/* Resultado */}
-        <div className="grid grid-cols-2 gap-3 mb-4">
-          <div className="bg-gray-50 rounded-xl p-4 text-center">
-            <div className="text-xs text-gray-400 mb-1">Total por mes</div>
-            <div className="font-black text-2xl" style={{ fontFamily: "Georgia, serif", color: RED }}>{formatPriceARS(total)}</div>
-          </div>
-          <div className="bg-gray-50 rounded-xl p-4 text-center">
-            <div className="text-xs text-gray-400 mb-1">Por agente</div>
-            <div className="font-black text-2xl" style={{ fontFamily: "Georgia, serif", color: RED }}>{formatPriceARS(perAgent)}</div>
-            {saving > 0 && <div className="text-xs text-green-600 font-bold mt-1">Ahorrás {formatPriceARS(saving)}/mes</div>}
-          </div>
-        </div>
-
-        {/* Incentivo */}
-        {nextTier && toNext !== null && (
-          <div className="rounded-xl px-4 py-3 text-sm"
-            style={{ background: toNext === 1 ? "#fffbeb" : "#fff8f8", border: `1px solid ${toNext === 1 ? "#fde68a" : "#fee2e2"}` }}>
-            {toNext === 1
-              ? <span className="font-black text-amber-700">🔥 Con 1 agente más todos bajan a {formatPriceARS(pricePerAgent(BASE_PRICE, nextTier.minAgents))}/agente — pagás lo mismo</span>
-              : <span className="font-bold" style={{ color: RED }}>💡 Faltan {toNext} agentes para -{nextTier.discountPct}% en todo el equipo</span>
-            }
-          </div>
-        )}
-        {!nextTier && (
-          <div className="rounded-xl px-4 py-3 bg-yellow-50 border border-yellow-200 text-sm font-black text-yellow-700 text-center">
-            👑 Máximo descuento — -40% activo
-          </div>
-        )}
-
-        <button onClick={() => onCheckout(count)}
-          className="w-full mt-4 py-3 rounded-xl text-sm font-black text-white hover:opacity-90 transition-all"
-          style={{ background: RED }}>
-          Empezar con {count} agente{count !== 1 ? "s" : ""} — {formatPriceARS(total)}/mes →
-        </button>
       </div>
+
+      {/* Totales */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
+        <div style={{ background: "#f9fafb", borderRadius: 10, padding: "10px 12px", textAlign: "center" }}>
+          <div style={{ fontSize: 11, color: "#9ca3af", marginBottom: 4 }}>Total por mes</div>
+          <div style={{ fontSize: 22, fontWeight: 500, fontFamily: "Georgia, serif", color: RED }}>{formatPriceARS(total)}</div>
+        </div>
+        <div style={{ background: "#f9fafb", borderRadius: 10, padding: "10px 12px", textAlign: "center" }}>
+          <div style={{ fontSize: 11, color: "#9ca3af", marginBottom: 4 }}>Por agente</div>
+          <div style={{ fontSize: 22, fontWeight: 500, fontFamily: "Georgia, serif", color: RED }}>{formatPriceARS(perAgent)}</div>
+          {saving > 0 && <div style={{ fontSize: 11, color: "#16a34a", fontWeight: 500, marginTop: 3 }}>Ahorrás {formatPriceARS(saving)}/mes</div>}
+        </div>
+      </div>
+
+      {/* Incentivo */}
+      {nextTier && toNext !== null && (
+        <div style={{ borderRadius: 10, padding: "10px 14px", fontSize: 12, marginBottom: 14, background: toNext === 1 ? "#FFFBEB" : "#fef2f2", border: `0.5px solid ${toNext === 1 ? "#fcd34d" : "#fecaca"}` }}>
+          {toNext === 1
+            ? <span style={{ color: "#92400e", fontWeight: 500 }}>🔥 Con 1 agente más todos bajan a {formatPriceARS(pricePerAgent(BASE_PRICE, nextTier.minAgents))}/agente</span>
+            : <span style={{ color: "#991b1b", fontWeight: 500 }}>💡 Faltan {toNext} agentes para -{nextTier.discountPct}% en todo el equipo</span>
+          }
+        </div>
+      )}
+      {!nextTier && (
+        <div style={{ background: "#FFFBEB", border: "0.5px solid #fcd34d", borderRadius: 10, padding: "10px 14px", fontSize: 12, color: "#92400e", fontWeight: 500, textAlign: "center", marginBottom: 14 }}>
+          👑 Máximo descuento — -40% activo
+        </div>
+      )}
+
+      <button onClick={() => onCheckout(count)}
+        style={{ width: "100%", background: "#111827", color: "#fff", border: "none", borderRadius: 10, padding: "12px 0", fontSize: 13, fontWeight: 500, cursor: "pointer" }}>
+        Empezar con {count} agente{count !== 1 ? "s" : ""} — {formatPriceARS(total)}/mes →
+      </button>
     </div>
   );
 }
