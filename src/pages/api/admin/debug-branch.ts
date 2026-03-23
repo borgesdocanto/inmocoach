@@ -40,3 +40,4 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     branchId, branches, matchedBranch,
   });
 }
+// Note: also check tokko_properties sample via GET ?mode=props
