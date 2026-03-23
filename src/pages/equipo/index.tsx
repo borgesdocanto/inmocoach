@@ -65,6 +65,8 @@ export default function BrokerDashboard() {
   const router = useRouter();
   const [agents, setAgents] = useState<AgentSummary[]>([]);
   const [overview, setOverview] = useState<TeamOverview | null>(null);
+  const [portfolio, setPortfolio] = useState<{ connected: boolean; agents: any[] } | null>(null);
+  const [portfolioOpen, setPortfolioOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [analyticsLoading, setAnalyticsLoading] = useState(true);
   const [requesterRole, setRequesterRole] = useState<TeamRole | null>(null);
@@ -89,6 +91,11 @@ export default function BrokerDashboard() {
       if (agRes.ok) { const ag = await agRes.json(); setAgencyName(ag.agencyName || ""); }
       const stRes = await fetch("/api/teams/settings");
       if (stRes.ok) { const st = await stRes.json(); setShowTeamLeaders(st.showTeamLeaders ?? true); setShowBroker(st.showBroker ?? true); }
+      // Load portfolio
+      fetch("/api/analytics/team-portfolio")
+        .then(r => r.ok ? r.json() : null)
+        .then(d => { if (d) setPortfolio(d); })
+        .catch(() => {});
     } catch {}
     setLoading(false);
   };
@@ -397,6 +404,74 @@ export default function BrokerDashboard() {
             </div>
           )}
         </div>
+
+        {/* ── CARTERA TOKKO POR AGENTE ── */}
+        {portfolio?.connected && portfolio.agents.length > 0 && (
+          <div style={{ background: "#fff", border: "0.5px solid #e5e7eb", borderRadius: 14, overflow: "hidden", marginTop: 12 }}>
+            <button onClick={() => setPortfolioOpen(o => !o)}
+              style={{ width: "100%", background: "none", border: "none", cursor: "pointer", padding: "14px 16px", display: "flex", alignItems: "center", gap: 10, textAlign: "left" }}>
+              <span style={{ fontSize: 16 }}>🏠</span>
+              <span style={{ fontSize: 13, fontWeight: 500, color: "#111827" }}>Cartera Tokko por agente</span>
+              <span style={{ fontSize: 11, color: "#9ca3af", marginLeft: 4 }}>{portfolio.agents.reduce((s, a) => s + a.total, 0)} propiedades</span>
+              <span style={{ marginLeft: "auto", fontSize: 12, color: "#9ca3af" }}>{portfolioOpen ? "▲" : "▼"}</span>
+            </button>
+            {portfolioOpen && (
+              <div style={{ borderTop: "0.5px solid #f3f4f6" }}>
+                {/* Header */}
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 80px 80px 80px 80px", gap: 8, padding: "8px 16px", background: "#f9fafb", borderBottom: "0.5px solid #f3f4f6" }}>
+                  <div style={{ fontSize: 11, fontWeight: 500, color: "#9ca3af" }}>Agente</div>
+                  <div style={{ fontSize: 11, fontWeight: 500, color: "#9ca3af", textAlign: "center" }}>Total</div>
+                  <div style={{ fontSize: 11, fontWeight: 500, color: "#9ca3af", textAlign: "center" }}>Fichas OK</div>
+                  <div style={{ fontSize: 11, fontWeight: 500, color: "#9ca3af", textAlign: "center" }}>Por mejorar</div>
+                  <div style={{ fontSize: 11, fontWeight: 500, color: "#9ca3af", textAlign: "center" }}>+30 días</div>
+                </div>
+                {portfolio.agents.map((agent: any, i: number) => {
+                  const pct = agent.total > 0 ? Math.round((agent.complete / agent.total) * 100) : 0;
+                  const health = pct === 100 ? "#16a34a" : pct >= 70 ? "#d97706" : "#dc2626";
+                  return (
+                    <div key={agent.email} style={{ display: "grid", gridTemplateColumns: "1fr 80px 80px 80px 80px", gap: 8, padding: "12px 16px", borderBottom: i < portfolio.agents.length - 1 ? "0.5px solid #f9fafb" : "none", alignItems: "center" }}>
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 500, color: "#111827" }}>{agent.name}</div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
+                          <div style={{ flex: 1, height: 3, background: "#f3f4f6", borderRadius: 2, overflow: "hidden" }}>
+                            <div style={{ height: "100%", background: health, borderRadius: 2, width: `${pct}%` }} />
+                          </div>
+                          <span style={{ fontSize: 10, color: health, fontWeight: 500, minWidth: 28 }}>{pct}%</span>
+                        </div>
+                      </div>
+                      <div style={{ textAlign: "center", fontSize: 14, fontWeight: 500, color: "#374151" }}>{agent.total}</div>
+                      <div style={{ textAlign: "center", fontSize: 14, fontWeight: 500, color: "#16a34a" }}>{agent.complete}</div>
+                      <div style={{ textAlign: "center" }}>
+                        {agent.incomplete > 0
+                          ? <span style={{ fontSize: 13, fontWeight: 500, color: "#dc2626", background: "#FEF2F2", borderRadius: 6, padding: "2px 8px" }}>{agent.incomplete}</span>
+                          : <span style={{ fontSize: 13, color: "#9ca3af" }}>—</span>}
+                      </div>
+                      <div style={{ textAlign: "center" }}>
+                        {agent.stale > 0
+                          ? <span style={{ fontSize: 13, fontWeight: 500, color: "#d97706", background: "#FFFBEB", borderRadius: 6, padding: "2px 8px" }}>{agent.stale}</span>
+                          : <span style={{ fontSize: 13, color: "#9ca3af" }}>—</span>}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {portfolio && !portfolio.connected && isOwner && (
+          <div style={{ background: "#fff", border: "0.5px solid #e5e7eb", borderRadius: 14, padding: "16px 20px", marginTop: 12, display: "flex", alignItems: "center", gap: 12 }}>
+            <span style={{ fontSize: 20 }}>🏠</span>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 13, fontWeight: 500, color: "#374151" }}>Conectá Tokko para ver la cartera del equipo</div>
+              <div style={{ fontSize: 12, color: "#9ca3af" }}>Fichas, actualizaciones y estado por agente</div>
+            </div>
+            <button onClick={() => router.push("/tokko-setup")}
+              style={{ background: RED, color: "#fff", border: "none", borderRadius: 8, padding: "7px 14px", fontSize: 12, fontWeight: 500, cursor: "pointer", flexShrink: 0 }}>
+              Conectar →
+            </button>
+          </div>
+        )}
       </div>
     </AppLayout>
   );

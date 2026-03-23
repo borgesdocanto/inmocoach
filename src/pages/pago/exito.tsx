@@ -1,7 +1,7 @@
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
 import Head from "next/head";
-import { CheckCircle2, Users, User } from "lucide-react";
+import { CheckCircle2, Users, User, ArrowRight } from "lucide-react";
 import { calcTeamsTotal, pricePerAgent, getTierForAgents, formatPriceARS } from "../../lib/pricing";
 
 const BASE_PRICE = 10500;
@@ -15,108 +15,111 @@ export default function PagoExito() {
   const total = calcTeamsTotal(BASE_PRICE, agentCount);
   const perAgent = pricePerAgent(BASE_PRICE, agentCount);
   const tier = getTierForAgents(agentCount);
-  const [seconds, setSeconds] = useState(15);
   const [planActivated, setPlanActivated] = useState(false);
 
-  // Polling: esperar que el webhook de MP active el plan antes de redirigir
   useEffect(() => {
     let attempts = 0;
-    const maxAttempts = 10;
     const poll = async () => {
       try {
         const res = await fetch("/api/subscription");
         const data = await res.json();
         if (data.subscription?.plan !== "free") {
           setPlanActivated(true);
-          setTimeout(() => router.push("/"), 1500);
+          setTimeout(() => router.push("/"), 2000);
           return;
         }
       } catch {}
       attempts++;
-      if (attempts < maxAttempts) setTimeout(poll, 1500);
-      else router.push("/"); // fallback
+      if (attempts < 10) setTimeout(poll, 1500);
+      else router.push("/");
     };
-    const timeout = setTimeout(poll, 2000); // primer check a los 2s
-    return () => clearTimeout(timeout);
+    setTimeout(poll, 2000);
   }, [router]);
 
-  // Countdown visual
-  useEffect(() => {
-    if (planActivated) return;
-    const interval = setInterval(() => {
-      setSeconds(s => { if (s <= 1) clearInterval(interval); return Math.max(0, s - 1); });
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [planActivated]);
-
   return (
-    <div className="min-h-screen flex items-center justify-center px-4"
-      style={{ background: "#fafafa", fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" }}>
+    <div style={{ minHeight: "100vh", background: "#f4f5f7", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" }}>
       <Head><title>Suscripción activada — InmoCoach</title></Head>
 
-      <div className="bg-white rounded-3xl p-10 text-center max-w-sm w-full"
-        style={{ border: "1px solid #f3f4f6", boxShadow: "0 4px 24px rgba(0,0,0,0.06)" }}>
+      <div style={{ maxWidth: 440, width: "100%" }}>
 
-        {/* Ícono */}
-        <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-5"
-          style={{ background: "#f0fdf4" }}>
-          <CheckCircle2 size={32} color="#16a34a" />
+        {/* Header */}
+        <div style={{ textAlign: "center", marginBottom: 24 }}>
+          <div style={{ fontSize: 22, fontWeight: 500, fontFamily: "Georgia, serif", color: "#111827" }}>
+            Inmo<span style={{ color: RED }}>Coach</span>
+          </div>
         </div>
 
-        {/* Título */}
-        <h1 className="font-black text-2xl text-gray-900 mb-1"
-          style={{ fontFamily: "Georgia, serif" }}>
-          ¡Suscripción activada!
-        </h1>
+        {/* Card principal */}
+        <div style={{ background: "#fff", border: "0.5px solid #e5e7eb", borderRadius: 16, overflow: "hidden", marginBottom: 12 }}>
 
-        {/* Detalle */}
-        <div className="mt-5 mb-6 rounded-2xl p-4" style={{ background: "#fafafa", border: "1px solid #f3f4f6" }}>
-          {isTeam ? (
-            <>
-              <div className="flex items-center justify-center gap-2 mb-2">
-                <Users size={15} color={RED} />
-                <span className="font-black text-sm" style={{ color: RED }}>{tier.label}</span>
-              </div>
-              <div className="font-black text-3xl" style={{ fontFamily: "Georgia, serif", color: "#111", lineHeight: 1 }}>
-                {formatPriceARS(total)}
-              </div>
-              <div className="text-xs text-gray-400 mt-1">/mes · {agentCount} agentes</div>
-              {tier.discountPct > 0 && (
-                <div className="mt-2 text-xs font-black text-green-600">
-                  {formatPriceARS(perAgent)}/agente · -{tier.discountPct}% aplicado
+          {/* Success header */}
+          <div style={{ background: "#111827", padding: "28px 24px", textAlign: "center" }}>
+            <div style={{ width: 56, height: 56, borderRadius: "50%", background: "rgba(22,163,74,0.2)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
+              <CheckCircle2 size={28} color="#4ade80" />
+            </div>
+            <div style={{ fontSize: 22, fontWeight: 500, color: "#fff", fontFamily: "Georgia, serif", marginBottom: 4 }}>
+              ¡Suscripción activada!
+            </div>
+            <div style={{ fontSize: 13, color: "rgba(255,255,255,0.45)" }}>
+              {planActivated ? "Plan activado correctamente" : "Activando tu plan..."}
+            </div>
+          </div>
+
+          {/* Plan detail */}
+          <div style={{ padding: "20px 24px", borderBottom: "0.5px solid #f3f4f6" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <div style={{ width: 40, height: 40, borderRadius: 10, background: "#fef2f2", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  {isTeam ? <Users size={18} color={RED} /> : <User size={18} color={RED} />}
                 </div>
-              )}
-            </>
-          ) : (
-            <>
-              <div className="flex items-center justify-center gap-2 mb-2">
-                <User size={15} color={RED} />
-                <span className="font-black text-sm" style={{ color: RED }}>Plan Individual</span>
+                <div>
+                  <div style={{ fontSize: 15, fontWeight: 500, color: "#111827" }}>
+                    {isTeam ? `${tier.label}` : "Plan Individual"}
+                  </div>
+                  <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 1 }}>
+                    {isTeam ? `${agentCount} agentes` : "1 agente"}
+                    {isTeam && tier.discountPct > 0 && <span style={{ marginLeft: 6, color: "#16a34a" }}>· -{tier.discountPct}%</span>}
+                  </div>
+                </div>
               </div>
-              <div className="font-black text-3xl" style={{ fontFamily: "Georgia, serif", color: "#111", lineHeight: 1 }}>
-                {formatPriceARS(BASE_PRICE)}
+              <div style={{ textAlign: "right" }}>
+                <div style={{ fontSize: 24, fontWeight: 500, fontFamily: "Georgia, serif", color: RED, lineHeight: 1 }}>
+                  {formatPriceARS(total)}
+                </div>
+                <div style={{ fontSize: 11, color: "#9ca3af" }}>/mes</div>
               </div>
-              <div className="text-xs text-gray-400 mt-1">/mes</div>
-            </>
-          )}
+            </div>
+            {isTeam && (
+              <div style={{ marginTop: 12, fontSize: 12, color: "#6b7280", background: "#f9fafb", borderRadius: 8, padding: "8px 12px" }}>
+                {formatPriceARS(perAgent)}/agente · Podés invitar agentes desde Mi cuenta
+              </div>
+            )}
+          </div>
+
+          {/* Next steps */}
+          <div style={{ padding: "16px 24px" }}>
+            <div style={{ fontSize: 12, fontWeight: 500, color: "#374151", marginBottom: 12 }}>Próximos pasos</div>
+            {[
+              isTeam ? "Invitá a tus agentes desde Mi cuenta → Invitar agente" : "Sincronizá tu Google Calendar desde el dashboard",
+              "Conectá tu API de Tokko Broker para ver el estado de tu cartera",
+              "El Inmo Coach genera tu análisis semanal cada lunes",
+            ].map((step, i) => (
+              <div key={i} style={{ display: "flex", gap: 10, marginBottom: i < 2 ? 8 : 0 }}>
+                <span style={{ color: "#16a34a", fontSize: 13, flexShrink: 0, marginTop: 1 }}>✓</span>
+                <span style={{ fontSize: 12, color: "#6b7280", lineHeight: 1.5 }}>{step}</span>
+              </div>
+            ))}
+          </div>
         </div>
 
-        {isTeam && (
-          <p className="text-xs text-gray-400 mb-5 leading-relaxed">
-            Podés invitar agentes desde el dashboard del equipo. El precio se actualiza automáticamente cuando sumás más.
-          </p>
-        )}
-
-        {/* Botones */}
         <button onClick={() => router.push("/")}
-          className="w-full py-3 rounded-xl font-black text-white text-sm hover:opacity-90 transition-all"
-          style={{ background: RED }}>
-          Ir al dashboard →
+          style={{ width: "100%", background: RED, color: "#fff", border: "none", borderRadius: 12, padding: "14px 0", fontSize: 14, fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+          Ir al dashboard <ArrowRight size={16} />
         </button>
 
-        <p className="text-xs text-gray-300 mt-4">
-          {planActivated ? "¡Listo! Redirigiendo..." : `Activando tu plan${seconds > 0 ? ` · ${seconds}s` : "..."}` }
-        </p>
+        <div style={{ textAlign: "center", fontSize: 12, color: "#d1d5db", marginTop: 12 }}>
+          {planActivated ? "¡Listo! Redirigiendo automáticamente..." : "Activando tu plan..."}
+        </div>
       </div>
     </div>
   );
