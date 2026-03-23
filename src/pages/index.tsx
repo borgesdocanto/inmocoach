@@ -1112,7 +1112,7 @@ export default function HomePage() {
 
                 {/* ── 3. RACHA + RANGO ── */}
                 <div style={{ background: "#fff", border: "0.5px solid #e5e7eb", borderRadius: 14, overflow: "hidden", cursor: "pointer" }}>
-                  <div style={{ padding: "14px 16px 10px", borderBottom: "0.5px solid #f9fafb" }}>
+                  <div style={{ padding: "14px 16px 10px", borderBottom: "0.5px solid #f3f4f6" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                         <span style={{ fontSize: 10, fontWeight: 500, color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.07em" }}>Racha y rango</span>
@@ -1122,31 +1122,73 @@ export default function HomePage() {
                     </div>
                   </div>
                   <div style={{ padding: "12px 16px 14px" }}>
+
+                    {/* Racha */}
                     {data.streak !== undefined && (
-                      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
                         <div>
                           <div style={{ display: "flex", alignItems: "baseline", gap: 5 }}>
                             <div style={{ fontSize: 44, fontWeight: 500, fontFamily: "Georgia, serif", color: data.streak.current > 0 ? "#111827" : "#9ca3af", lineHeight: 1 }}>{data.streak.current}</div>
                             <div style={{ fontSize: 13, color: "#6b7280" }}>días</div>
                           </div>
-                          <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 2 }}>Récord: {data.streak.best} días 🏆</div>
+                          <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 2 }}>Récord personal: {data.streak.best} días 🏆</div>
                         </div>
-                        {data.streak.current > 0 && (
-                          <div style={{ fontSize: 32, lineHeight: 1 }}>
-                            {data.streak.current >= 20 ? "🔥" : data.streak.current >= 10 ? "⚡" : "✦"}
+                        <div style={{ textAlign: "center" }}>
+                          <div style={{ fontSize: 36, lineHeight: 1 }}>
+                            {data.streak.current >= 20 ? "🔥" : data.streak.current >= 10 ? "⚡" : data.streak.current > 0 ? "✦" : "💤"}
                           </div>
-                        )}
+                          <div style={{ fontSize: 10, color: "#9ca3af", marginTop: 4 }}>
+                            {data.streak.current >= 20 ? "En llamas" : data.streak.current >= 10 ? "Muy activo" : data.streak.current > 0 ? "Activo" : "Sin racha"}
+                          </div>
+                        </div>
                       </div>
                     )}
+
+                    {/* Protectores */}
+                    {data.streak !== undefined && (
+                      <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
+                        {Array.from({ length: 3 }).map((_, i) => (
+                          <div key={i} title="Escudo protector — te salva de perder la racha un día sin actividad" style={{
+                            width: 28, height: 28, borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14,
+                            background: i < (data.streak as any).shields ? "#EEF2FF" : "#f3f4f6",
+                            border: `0.5px solid ${i < (data.streak as any).shields ? "#c7d2fe" : "#e5e7eb"}`,
+                          }}>
+                            {i < (data.streak as any).shields ? "🛡" : "·"}
+                          </div>
+                        ))}
+                        <span style={{ fontSize: 11, color: "#9ca3af", alignSelf: "center", marginLeft: 2 }}>protectores</span>
+                      </div>
+                    )}
+
+                    {/* Rango */}
                     {data.rankStats && (
-                      <div style={{ marginTop: 10 }}>
-                        <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#f9fafb", border: "0.5px solid #e5e7eb", borderRadius: 8, padding: "5px 10px" }}>
-                          <span style={{ fontSize: 18 }}>{data.rankStats.currentRank?.icon ?? "🏠"}</span>
-                          <span style={{ fontSize: 13, fontWeight: 500, color: "#374151" }}>{data.rankStats.currentRank?.label ?? "Agente"}</span>
+                      <div style={{ background: "#f9fafb", borderRadius: 10, padding: "10px 12px" }}>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <span style={{ fontSize: 22 }}>{data.rankStats.currentRank?.icon ?? "🏠"}</span>
+                            <div>
+                              <div style={{ fontSize: 13, fontWeight: 500, color: "#111827" }}>{data.rankStats.currentRank?.label ?? "Agente"}</div>
+                              <div style={{ fontSize: 10, color: "#9ca3af" }}>rango actual</div>
+                            </div>
+                          </div>
+                          {data.rankStats.nextRank && (
+                            <div style={{ textAlign: "right" }}>
+                              <div style={{ fontSize: 11, color: "#9ca3af" }}>próximo</div>
+                              <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 2 }}>
+                                <span style={{ fontSize: 14 }}>{data.rankStats.nextRank.icon}</span>
+                                <span style={{ fontSize: 12, color: "#374151", fontWeight: 500 }}>{data.rankStats.nextRank.label}</span>
+                              </div>
+                            </div>
+                          )}
                         </div>
                         {data.rankStats.nextRank && (
-                          <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 6 }}>
-                            Próximo: <span style={{ color: "#374151" }}>{data.rankStats.nextRank.label}</span>
+                          <div style={{ marginTop: 8 }}>
+                            <div style={{ height: 3, background: "#e5e7eb", borderRadius: 2, overflow: "hidden" }}>
+                              <div style={{ height: "100%", background: "#6366f1", borderRadius: 2, width: `${Math.min(100, (data.rankStats as any).progressPct ?? 40)}%` }} />
+                            </div>
+                            <div style={{ fontSize: 10, color: "#9ca3af", marginTop: 3 }}>
+                              {(data.rankStats as any).weeksAtCurrentIAC ?? 0} sem. en objetivo · necesitás {(data.rankStats as any).weeksToNext ?? "?"} más
+                            </div>
                           </div>
                         )}
                       </div>
