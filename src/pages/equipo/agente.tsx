@@ -420,29 +420,46 @@ export default function AgentDashboard() {
           {/* Agent header */}
           <div style={{ background: "#111827", borderRadius: 14, padding: "20px 24px", marginBottom: 20, display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
             {data.user.image
-              ? <img src={data.user.image} alt="" style={{ width: 56, height: 56, borderRadius: "50%", flexShrink: 0, border: `3px solid ${iacCol}` }} />
-              : <div style={{ width: 56, height: 56, borderRadius: "50%", background: RED, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, fontWeight: 500, color: "#fff", flexShrink: 0 }}>
+              ? <img src={data.user.image} alt="" style={{ width: 52, height: 52, borderRadius: "50%", flexShrink: 0, border: `2px solid ${iacCol}` }} />
+              : <div style={{ width: 52, height: 52, borderRadius: "50%", background: RED, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, fontWeight: 500, color: "#fff", flexShrink: 0 }}>
                   {(data.user.name || "?")[0].toUpperCase()}
                 </div>
             }
+            {/* Nombre + mail + racha + rango */}
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 22, fontWeight: 500, color: "#fff", fontFamily: "Georgia, serif" }}>{data.user.name}</div>
+              <div style={{ fontSize: 20, fontWeight: 500, color: "#fff", fontFamily: "Georgia, serif" }}>{data.user.name}</div>
               <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>{data.user.email}</div>
+              <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
+                {data.streak && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 5, background: "rgba(255,255,255,0.08)", borderRadius: 8, padding: "4px 10px" }}>
+                    <span style={{ fontSize: 14 }}>{data.streak.current >= 20 ? "🔥" : data.streak.current >= 10 ? "⚡" : data.streak.current > 0 ? "✦" : "💤"}</span>
+                    <span style={{ fontSize: 12, color: "#fff", fontWeight: 500 }}>{data.streak.current}d</span>
+                    <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>racha</span>
+                  </div>
+                )}
+                {data.rankStats?.currentRank && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 5, background: "rgba(255,255,255,0.08)", borderRadius: 8, padding: "4px 10px" }}>
+                    <span style={{ fontSize: 14 }}>{data.rankStats.currentRank.icon}</span>
+                    <span style={{ fontSize: 12, color: "#fff", fontWeight: 500 }}>{data.rankStats.currentRank.label}</span>
+                  </div>
+                )}
+              </div>
             </div>
-            {/* IAC badge */}
-            <div style={{ textAlign: "right" }}>
-              <div style={{ fontSize: 44, fontWeight: 500, fontFamily: "Georgia, serif", color: iacCol, lineHeight: 1 }}>{iac}%</div>
-              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>IAC · {days}d</div>
-            </div>
-            {/* Days selector */}
-            <div style={{ display: "flex", background: "rgba(255,255,255,0.08)", borderRadius: 9, padding: 3, gap: 2 }}>
-              {([7, 14, 30, 60, 90] as const).map(d => (
-                <button key={d} onClick={() => setDays(d)} style={{
-                  background: days === d ? "rgba(255,255,255,0.15)" : "transparent",
-                  color: days === d ? "#fff" : "rgba(255,255,255,0.35)",
-                  border: "none", borderRadius: 7, padding: "4px 10px", fontSize: 11, fontWeight: 500, cursor: "pointer"
-                }}>{d}d</button>
-              ))}
+            {/* IAC + days selector */}
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8, flexShrink: 0 }}>
+              <div style={{ textAlign: "right" }}>
+                <div style={{ fontSize: 44, fontWeight: 500, fontFamily: "Georgia, serif", color: iacCol, lineHeight: 1 }}>{iac}%</div>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>IAC · {days}d</div>
+              </div>
+              <div style={{ display: "flex", background: "rgba(255,255,255,0.08)", borderRadius: 9, padding: 3, gap: 2 }}>
+                {([7, 14, 30, 60, 90] as const).map(d => (
+                  <button key={d} onClick={() => setDays(d)} style={{
+                    background: days === d ? "rgba(255,255,255,0.15)" : "transparent",
+                    color: days === d ? "#fff" : "rgba(255,255,255,0.35)",
+                    border: "none", borderRadius: 7, padding: "4px 10px", fontSize: 11, fontWeight: 500, cursor: "pointer"
+                  }}>{d}d</button>
+                ))}
+              </div>
             </div>
           </div>
 
@@ -478,43 +495,10 @@ export default function AgentDashboard() {
               </ResponsiveContainer>
             </div>
 
-            {/* Racha + rango */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              {data.streak && (
-                <div style={{ background: "#fff", border: "0.5px solid #e5e7eb", borderRadius: 14, padding: "14px 16px" }}>
-                  <div style={{ fontSize: 10, fontWeight: 500, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 8 }}>Racha</div>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                    <div style={{ display: "flex", alignItems: "baseline", gap: 5 }}>
-                      <div style={{ fontSize: 36, fontWeight: 500, fontFamily: "Georgia, serif", color: "#111827", lineHeight: 1 }}>{data.streak.current}</div>
-                      <div style={{ fontSize: 13, color: "#6b7280" }}>días</div>
-                    </div>
-                    <div style={{ fontSize: 28 }}>{data.streak.current >= 20 ? "🔥" : data.streak.current >= 10 ? "⚡" : data.streak.current > 0 ? "✦" : "💤"}</div>
-                  </div>
-                  <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 4 }}>Récord: {data.streak.best} días 🏆</div>
-                </div>
-              )}
-              {data.rankStats && (
-                <div style={{ background: "#fff", border: "0.5px solid #e5e7eb", borderRadius: 14, padding: "14px 16px", flex: 1 }}>
-                  <div style={{ fontSize: 10, fontWeight: 500, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 8 }}>Rango</div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <span style={{ fontSize: 28 }}>{data.rankStats.currentRank?.icon ?? "🏠"}</span>
-                    <div>
-                      <div style={{ fontSize: 15, fontWeight: 500, color: "#111827" }}>{data.rankStats.currentRank?.label ?? "Agente"}</div>
-                      {data.rankStats.nextRank && (
-                        <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 2 }}>
-                          Próximo: {data.rankStats.nextRank.icon} {data.rankStats.nextRank.label}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
+            {/* Cartera Tokko en la segunda columna */}
+            <div>
+              <TokkoPortfolio agentEmail={email as string} />
             </div>
-          </div>
-
-          {/* Cartera Tokko */}
-          <div style={{ marginBottom: 16 }}>
-            <TokkoPortfolio agentEmail={email as string} />
           </div>
 
           {/* Calendario */}

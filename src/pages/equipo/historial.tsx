@@ -2,12 +2,12 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
 import Head from "next/head";
-import Link from "next/link";
+import AppLayout from "../../components/AppLayout";
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, ReferenceLine, Cell
 } from "recharts";
-import { ArrowLeft, TrendingUp, TrendingDown, Minus, Award, Flame, Target, Calendar } from "lucide-react";
+import { TrendingUp, TrendingDown, Minus, Flame } from "lucide-react";
 
 const RED = "#aa0000";
 const GREEN = "#16a34a";
@@ -119,218 +119,201 @@ export default function AgentHistoryPage() {
   const heatmapWeeks = weeklyStats.slice(-12);
 
   return (
-    <div className="min-h-screen" style={{ background: "#f4f4f5", fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" }}>
+    <AppLayout greeting={`Historial de ${agent.name.split(" ")[0]}`}>
       <Head><title>{agent.name} — Historial · InmoCoach</title></Head>
-      <div className="h-1 w-full" style={{ background: RED }} />
 
-      {/* Header */}
-      <header className="bg-white border-b border-gray-100 sticky top-0 z-40">
-        <div className="max-w-5xl mx-auto px-5 py-3 flex items-center gap-3">
-          <Link href="/equipo" className="flex items-center gap-1.5 text-xs font-semibold text-gray-400 hover:text-gray-700 transition-colors">
-            <ArrowLeft size={13} /> Equipo
-          </Link>
-          <div className="flex items-center gap-2 ml-2">
-            {agent.image
-              ? <img src={agent.image} alt="" className="w-7 h-7 rounded-full" />
-              : <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-black" style={{ background: RED }}>{agent.name[0]}</div>}
-            <span className="font-bold text-sm text-gray-800">{agent.name}</span>
-            {currentRank && <span className="text-base">{currentRank.icon}</span>}
-          </div>
-          <div className="ml-auto text-xs text-gray-400 font-medium">{weeklyStats.length} semanas de historial</div>
-        </div>
-      </header>
+      <style>{`
+        .hs-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        .hs-kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+        .hs-logros { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+        .hs-heatmap { display: grid; grid-template-columns: repeat(12, 1fr); gap: 6px; }
+        @media (max-width: 900px) { .hs-kpis { grid-template-columns: repeat(2, 1fr); } .hs-logros { grid-template-columns: 1fr 1fr; } }
+        @media (max-width: 640px) { .hs-grid { grid-template-columns: 1fr; } .hs-heatmap { grid-template-columns: repeat(6, 1fr); } .hs-logros { grid-template-columns: 1fr; } }
+      `}</style>
 
-      <main className="max-w-5xl mx-auto px-5 py-6 space-y-5">
+      <div style={{ padding: "24px 24px 60px" }}>
 
-        {/* Hero — fondo oscuro con métricas clave */}
-        <div className="rounded-2xl overflow-hidden" style={{ background: "linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)" }}>
-          <div className="px-6 pt-6 pb-5">
-            <div className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Evolución histórica</div>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-2">
-              <div>
-                <div className="text-xs text-gray-400 mb-1">IAC promedio reciente</div>
-                <div className="text-4xl font-black" style={{ fontFamily: "Georgia, serif", color: summary.avg4 >= 100 ? "#4ade80" : summary.avg4 >= 67 ? "#fbbf24" : "#f87171" }}>
-                  {summary.avg4}%
-                </div>
-                <div className="mt-1"><TrendBadge value={summary.trend} /></div>
+        {/* Agent header */}
+        <div style={{ background: "#111827", borderRadius: 14, padding: "20px 24px", marginBottom: 20, display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+          {agent.image
+            ? <img src={agent.image} alt="" style={{ width: 52, height: 52, borderRadius: "50%", flexShrink: 0, border: `2px solid ${iacColor(summary.avg4)}` }} />
+            : <div style={{ width: 52, height: 52, borderRadius: "50%", background: RED, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, fontWeight: 500, color: "#fff", flexShrink: 0 }}>
+                {agent.name[0]}
               </div>
-              <div>
-                <div className="text-xs text-gray-400 mb-1">Consistencia</div>
-                <div className="text-4xl font-black text-white" style={{ fontFamily: "Georgia, serif" }}>{summary.consistency}%</div>
-                <div className="text-xs text-gray-500 mt-1">de sem. activas (últimas 12)</div>
-              </div>
-              <div>
-                <div className="text-xs text-gray-400 mb-1">Racha activa</div>
-                <div className="text-4xl font-black text-white" style={{ fontFamily: "Georgia, serif" }}>{summary.activeStreak}</div>
-                <div className="text-xs text-gray-500 mt-1">semanas consecutivas</div>
-              </div>
-              <div>
-                <div className="text-xs text-gray-400 mb-1">Mejor semana</div>
-                <div className="text-4xl font-black text-white" style={{ fontFamily: "Georgia, serif" }}>
-                  {summary.bestWeek?.green_total ?? 0}
-                </div>
-                <div className="text-xs text-gray-500 mt-1">
-                  {summary.bestWeek ? `reuniones (${weekLabel(summary.bestWeek.week_start)})` : "sin datos"}
-                </div>
-              </div>
+          }
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 20, fontWeight: 500, color: "#fff", fontFamily: "Georgia, serif" }}>{agent.name}</div>
+            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>
+              {weeklyStats.length} semanas de historial · {weeklyStats.filter(w => w.iac > 0).length} activas
             </div>
           </div>
-
-          {/* Rango actual + próximo */}
           {currentRank && (
-            <div className="px-6 pb-5 flex items-center gap-4 flex-wrap">
-              <div className="flex items-center gap-2 bg-white/10 rounded-xl px-4 py-2">
-                <span className="text-2xl">{currentRank.icon}</span>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <div style={{ background: "rgba(255,255,255,0.08)", borderRadius: 10, padding: "8px 14px", display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ fontSize: 22 }}>{currentRank.icon}</span>
                 <div>
-                  <div className="text-xs text-gray-400">Rango actual</div>
-                  <div className="text-sm font-black text-white">{currentRank.label}</div>
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)" }}>Rango actual</div>
+                  <div style={{ fontSize: 13, fontWeight: 500, color: "#fff" }}>{currentRank.label}</div>
                 </div>
               </div>
               {nextRank && (
-                <>
-                  <span className="text-gray-600">→</span>
-                  <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-4 py-2">
-                    <span className="text-2xl" style={{ filter: "grayscale(0.5)" }}>{nextRank.icon}</span>
-                    <div>
-                      <div className="text-xs text-gray-500">Próximo</div>
-                      <div className="text-sm font-bold text-gray-300">{nextRank.label} — IAC ≥ {nextRank.min_iac_up}%</div>
-                    </div>
+                <div style={{ background: "rgba(255,255,255,0.04)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "8px 14px", display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ fontSize: 22, opacity: 0.5 }}>{nextRank.icon}</span>
+                  <div>
+                    <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)" }}>Próximo</div>
+                    <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>{nextRank.label}</div>
                   </div>
-                </>
+                </div>
               )}
             </div>
           )}
         </div>
 
-        {/* Gráfico principal */}
-        <div className="bg-white rounded-2xl border border-gray-100 p-6">
-          <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
-            <div>
-              <div className="text-sm font-black text-gray-800">Tendencia semanal</div>
-              <div className="text-xs text-gray-400 mt-0.5">Últimas {weeklyStats.length} semanas</div>
+        {/* KPIs */}
+        <div className="hs-kpis" style={{ marginBottom: 16 }}>
+          {[
+            { label: "IAC promedio reciente", value: `${summary.avg4}%`, color: iacColor(summary.avg4), sub: <TrendBadge value={summary.trend} /> },
+            { label: "Consistencia", value: `${summary.consistency}%`, color: "#374151", sub: "sem. activas (últ. 12)" },
+            { label: "Racha activa", value: summary.activeStreak, color: "#374151", sub: "semanas consecutivas" },
+            { label: "Mejor semana", value: summary.bestWeek?.green_total ?? 0, color: "#16a34a", sub: summary.bestWeek ? `sem. ${weekLabel(summary.bestWeek.week_start)}` : "sin datos" },
+          ].map((k, i) => (
+            <div key={i} style={{ background: "#fff", border: `0.5px solid ${k.color}20`, borderTop: `3px solid ${k.color}`, borderRadius: "0 0 12px 12px", padding: 16 }}>
+              <div style={{ fontSize: 10, fontWeight: 500, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 8 }}>{k.label}</div>
+              <div style={{ fontSize: 32, fontWeight: 500, fontFamily: "Georgia, serif", color: k.color, lineHeight: 1 }}>{k.value}</div>
+              <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 6 }}>{k.sub}</div>
             </div>
-            <div className="flex gap-1">
-              <button onClick={() => setView("iac")}
-                className="text-xs font-bold px-3 py-1.5 rounded-xl transition-all"
-                style={{ background: view === "iac" ? RED : "#f3f4f6", color: view === "iac" ? "white" : "#9ca3af" }}>
-                IAC %
-              </button>
-              <button onClick={() => setView("greens")}
-                className="text-xs font-bold px-3 py-1.5 rounded-xl transition-all"
-                style={{ background: view === "greens" ? RED : "#f3f4f6", color: view === "greens" ? "white" : "#9ca3af" }}>
-                Reuniones
-              </button>
+          ))}
+        </div>
+
+        {/* Gráfico principal */}
+        <div style={{ background: "#fff", border: "0.5px solid #e5e7eb", borderRadius: 14, padding: 20, marginBottom: 16 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, flexWrap: "wrap", gap: 8 }}>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 500, color: "#374151" }}>Tendencia semanal</div>
+              <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 2 }}>Últimas {weeklyStats.length} semanas</div>
+            </div>
+            <div style={{ display: "flex", gap: 4 }}>
+              {(["iac", "greens"] as const).map(v => (
+                <button key={v} onClick={() => setView(v)} style={{
+                  fontSize: 11, fontWeight: 500, background: view === v ? "#111827" : "#f3f4f6",
+                  color: view === v ? "#fff" : "#9ca3af", border: "none", borderRadius: 7, padding: "5px 12px", cursor: "pointer"
+                }}>{v === "iac" ? "IAC %" : "Reuniones"}</button>
+              ))}
             </div>
           </div>
 
-          <ResponsiveContainer width="100%" height={220}>
+          <ResponsiveContainer width="100%" height={200}>
             {view === "iac" ? (
               <LineChart data={chartData} margin={{ top: 5, right: 5, bottom: 5, left: -20 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
-                <XAxis dataKey="label" tick={{ fontSize: 10, fill: "#d1d5db", fontWeight: 600 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 10, fill: "#d1d5db" }} axisLine={false} tickLine={false} domain={[0, Math.max(120, ...chartData.map(d => d.iac))]} />
+                <XAxis dataKey="label" tick={{ fontSize: 9, fill: "#d1d5db" }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 9, fill: "#d1d5db" }} axisLine={false} tickLine={false} domain={[0, Math.max(120, ...chartData.map(d => d.iac))]} />
                 <Tooltip content={<CustomTooltip weeklyGoal={weeklyGoal} />} />
-                <ReferenceLine y={100} stroke="#16a34a" strokeDasharray="4 4" strokeWidth={1.5} label={{ value: "100%", position: "right", fontSize: 10, fill: "#16a34a" }} />
-                <ReferenceLine y={67} stroke="#d97706" strokeDasharray="4 4" strokeWidth={1} />
+                <ReferenceLine y={100} stroke="#16a34a" strokeDasharray="4 4" strokeWidth={1.5} />
+                <ReferenceLine y={67} stroke="#d97706" strokeDasharray="3 3" strokeWidth={1} />
                 <Line type="monotone" dataKey="iac" stroke={RED} strokeWidth={2.5}
-                  dot={(props: any) => {
-                    const { cx, cy, payload } = props;
-                    return <circle key={payload.week} cx={cx} cy={cy} r={4} fill={iacColor(payload.iac)} stroke="white" strokeWidth={2} />;
-                  }}
+                  dot={(props: any) => <circle key={props.payload.week} cx={props.cx} cy={props.cy} r={4} fill={iacColor(props.payload.iac)} stroke="white" strokeWidth={2} />}
                   activeDot={{ r: 6 }} />
               </LineChart>
             ) : (
               <BarChart data={chartData} margin={{ top: 5, right: 5, bottom: 5, left: -20 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
-                <XAxis dataKey="label" tick={{ fontSize: 10, fill: "#d1d5db", fontWeight: 600 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 10, fill: "#d1d5db" }} axisLine={false} tickLine={false} />
+                <XAxis dataKey="label" tick={{ fontSize: 9, fill: "#d1d5db" }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 9, fill: "#d1d5db" }} axisLine={false} tickLine={false} />
                 <Tooltip content={<CustomTooltip weeklyGoal={weeklyGoal} />} />
-                <ReferenceLine y={weeklyGoal} stroke="#16a34a" strokeDasharray="4 4" strokeWidth={1.5} label={{ value: `Meta ${weeklyGoal}`, position: "right", fontSize: 10, fill: "#16a34a" }} />
+                <ReferenceLine y={weeklyGoal} stroke="#16a34a" strokeDasharray="4 4" strokeWidth={1.5} />
                 <Bar dataKey="greens" radius={[4, 4, 0, 0]}>
                   {chartData.map((entry, i) => (
-                    <Cell key={i} fill={entry.greens >= weeklyGoal ? GREEN : entry.greens >= weeklyGoal * 0.67 ? "#d97706" : entry.greens > 0 ? RED : "#e5e7eb"} />
+                    <Cell key={i} fill={entry.greens >= weeklyGoal ? "#16a34a" : entry.greens >= weeklyGoal * 0.67 ? "#d97706" : entry.greens > 0 ? RED : "#e5e7eb"} />
                   ))}
                 </Bar>
               </BarChart>
             )}
           </ResponsiveContainer>
 
-          {/* Leyenda */}
-          <div className="flex items-center gap-4 mt-3 flex-wrap">
+          <div style={{ display: "flex", gap: 14, marginTop: 10, flexWrap: "wrap" }}>
             {[["#16a34a", "IAC ≥ 100%"], ["#d97706", "IAC 67–99%"], [RED, "IAC < 67%"], ["#e5e7eb", "Sin actividad"]].map(([color, label]) => (
-              <div key={label} className="flex items-center gap-1.5">
-                <div className="w-2.5 h-2.5 rounded-full" style={{ background: color }} />
-                <span className="text-xs text-gray-400">{label}</span>
+              <div key={label} style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                <div style={{ width: 8, height: 8, borderRadius: "50%", background: color }} />
+                <span style={{ fontSize: 11, color: "#9ca3af" }}>{label}</span>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Heatmap de últimas 12 semanas */}
-        <div className="bg-white rounded-2xl border border-gray-100 p-6">
-          <div className="text-sm font-black text-gray-800 mb-1">Actividad — últimas 12 semanas</div>
-          <div className="text-xs text-gray-400 mb-4">Cada celda es una semana. El color indica el nivel de IAC.</div>
-          <div className="grid grid-cols-6 sm:grid-cols-12 gap-2">
+        {/* Heatmap */}
+        <div style={{ background: "#fff", border: "0.5px solid #e5e7eb", borderRadius: 14, padding: 20, marginBottom: 16 }}>
+          <div style={{ fontSize: 13, fontWeight: 500, color: "#374151", marginBottom: 4 }}>Actividad — últimas 12 semanas</div>
+          <div style={{ fontSize: 11, color: "#9ca3af", marginBottom: 14 }}>Cada celda es una semana. El color indica el nivel de IAC.</div>
+          <div className="hs-heatmap">
             {Array.from({ length: 12 }).map((_, i) => {
               const week = heatmapWeeks[i];
               const isEmpty = !week || week.iac === 0;
               const color = isEmpty ? "#f3f4f6" : iacColor(week.iac);
               const label = week ? `Sem. ${weekLabel(week.week_start)}: ${week.iac}% IAC · ${week.green_total} reuniones` : "Sin datos";
               return (
-                <div key={i} title={label}
-                  className="aspect-square rounded-xl flex flex-col items-center justify-center cursor-default transition-transform hover:scale-110"
-                  style={{ background: color }}>
+                <div key={i} title={label} style={{ aspectRatio: "1", borderRadius: 8, background: color, display: "flex", alignItems: "center", justifyContent: "center", cursor: "default" }}>
                   {week && week.iac > 0 && (
-                    <span className="text-white font-black" style={{ fontSize: 11 }}>{week.iac}%</span>
+                    <span style={{ color: "#fff", fontSize: 10, fontWeight: 700 }}>{week.iac}%</span>
                   )}
                 </div>
               );
             })}
           </div>
-          <div className="flex items-center justify-between mt-3">
-            <span className="text-xs text-gray-400">← hace 12 semanas</span>
-            <span className="text-xs text-gray-400">esta semana →</span>
+          <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8 }}>
+            <span style={{ fontSize: 10, color: "#d1d5db" }}>← hace 12 semanas</span>
+            <span style={{ fontSize: 10, color: "#d1d5db" }}>esta semana →</span>
           </div>
         </div>
 
+        {/* Logros */}
+        <div className="hs-logros" style={{ marginBottom: 16 }}>
+          {[
+            { icon: "🔥", label: "Racha días hábiles", value: agent.streakCurrent, sub: `récord: ${agent.streakBest} días` },
+            { icon: "⚡", label: "Semanas activas seguidas", value: summary.activeStreak, sub: "semanas consecutivas" },
+            { icon: "📊", label: "Total semanas activas", value: summary.totalActiveWeeks, sub: `de ${weeklyStats.length} en el sistema` },
+          ].map((l, i) => (
+            <div key={i} style={{ background: "#fff", border: "0.5px solid #e5e7eb", borderRadius: 14, padding: 16, display: "flex", alignItems: "center", gap: 12 }}>
+              <div style={{ fontSize: 28, flexShrink: 0 }}>{l.icon}</div>
+              <div>
+                <div style={{ fontSize: 10, color: "#9ca3af", marginBottom: 4 }}>{l.label}</div>
+                <div style={{ fontSize: 28, fontWeight: 500, fontFamily: "Georgia, serif", color: "#111827", lineHeight: 1 }}>{l.value}</div>
+                <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 2 }}>{l.sub}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+
         {/* Tabla detallada */}
-        <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-            <div className="text-sm font-black text-gray-800">Detalle por semana</div>
-            <div className="text-xs text-gray-400">{weeklyStats.filter(w => w.iac > 0).length} semanas activas de {weeklyStats.length}</div>
+        <div style={{ background: "#fff", border: "0.5px solid #e5e7eb", borderRadius: 14, overflow: "hidden" }}>
+          <div style={{ padding: "14px 16px", borderBottom: "0.5px solid #f3f4f6", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div style={{ fontSize: 13, fontWeight: 500, color: "#374151" }}>Detalle por semana</div>
+            <div style={{ fontSize: 11, color: "#9ca3af" }}>{weeklyStats.filter(w => w.iac > 0).length} activas de {weeklyStats.length}</div>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full">
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
-                <tr className="border-b border-gray-50">
-                  <th className="px-6 py-3 text-left text-xs font-bold text-gray-400 uppercase tracking-wide">Semana</th>
-                  <th className="px-4 py-3 text-center text-xs font-bold text-gray-400 uppercase tracking-wide">IAC</th>
-                  <th className="px-4 py-3 text-center text-xs font-bold text-gray-400 uppercase tracking-wide">Reuniones</th>
-                  <th className="px-6 py-3 text-left text-xs font-bold text-gray-400 uppercase tracking-wide">Barra</th>
+                <tr style={{ borderBottom: "0.5px solid #f3f4f6" }}>
+                  {["Semana", "IAC", "Reuniones", "Barra"].map(h => (
+                    <th key={h} style={{ padding: "10px 16px", textAlign: h === "Barra" ? "left" : "center", fontSize: 10, fontWeight: 500, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.07em" }}>{h}</th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
                 {[...weeklyStats].reverse().map((w, i) => {
                   const color = iacColor(w.iac);
-                  const barW = Math.min(100, w.iac);
                   return (
-                    <tr key={w.week_start} className={i % 2 === 0 ? "bg-white" : "bg-gray-50/50"}>
-                      <td className="px-6 py-3 text-sm font-medium text-gray-700">
-                        Sem. {weekLabel(w.week_start)}
+                    <tr key={w.week_start} style={{ background: i % 2 === 0 ? "#fff" : "#fafafa", borderBottom: "0.5px solid #f9fafb" }}>
+                      <td style={{ padding: "10px 16px", fontSize: 12, color: "#374151", textAlign: "center" }}>Sem. {weekLabel(w.week_start)}</td>
+                      <td style={{ padding: "10px 16px", textAlign: "center" }}>
+                        <span style={{ fontSize: 13, fontWeight: 500, color: w.iac === 0 ? "#d1d5db" : color }}>{w.iac === 0 ? "—" : `${w.iac}%`}</span>
                       </td>
-                      <td className="px-4 py-3 text-center">
-                        <span className="text-sm font-black" style={{ color: w.iac === 0 ? "#d1d5db" : color }}>
-                          {w.iac === 0 ? "—" : `${w.iac}%`}
-                        </span>
+                      <td style={{ padding: "10px 16px", textAlign: "center" }}>
+                        <span style={{ fontSize: 12, color: "#6b7280" }}>{w.green_total === 0 ? "—" : `${w.green_total}/${weeklyGoal}`}</span>
                       </td>
-                      <td className="px-4 py-3 text-center">
-                        <span className="text-sm font-medium text-gray-600">
-                          {w.green_total === 0 ? "—" : `${w.green_total}/${weeklyGoal}`}
-                        </span>
-                      </td>
-                      <td className="px-6 py-3">
-                        <div className="w-full max-w-32 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                          <div className="h-full rounded-full" style={{ width: `${barW}%`, background: color }} />
+                      <td style={{ padding: "10px 16px" }}>
+                        <div style={{ width: 120, height: 4, background: "#f3f4f6", borderRadius: 2, overflow: "hidden" }}>
+                          <div style={{ height: "100%", background: color, borderRadius: 2, width: `${Math.min(100, w.iac)}%` }} />
                         </div>
                       </td>
                     </tr>
@@ -341,35 +324,7 @@ export default function AgentHistoryPage() {
           </div>
         </div>
 
-        {/* Racha y logros */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="bg-white border border-gray-100 rounded-2xl p-5 flex items-center gap-4">
-            <div className="text-3xl">🔥</div>
-            <div>
-              <div className="text-xs text-gray-400 font-medium mb-0.5">Racha días hábiles</div>
-              <div className="text-2xl font-black text-gray-900" style={{ fontFamily: "Georgia, serif" }}>{agent.streakCurrent}</div>
-              <div className="text-xs text-gray-400">récord: {agent.streakBest} días</div>
-            </div>
-          </div>
-          <div className="bg-white border border-gray-100 rounded-2xl p-5 flex items-center gap-4">
-            <div className="text-3xl"><Flame size={28} className="text-orange-400" /></div>
-            <div>
-              <div className="text-xs text-gray-400 font-medium mb-0.5">Semanas activas seguidas</div>
-              <div className="text-2xl font-black text-gray-900" style={{ fontFamily: "Georgia, serif" }}>{summary.activeStreak}</div>
-              <div className="text-xs text-gray-400">semanas consecutivas activas</div>
-            </div>
-          </div>
-          <div className="bg-white border border-gray-100 rounded-2xl p-5 flex items-center gap-4">
-            <div className="text-3xl">📊</div>
-            <div>
-              <div className="text-xs text-gray-400 font-medium mb-0.5">Total semanas activas</div>
-              <div className="text-2xl font-black text-gray-900" style={{ fontFamily: "Georgia, serif" }}>{summary.totalActiveWeeks}</div>
-              <div className="text-xs text-gray-400">de {weeklyStats.length} semanas en el sistema</div>
-            </div>
-          </div>
-        </div>
-
-      </main>
-    </div>
+      </div>
+    </AppLayout>
   );
 }
