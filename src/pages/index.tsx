@@ -541,6 +541,7 @@ function TokkoPortfolioCard() {
   const [stats, setStats] = useState<{ active: number; complete: number; incomplete: number; stale: number } | null>(null);
   const [connected, setConnected] = useState(false);
   const [loading, setLoading] = useState(true);
+  const router = useRouter();
 
   useEffect(() => {
     fetch("/api/tokko-portfolio", { cache: "no-store" })
@@ -553,7 +554,7 @@ function TokkoPortfolioCard() {
     : stats.incomplete === 0 ? "green"
     : stats.incomplete <= stats.active * 0.3 ? "amber"
     : "red";
-  const cartColor = cartHealth === "green" ? "#16a34a" : cartHealth === "amber" ? "#d97706" : cartHealth === "red" ? "#dc2626" : "#9ca3af";
+  const cartColor = cartHealth === "green" ? "#16a34a" : cartHealth === "amber" ? "#d97706" : cartHealth === "red" ? "#dc2626" : "#e5e7eb";
   const cartLabel = cartHealth === "green" ? "Cartera al día" : cartHealth === "amber" ? "Atención requerida" : cartHealth === "red" ? "Fichas críticas" : "";
 
   return (
@@ -567,15 +568,29 @@ function TokkoPortfolioCard() {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <span style={{ fontSize: 10, fontWeight: 500, color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.07em" }}>Cartera Tokko</span>
-            <span title="Estado de tus propiedades en Tokko. Ficha completa = 15+ fotos, plano, video o tour 360, y editada en los últimos 30 días. Una ficha desactualizada frena ventas." style={{ fontSize: 10, color: "#d1d5db", cursor: "help", border: "0.5px solid #e5e7eb", borderRadius: "50%", width: 14, height: 14, display: "inline-flex", alignItems: "center", justifyContent: "center" }}>?</span>
+            <span title="Estado de tus propiedades en Tokko. Ficha completa = 15+ fotos, plano, video o tour 360, y editada en los últimos 30 días." style={{ fontSize: 10, color: "#d1d5db", cursor: "help", border: "0.5px solid #e5e7eb", borderRadius: "50%", width: 14, height: 14, display: "inline-flex", alignItems: "center", justifyContent: "center" }}>?</span>
           </div>
           <span style={{ fontSize: 13, color: "#d1d5db" }}>›</span>
         </div>
+
         {loading ? (
-          <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 8 }}>Cargando...</div>
+          <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 10 }}>Cargando...</div>
         ) : !connected || !stats ? (
-          <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 8 }}>Conectá Tokko desde configuración</div>
+          /* Sin API Key — invitación simple */
+          <div style={{ paddingTop: 10 }}>
+            <div style={{ fontSize: 22, marginBottom: 6 }}>🏠</div>
+            <div style={{ fontSize: 13, fontWeight: 500, color: "#111827", marginBottom: 4 }}>Conectá tu cartera de Tokko</div>
+            <div style={{ fontSize: 12, color: "#6b7280", lineHeight: 1.6, marginBottom: 12 }}>
+              Mirá el estado de tus fichas, alertas de actualización y fichas incompletas — todo desde acá.
+            </div>
+            <button
+              onClick={e => { e.stopPropagation(); router.push("/tokko-setup"); }}
+              style={{ background: "#aa0000", color: "#fff", border: "none", borderRadius: 8, padding: "8px 16px", fontSize: 12, fontWeight: 500, cursor: "pointer" }}>
+              Conectar Tokko →
+            </button>
+          </div>
         ) : (
+          /* Con datos */
           <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginTop: 8 }}>
             <div style={{ fontSize: 56, fontWeight: 500, fontFamily: "Georgia, serif", color: cartColor, lineHeight: 1 }}>{stats.active}</div>
             <div style={{ fontSize: 13, color: "#6b7280" }}>disponibles</div>
@@ -589,6 +604,7 @@ function TokkoPortfolioCard() {
           </div>
         )}
       </div>
+
       {stats && (
         <div style={{ padding: "10px 16px 14px" }}>
           <div style={{ display: "flex", gap: 8 }}>
