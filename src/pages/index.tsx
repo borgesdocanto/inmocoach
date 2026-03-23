@@ -943,7 +943,7 @@ export default function HomePage() {
   );
 
   return (
-    <AppLayout isOwner={isOwner} greeting={greeting} topbarExtra={topbarExtra}>
+    <AppLayout greeting={greeting} topbarExtra={topbarExtra}>
       <Head><title>InmoCoach</title></Head>
 
       <style>{`

@@ -1,7 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import { useSession, signOut } from "next-auth/react";
-import Link from "next/link";
 
 const RED = "#aa0000";
 
@@ -17,21 +16,34 @@ interface NavItem {
 interface AppLayoutProps {
   children: React.ReactNode;
   agencyLogo?: string | null;
-  isOwner?: boolean;
   topbarExtra?: React.ReactNode;
   greeting?: string;
 }
 
-export default function AppLayout({ children, agencyLogo, isOwner, topbarExtra, greeting }: AppLayoutProps) {
+export default function AppLayout({ children, agencyLogo, topbarExtra, greeting }: AppLayoutProps) {
   const router = useRouter();
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const [mobileMenu, setMobileMenu] = useState(false);
   const [configOpen, setConfigOpen] = useState(router.pathname.startsWith("/tokko") || router.pathname.startsWith("/config"));
+  const [isOwner, setIsOwner] = useState(false);
+
+  useEffect(() => {
+    if (status === "authenticated") {
+      fetch("/api/subscription")
+        .then(r => r.json())
+        .then(d => {
+          const role = d.subscription?.teamRole;
+          setIsOwner(role === "owner" || role === "team_leader");
+        })
+        .catch(() => {});
+    }
+  }, [status]);
 
   const path = router.pathname;
 
   const navItems: NavItem[] = [
     { label: "Inicio", icon: "⊞", href: "/", active: path === "/" },
+    { label: "Actividad (IAC)", icon: "◈", href: "/iac", active: path === "/iac" },
     ...(isOwner ? [{ label: "Mi equipo", icon: "⊙", href: "/equipo", active: path.startsWith("/equipo") }] : []),
     {
       label: "Configuración",
