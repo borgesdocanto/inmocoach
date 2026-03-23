@@ -273,11 +273,11 @@ export default function CuentaPage() {
     );
   }
 
+  const [rankingOpen, setRankingOpen] = useState(false);
+
   if (!data) return null;
 
   const isPaid = (data.plan !== "free" && data.status === "active") || data.isVip === true;
-
-  const [rankingOpen, setRankingOpen] = useState(false);
 
   return (
     <AppLayout>
