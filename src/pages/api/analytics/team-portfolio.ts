@@ -107,8 +107,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const hasVideo = !!(p.videos?.length);
     const hasTour360 = !!(p.tags?.find((t: any) => t.name?.toLowerCase().includes("360") || t.name?.toLowerCase().includes("tour")));
 
-    // Tokko only exposes created_at — use it as age proxy (>90 days = stale)
-    const dateStr = p.created_at || null;
+    // deleted_at = fecha de publicación en Tokko (nombre confuso pero correcto)
+    const dateStr = p.deleted_at || p.created_at || null;
     let ageDays: number | null = null;
     if (dateStr) {
       try {

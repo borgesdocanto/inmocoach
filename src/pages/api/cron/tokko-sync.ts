@@ -46,11 +46,11 @@ async function syncTeam(teamId: string, apiKey: string): Promise<{ properties: n
           currency: price?.currency || null,
           photos_count: (prop.photos || []).filter((p: any) => !p.is_blueprint).length,
           thumbnail: (prop.photos || []).find((p: any) => !p.is_blueprint)?.thumb || null,
-          days_since_update: prop.last_update
-            ? Math.floor((now.getTime() - new Date(prop.last_update).getTime()) / 86400000)
+          days_since_update: (prop.deleted_at || prop.last_update)
+            ? Math.floor((now.getTime() - new Date(prop.deleted_at || prop.last_update).getTime()) / 86400000)
             : null,
-          days_online: prop.created_date
-            ? Math.floor((now.getTime() - new Date(prop.created_date).getTime()) / 86400000)
+          days_online: (prop.deleted_at || prop.created_at || prop.created_date)
+            ? Math.floor((now.getTime() - new Date(prop.deleted_at || prop.created_at || prop.created_date).getTime()) / 86400000)
             : null,
           producer_id: prop.producer?.id || null,
           producer_name: prop.producer?.name || null,
