@@ -163,13 +163,15 @@ export default function Landing() {
   const router = useRouter();
 
   return (
-    <div style={{ background: "#f9fafb", minHeight: "100vh", fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", color: DARK }}>
+    <div style={{ background: "#f9fafb", minHeight: "100vh", fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", color: DARK, overflowX: "hidden" }}>
       <Head>
         <title>InmoCoach — Medí tu actividad. Mejorá tu cartera. Cerrá más.</title>
         <meta name="description" content="InmoCoach mide tu actividad comercial en Google Calendar, analiza tus fichas en Tokko Broker y te da feedback real con IA cada semana." />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
 
       <style>{`
+        *{box-sizing:border-box}
         @keyframes fadeUp { from { opacity:0; transform:translateY(18px); } to { opacity:1; transform:translateY(0); } }
         .f1{animation:fadeUp .55s ease forwards;animation-delay:.05s;opacity:0}
         .f2{animation:fadeUp .55s ease forwards;animation-delay:.15s;opacity:0}
@@ -178,7 +180,7 @@ export default function Landing() {
         .ic-card{background:#fff;border:0.5px solid #e5e7eb;border-radius:14px;transition:box-shadow .2s,border-color .2s}
         .ic-card:hover{box-shadow:0 4px 20px rgba(0,0,0,0.07);border-color:#d1d5db}
         .ic-screen{background:#fff;border:0.5px solid #e5e7eb;border-radius:14px;overflow:hidden;box-shadow:0 8px 40px rgba(0,0,0,0.09)}
-        @media(max-width:900px){.ic-2col{grid-template-columns:1fr!important}.ic-hide-mobile{display:none!important}}
+        @media(max-width:900px){.ic-2col{grid-template-columns:1fr!important}.ic-hide-mobile{display:none!important}.ic-nav-links{display:none!important}}
         @media(max-width:640px){.ic-3col{grid-template-columns:1fr!important}}
         a{text-decoration:none}
       `}</style>
@@ -189,9 +191,11 @@ export default function Landing() {
           <div style={{ fontFamily: "Georgia, serif", fontWeight: 500, fontSize: 20, color: DARK, marginRight: "auto" }}>
             Inmo<span style={{ color: RED }}>Coach</span>
           </div>
-          <a href="#como-funciona" style={{ color: "#6b7280", fontSize: 13, fontWeight: 500 }}>Cómo funciona</a>
-          <a href="#para-quien" style={{ color: "#6b7280", fontSize: 13, fontWeight: 500 }}>Para quién</a>
-          <a href="/pricing" style={{ color: "#6b7280", fontSize: 13, fontWeight: 500 }}>Precios</a>
+          <div className="ic-nav-links" style={{ display: "flex", gap: 28 }}>
+            <a href="#como-funciona" style={{ color: "#6b7280", fontSize: 13, fontWeight: 500 }}>Cómo funciona</a>
+            <a href="#para-quien" style={{ color: "#6b7280", fontSize: 13, fontWeight: 500 }}>Para quién</a>
+            <a href="/pricing" style={{ color: "#6b7280", fontSize: 13, fontWeight: 500 }}>Precios</a>
+          </div>
           <button onClick={() => router.push("/login")}
             style={{ background: RED, color: "#fff", border: "none", borderRadius: 10, padding: "8px 20px", fontSize: 13, fontWeight: 500, cursor: "pointer" }}>
             Empezar gratis
@@ -508,7 +512,7 @@ export default function Landing() {
       <footer style={{ background: "#fff", borderTop: "0.5px solid #e5e7eb", padding: "28px 24px" }}>
         <div style={{ maxWidth: 1080, margin: "0 auto", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 16 }}>
           <div style={{ fontFamily: "Georgia, serif", fontWeight: 500, fontSize: 16, color: DARK }}>Inmo<span style={{ color: RED }}>Coach</span></div>
-          <div style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", gap: 20, flexWrap: "wrap" }}>
             <a href="/privacidad" style={{ color: "#9ca3af", fontSize: 12 }}>Política de privacidad</a>
             <a href="/terminos" style={{ color: "#9ca3af", fontSize: 12 }}>Términos de uso</a>
             <a href="/login" style={{ color: "#9ca3af", fontSize: 12 }}>Iniciar sesión</a>
