@@ -45,6 +45,8 @@ export default function AppLayout({ children, agencyLogo, topbarExtra, greeting 
     { label: "Inicio", icon: "⊞", href: "/", active: path === "/" },
     { label: "Actividad (IAC)", icon: "◈", href: "/iac", active: path === "/iac" },
     { label: "Racha y rango", icon: "✦", href: "/racha-rango", active: path === "/racha-rango" },
+    { label: "Cartera Tokko", icon: "🏠", href: "/cartera", active: path === "/cartera" },
+    { label: "Posición equipo", icon: "◎", href: "/posicion", active: path === "/posicion" },
     ...(isOwner ? [{ label: "Mi equipo", icon: "⊙", href: "/equipo", active: path.startsWith("/equipo") }] : []),
     {
       label: "Configuración",

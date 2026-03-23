@@ -1039,7 +1039,9 @@ export default function HomePage() {
               </div>
 
               {/* Cartera */}
-              <TokkoPortfolioCard />
+              <div onClick={() => router.push("/cartera")} style={{ cursor: "pointer" }}>
+                <TokkoPortfolioCard />
+              </div>
 
               {/* Racha + Rango */}
               <div onClick={() => router.push("/racha-rango")} style={{ background: "#fff", border: "0.5px solid #e5e7eb", borderRadius: 14, overflow: "hidden", cursor: "pointer" }}>
@@ -1114,7 +1116,7 @@ export default function HomePage() {
               </div>
 
               {/* Posición */}
-              <div onClick={() => isOwner ? router.push("/equipo") : undefined} style={{ background: "#fff", border: "0.5px solid #e5e7eb", borderRadius: 14, overflow: "hidden", cursor: isOwner ? "pointer" : "default" }}>
+              <div onClick={() => router.push("/posicion")} style={{ background: "#fff", border: "0.5px solid #e5e7eb", borderRadius: 14, overflow: "hidden", cursor: "pointer" }}>
                 <div style={{ padding: "14px 16px 10px", borderBottom: "0.5px solid #f3f4f6" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
