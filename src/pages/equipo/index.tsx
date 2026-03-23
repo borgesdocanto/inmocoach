@@ -113,9 +113,9 @@ export default function BrokerDashboard() {
       if (stRes.ok) { const st = await stRes.json(); setShowTeamLeaders(st.showTeamLeaders ?? true); setShowBroker(st.showBroker ?? true); }
       // Load portfolio
       fetch("/api/analytics/team-portfolio")
-        .then(r => r.ok ? r.json() : null)
-        .then(d => { if (d) setPortfolio(d); })
-        .catch(() => {});
+        .then(r => { console.log("[portfolio] status:", r.status); return r.ok ? r.json() : r.json().then(e => { console.error("[portfolio] error:", e); return null; }); })
+        .then(d => { console.log("[portfolio] data:", JSON.stringify(d)); if (d) setPortfolio(d); })
+        .catch(e => console.error("[portfolio] fetch error:", e));
     } catch {}
     setLoading(false);
   };
@@ -426,7 +426,7 @@ export default function BrokerDashboard() {
         </div>
 
         {/* ── CARTERA TOKKO POR AGENTE ── */}
-        {portfolio?.connected && (portfolio.active.length > 0 || portfolio.uninvited.length > 0) && (
+        {portfolio?.connected && (
           <div style={{ background: "#fff", border: "0.5px solid #e5e7eb", borderRadius: 14, overflow: "hidden", marginTop: 12 }}>
             <button onClick={() => setPortfolioOpen(o => !o)}
               style={{ width: "100%", background: "none", border: "none", cursor: "pointer", padding: "14px 16px", display: "flex", alignItems: "center", gap: 10, textAlign: "left" }}>
