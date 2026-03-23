@@ -204,17 +204,27 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   monday.setDate(arNow.getDate() - ((dayOfWeek + 6) % 7));
   const mondayStr = monday.toISOString().slice(0, 10);
 
-  // Obtener usuarios activos
+  // Obtener usuarios activos — solo trial vigente o plan pago
   const { data: users } = await supabaseAdmin
     .from("subscriptions")
-    .select("email, name, plan, team_id")
+    .select("email, name, plan, team_id, created_at")
     .eq("status", "active")
     .not("google_access_token", "is", null);
 
   if (!users?.length) return res.status(200).json({ ok: true, sent: 0 });
 
+  const { FREEMIUM_DAYS } = await import("../../../lib/brand");
+  const nowMs = Date.now();
+  // Excluir free expirado (trial vencido) — solo enviar a: free vigente, individual, teams
+  const validUsers = users.filter(u => {
+    if (u.plan !== "free") return true;
+    const created = new Date(u.created_at || 0).getTime();
+    const diffDays = (nowMs - created) / (1000 * 60 * 60 * 24);
+    return diffDays <= FREEMIUM_DAYS;
+  });
+
   const { targetEmail } = req.body || {};
-  const filteredUsers = targetEmail ? users.filter(u => u.email === targetEmail) : users;
+  const filteredUsers = targetEmail ? validUsers.filter(u => u.email === targetEmail) : validUsers;
 
   // Filtrar los que no llegaron al mínimo lun–mié
   const eligible: { email: string; name: string; greenCount: number }[] = [];

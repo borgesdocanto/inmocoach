@@ -42,6 +42,10 @@ export default function AppLayout({ children, topbarExtra, greeting }: AppLayout
         .then(d => {
           const role = d.subscription?.teamRole;
           setIsOwner(role === "owner" || role === "team_leader");
+          // Redirect expired users to pricing wall
+          if (d.subscription?.isExpired) {
+            router.replace("/expired");
+          }
         })
         .catch(() => {});
       fetch("/api/agency-info")

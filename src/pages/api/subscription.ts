@@ -18,10 +18,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const plan = getPlanById(sub.plan);
 
+  const isExpired = isFreemiumExpired(sub) || sub.status === "cancelled" || sub.status === "past_due";
+
   return res.status(200).json({
-    subscription: { ...sub, isExpired: isFreemiumExpired(sub) },
+    subscription: { ...sub, isExpired },
     plan,
-    isActive: sub.status === "active",
+    isActive: sub.status === "active" && !isExpired,
     isPaid: sub.plan !== "free",
   });
 }
