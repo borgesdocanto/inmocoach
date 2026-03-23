@@ -77,13 +77,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const now = Date.now();
   const available = allProps.filter((p: any) => p.status === 2 || p.status === "2");
-  // Debug: log date fields from first property
-  if (available[0]) {
-    const p0 = available[0];
-    const dateFields: Record<string, any> = {};
-    Object.keys(p0).forEach((k: string) => { if (k.includes("date") || k.includes("update") || k.includes("modif")) dateFields[k] = p0[k]; });
-    console.log("[team-portfolio] date fields sample:", JSON.stringify(dateFields));
-  }
 
   // Group by producer
   const byAgent: Record<string, {
@@ -114,9 +107,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const hasVideo = !!(p.videos?.length);
     const hasTour360 = !!(p.tags?.find((t: any) => t.name?.toLowerCase().includes("360") || t.name?.toLowerCase().includes("tour")));
 
-    // Stale: use last_update → created_date → null
-    // Tokko often returns last_update=null; use created_date as proxy (>90 days = stale)
-    const dateStr = p.last_update || p.modified_date || p.created_date || null;
+    // Tokko only exposes created_at — use it as age proxy (>90 days = stale)
+    const dateStr = p.created_at || null;
     let ageDays: number | null = null;
     if (dateStr) {
       try {

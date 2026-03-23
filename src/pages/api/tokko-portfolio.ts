@@ -118,11 +118,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         hasBlueprint,
         thumbnail: photos[0]?.thumb || null,
         editUrl: `https://www.tokkobroker.com/property/${p.id}/`,
-        daysOnline: p.created_date
-          ? Math.floor((now.getTime() - new Date(p.created_date).getTime()) / 86400000)
+        daysOnline: p.created_at
+          ? Math.floor((now.getTime() - new Date(p.created_at).getTime()) / 86400000)
           : null,
-        daysSinceUpdate: (p.last_update || p.modified_date || p.deleted_at)
-          ? Math.floor((now.getTime() - new Date(p.last_update || p.modified_date || p.deleted_at).getTime()) / 86400000)
+        daysSinceUpdate: p.created_at
+          ? Math.floor((now.getTime() - new Date(p.created_at).getTime()) / 86400000)
           : null,
         branch: p.branch?.name || null,
       };
