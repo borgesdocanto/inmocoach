@@ -137,11 +137,12 @@ export default function CarteraPage() {
             style={{ background: stats.incomplete > 0 ? "#FEF2F2" : "#fff", border: stats.incomplete > 0 ? "1px solid #fecaca" : "0.5px solid #e5e7eb", borderTop: `3px solid ${stats.incomplete > 0 ? "#dc2626" : "#e5e7eb"}`, borderRadius: "0 0 12px 12px", padding: 16, cursor: stats.incomplete > 0 ? "pointer" : "default" }}>
             <div style={{ fontSize: 10, fontWeight: 500, color: stats.incomplete > 0 ? "#991b1b" : "#9ca3af", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 8 }}>Por mejorar</div>
             <div style={{ fontSize: 36, fontWeight: 500, fontFamily: "Georgia, serif", color: stats.incomplete > 0 ? "#dc2626" : "#9ca3af", lineHeight: 1 }}>{stats.incomplete}</div>
-            {stats.incomplete > 0 && (
-              <div style={{ fontSize: 11, color: "#b91c1c", marginTop: 6 }}>
-                Fotos, plano o video faltante · <span style={{ fontWeight: 500, textDecoration: "underline" }}>{filter === "incomplete" ? "mostrando" : "ver fichas →"}</span>
-              </div>
-            )}
+            <div style={{ fontSize: 11, color: stats.incomplete > 0 ? "#b91c1c" : "#9ca3af", marginTop: 6 }}>
+              {stats.incomplete > 0
+                ? <>Fotos, plano o video faltante · <span style={{ fontWeight: 500, textDecoration: "underline" }}>{filter === "incomplete" ? "mostrando" : "ver fichas →"}</span></>
+                : <span style={{ color: "#16a34a", fontWeight: 500 }}>Todas completas ✓</span>
+              }
+            </div>
           </div>
 
           {/* Sin actualizar — con alerta integrada */}
@@ -150,11 +151,12 @@ export default function CarteraPage() {
             style={{ background: stats.stale > 0 ? "#FFFBEB" : "#fff", border: stats.stale > 0 ? "0.5px solid #fcd34d" : "0.5px solid #e5e7eb", borderTop: `3px solid ${stats.stale > 0 ? "#d97706" : "#e5e7eb"}`, borderRadius: "0 0 12px 12px", padding: 16, cursor: stats.stale > 0 ? "pointer" : "default" }}>
             <div style={{ fontSize: 10, fontWeight: 500, color: stats.stale > 0 ? "#92400e" : "#9ca3af", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 8 }}>Sin actualizar</div>
             <div style={{ fontSize: 36, fontWeight: 500, fontFamily: "Georgia, serif", color: stats.stale > 0 ? "#d97706" : "#9ca3af", lineHeight: 1 }}>{stats.stale}</div>
-            {stats.stale > 0 && (
-              <div style={{ fontSize: 11, color: "#b45309", marginTop: 6 }}>
-                Más de 30 días sin editar · <span style={{ fontWeight: 500, textDecoration: "underline" }}>{filter === "stale" ? "mostrando" : "ver fichas →"}</span>
-              </div>
-            )}
+            <div style={{ fontSize: 11, color: stats.stale > 0 ? "#b45309" : "#9ca3af", marginTop: 6 }}>
+              {stats.stale > 0
+                ? <>Más de 30 días sin editar · <span style={{ fontWeight: 500, textDecoration: "underline" }}>{filter === "stale" ? "mostrando" : "ver fichas →"}</span></>
+                : <span style={{ color: "#16a34a", fontWeight: 500 }}>Todo al día ✓</span>
+              }
+            </div>
           </div>
         </div>
 
