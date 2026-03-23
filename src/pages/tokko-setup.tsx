@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useRouter } from "next/router";
 import Head from "next/head";
-import { ArrowLeft, CheckCircle2 } from "lucide-react";
+import { CheckCircle2 } from "lucide-react";
+import AppLayout from "../components/AppLayout";
 
 const RED = "#aa0000";
 
@@ -36,24 +37,17 @@ export default function TokkoSetup() {
   };
 
   return (
-    <div style={{ minHeight: "100vh", background: "#f4f5f7", fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" }}>
+    <AppLayout>
       <Head><title>Conectar Tokko — InmoCoach</title></Head>
 
-      {/* Topbar */}
-      <header style={{ background: "#fff", borderBottom: "0.5px solid #e5e7eb", padding: "12px 20px", display: "flex", alignItems: "center", gap: 12 }}>
-        <button onClick={() => router.back()} style={{ background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 6, color: "#6b7280", fontSize: 13 }}>
-          <ArrowLeft size={14} /> Volver
-        </button>
-        <div style={{ fontSize: 15, fontWeight: 500, color: "#111827", fontFamily: "Georgia, serif" }}>
-          Inmo<span style={{ color: RED }}>Coach</span>
-        </div>
-      </header>
-
-      <main style={{ maxWidth: 520, margin: "0 auto", padding: "32px 20px 60px" }}>
+      <div style={{ maxWidth: 540, margin: "0 auto", padding: "32px 20px 60px" }}>
 
         {/* Header */}
         <div style={{ marginBottom: 28 }}>
-          <div style={{ fontSize: 24, fontWeight: 500, color: "#111827", marginBottom: 8, fontFamily: "Georgia, serif" }}>
+          <div style={{ fontSize: 11, fontWeight: 500, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 8 }}>
+            Configuración → Tokko Broker
+          </div>
+          <div style={{ fontSize: 22, fontWeight: 500, color: "#111827", marginBottom: 8, fontFamily: "Georgia, serif" }}>
             Conectá tu cartera de Tokko
           </div>
           <div style={{ fontSize: 14, color: "#6b7280", lineHeight: 1.7 }}>
@@ -62,8 +56,8 @@ export default function TokkoSetup() {
           </div>
         </div>
 
-        {/* Video/GIF explicativo */}
-        <div style={{ background: "#fff", border: "0.5px solid #e5e7eb", borderRadius: 14, overflow: "hidden", marginBottom: 24 }}>
+        {/* GIF */}
+        <div style={{ background: "#fff", border: "0.5px solid #e5e7eb", borderRadius: 14, overflow: "hidden", marginBottom: 20 }}>
           <div style={{ padding: "12px 16px", borderBottom: "0.5px solid #f3f4f6" }}>
             <div style={{ fontSize: 12, fontWeight: 500, color: "#374151" }}>Cómo encontrar tu API Key en Tokko</div>
           </div>
@@ -75,20 +69,16 @@ export default function TokkoSetup() {
         </div>
 
         {/* Pasos */}
-        <div style={{ background: "#fff", border: "0.5px solid #e5e7eb", borderRadius: 14, padding: "20px", marginBottom: 24 }}>
+        <div style={{ background: "#fff", border: "0.5px solid #e5e7eb", borderRadius: 14, padding: "20px", marginBottom: 20 }}>
           <div style={{ fontSize: 13, fontWeight: 500, color: "#374151", marginBottom: 16 }}>Seguí estos pasos</div>
           {[
             { n: 1, text: <>Ingresá en Tokko y hacé click en <strong style={{ color: "#111827" }}>Mi Empresa</strong></> },
             { n: 2, text: <>Hacé click en <strong style={{ color: "#111827" }}>Permisos</strong></> },
             { n: 3, text: <>En la sección <strong style={{ color: "#111827" }}>API Key</strong> seleccioná el código y copialo</> },
             { n: 4, text: <>Pegalo abajo y guardalo para conectar InmoCoach</> },
-          ].map(step => (
-            <div key={step.n} style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: step.n < 4 ? 14 : 0 }}>
-              <div style={{
-                width: 26, height: 26, borderRadius: "50%", background: RED,
-                color: "#fff", fontSize: 12, fontWeight: 700,
-                display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0
-              }}>{step.n}</div>
+          ].map((step, i, arr) => (
+            <div key={step.n} style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: i < arr.length - 1 ? 14 : 0 }}>
+              <div style={{ width: 26, height: 26, borderRadius: "50%", background: RED, color: "#fff", fontSize: 12, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{step.n}</div>
               <div style={{ fontSize: 13, color: "#4b5563", lineHeight: 1.6, paddingTop: 4 }}>{step.text}</div>
             </div>
           ))}
@@ -108,21 +98,19 @@ export default function TokkoSetup() {
             style={{
               width: "100%", fontSize: 13, border: "0.5px solid #d1d5db",
               borderRadius: 10, padding: "10px 14px", fontFamily: "monospace",
-              outline: "none", marginBottom: 12,
-              background: "#f9fafb",
+              outline: "none", marginBottom: 12, background: "#f9fafb",
+              boxSizing: "border-box",
             }}
           />
-
           {error && (
             <div style={{ fontSize: 12, color: "#dc2626", background: "#FEF2F2", border: "0.5px solid #fecaca", borderRadius: 8, padding: "8px 12px", marginBottom: 12 }}>
               {error}
             </div>
           )}
-
           {saved ? (
             <div style={{ display: "flex", alignItems: "center", gap: 8, color: "#16a34a", fontSize: 13, fontWeight: 500 }}>
               <CheckCircle2 size={18} />
-              Conectado. Redirigiendo al dashboard...
+              Conectado correctamente. Redirigiendo...
             </div>
           ) : (
             <button
@@ -133,7 +121,6 @@ export default function TokkoSetup() {
                 color: apiKey.trim() ? "#fff" : "#9ca3af",
                 border: "none", borderRadius: 10, padding: "11px 0",
                 fontSize: 14, fontWeight: 500, cursor: apiKey.trim() ? "pointer" : "not-allowed",
-                transition: "background 0.15s",
               }}>
               {saving ? "Verificando..." : "Guardar y conectar"}
             </button>
@@ -144,8 +131,7 @@ export default function TokkoSetup() {
           Tu API Key se guarda de forma segura y solo se usa para leer el estado de tus propiedades.<br />
           InmoCoach nunca modifica ni escribe datos en Tokko.
         </div>
-
-      </main>
-    </div>
+      </div>
+    </AppLayout>
   );
 }
