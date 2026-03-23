@@ -42,6 +42,8 @@ export default function AdminPanel() {
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [tab, setTab] = useState<"overview" | "users" | "teams" | "ops" | "precios" | "eventos" | "goals" | "coach" | "midweek" | "rangos" | "tokko">("overview");
+  const [impersonating, setImpersonating] = useState<string | null>(null);
+  const [impersonateLoading, setImpersonateLoading] = useState<string | null>(null);
   const [goalsConfig, setGoalsConfig] = useState({ weekly_goal: "15", productive_day_min: "2", streak_min_greens: "1" });
   const [goalsSaving, setGoalsSaving] = useState(false);
   const [goalsMsg, setGoalsMsg] = useState("");
@@ -102,6 +104,32 @@ export default function AdminPanel() {
 
   useEffect(() => { loadStats(); }, []);
   useEffect(() => { if (tab === "users" || tab === "teams") loadUsers(); }, [tab, planFilter, search]);
+
+  // Check active impersonation on mount
+  useEffect(() => {
+    fetch("/api/impersonate")
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.impersonating) setImpersonating(d.impersonating); })
+      .catch(() => {});
+  }, []);
+
+  const startImpersonate = async (email: string) => {
+    setImpersonateLoading(email);
+    const r = await fetch("/api/impersonate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    });
+    const d = await r.json();
+    if (d.ok) { setImpersonating(email); router.push("/"); }
+    else alert(d.error);
+    setImpersonateLoading(null);
+  };
+
+  const stopImpersonate = async () => {
+    await fetch("/api/impersonate", { method: "DELETE" });
+    setImpersonating(null);
+  };
   useEffect(() => { if (tab === "precios") loadPlans(); }, [tab]);
   useEffect(() => {
     if (tab === "eventos") {
@@ -409,6 +437,23 @@ export default function AdminPanel() {
     }>
       <Head><title>Admin — InmoCoach</title></Head>
 
+      {/* Impersonation active banner */}
+      {impersonating && (
+        <div style={{ background: "#7c3aed", padding: "8px 20px", display: "flex", alignItems: "center", gap: 12 }}>
+          <span style={{ fontSize: 13, color: "#fff", fontWeight: 500 }}>
+            👤 Viendo como: <strong>{impersonating}</strong>
+          </span>
+          <button onClick={stopImpersonate}
+            style={{ marginLeft: "auto", fontSize: 12, fontWeight: 500, background: "rgba(255,255,255,0.2)", color: "#fff", border: "none", borderRadius: 6, padding: "4px 12px", cursor: "pointer" }}>
+            Salir de impersonación
+          </button>
+          <button onClick={() => router.push("/")}
+            style={{ fontSize: 12, fontWeight: 500, background: "#fff", color: "#7c3aed", border: "none", borderRadius: 6, padding: "4px 12px", cursor: "pointer" }}>
+            Ver dashboard →
+          </button>
+        </div>
+      )}
+
       {/* Tab bar */}
       <div style={{ background: "#fff", borderBottom: "0.5px solid #e5e7eb", overflowX: "auto" }}>
         <div style={{ display: "flex", padding: "0 16px", gap: 2, minWidth: "max-content" }}>
@@ -555,7 +600,14 @@ export default function AdminPanel() {
                           {actionMsg[u.email] && (
                             <span className="text-xs font-semibold text-green-600">{actionMsg[u.email]}</span>
                           )}
-                          {/* Cambiar plan */}
+                          {/* Ver como (impersonar) */}
+                          <button
+                            onClick={() => startImpersonate(u.email)}
+                            disabled={impersonateLoading === u.email}
+                            style={{ fontSize: 11, fontWeight: 500, background: "#f3e8ff", color: "#7c3aed", border: "none", borderRadius: 7, padding: "4px 10px", cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>
+                            {impersonateLoading === u.email ? <Loader2 size={10} className="animate-spin" /> : "👤"}
+                            Ver como
+                          </button>
                           <select onChange={e => e.target.value && userAction(u.email, "change_plan", { plan: e.target.value })}
                             value=""
                             className="text-xs font-semibold text-gray-500 bg-gray-100 border-0 rounded-lg px-2 py-1.5 cursor-pointer focus:outline-none appearance-none">

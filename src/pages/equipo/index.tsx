@@ -86,7 +86,7 @@ export default function BrokerDashboard() {
   const [agents, setAgents] = useState<AgentSummary[]>([]);
   const [overview, setOverview] = useState<TeamOverview | null>(null);
   const [portfolio, setPortfolio] = useState<{ connected: boolean; active: any[]; uninvited: any[] } | null>(null);
-  const [portfolioOpen, setPortfolioOpen] = useState(false);
+  const [portfolioOpen, setPortfolioOpen] = useState(true);
   const [loading, setLoading] = useState(true);
   const [analyticsLoading, setAnalyticsLoading] = useState(true);
   const [requesterRole, setRequesterRole] = useState<TeamRole | null>(null);

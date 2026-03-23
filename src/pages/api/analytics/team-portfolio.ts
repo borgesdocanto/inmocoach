@@ -45,12 +45,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     .eq("status", "pending");
   const pendingEmails = new Set((pending || []).map((p: any) => p.email.toLowerCase()));
 
-  // All available properties
-  const { data: properties } = await supabaseAdmin
+  // All properties for this team — status 2 (available) or fallback to all
+  let { data: properties } = await supabaseAdmin
     .from("tokko_properties")
-    .select("producer_email, producer_name, days_since_update, days_online, photos_count")
-    .eq("team_id", sub.team_id)
-    .eq("status", 2);
+    .select("producer_email, producer_name, days_since_update, days_online, photos_count, status")
+    .eq("team_id", sub.team_id);
+
+  // Filter to available only (status may be int or string depending on Tokko API)
+  if (properties?.length) {
+    const available = properties.filter((p: any) => p.status === 2 || p.status === "2" || p.status === "disponible");
+    properties = available.length > 0 ? available : properties;
+  }
 
   if (!properties?.length) {
     return res.status(200).json({ connected: true, active: [], uninvited: [] });

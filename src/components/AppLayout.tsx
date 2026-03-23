@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import { useSession, signOut } from "next-auth/react";
 import PushPrompt from "./PushPrompt";
+import { isSuperAdmin } from "../lib/adminGuard";
 
 const RED = "#aa0000";
 
@@ -32,6 +33,7 @@ export default function AppLayout({ children, topbarExtra, greeting }: AppLayout
   const [agencyLogo, setAgencyLogo] = useState<string | null>(null);
   const [agencyName, setAgencyName] = useState<string | null>(null);
   const [unseenCoach, setUnseenCoach] = useState(0);
+  const [impersonating, setImpersonating] = useState<string | null>(null);
 
   useEffect(() => {
     if (status === "authenticated") {
@@ -53,6 +55,13 @@ export default function AppLayout({ children, topbarExtra, greeting }: AppLayout
         .then(r => r.ok ? r.json() : null)
         .then(d => { if (d?.unseen) setUnseenCoach(d.unseen); })
         .catch(() => {});
+      // Check impersonation
+      if (isSuperAdmin(session?.user?.email)) {
+        fetch("/api/impersonate")
+          .then(r => r.ok ? r.json() : null)
+          .then(d => { if (d?.impersonating) setImpersonating(d.impersonating); })
+          .catch(() => {});
+      }
     }
   }, [status]);
 
