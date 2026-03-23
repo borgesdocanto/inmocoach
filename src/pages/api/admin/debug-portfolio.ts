@@ -9,22 +9,28 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!session?.user?.email || !isSuperAdmin(session.user.email)) return res.status(403).end();
 
   const { data: sub } = await supabaseAdmin.from("subscriptions").select("team_id").eq("email", session.user.email).single();
-  
-  const { data: sample } = await supabaseAdmin
-    .from("tokko_properties")
-    .select("producer_email, producer_name, days_since_update, photos_count, status, synced_at")
-    .eq("team_id", sub?.team_id || "")
-    .eq("status", 2)
-    .limit(5);
+  const { data: team } = await supabaseAdmin.from("teams").select("tokko_api_key").eq("id", sub?.team_id || "").single();
 
-  const { data: stats } = await supabaseAdmin
-    .from("tokko_properties")
-    .select("days_since_update, producer_email")
-    .eq("team_id", sub?.team_id || "")
-    .eq("status", 2)
-    .not("days_since_update", "is", null)
-    .gt("days_since_update", 30)
-    .limit(10);
+  if (!team?.tokko_api_key) return res.status(200).json({ error: "no api key" });
 
-  return res.status(200).json({ sample, staleCount: stats?.length, staleExamples: stats });
+  // Fetch ONE property live from Tokko and show ALL its fields
+  const r = await fetch(`https://www.tokkobroker.com/api/v1/property/?key=${team.tokko_api_key}&format=json&limit=1`);
+  const d = await r.json();
+  const prop = d.objects?.[0];
+  if (!prop) return res.status(200).json({ error: "no props" });
+
+  // Extract all date/update related fields
+  const dateFields: Record<string, any> = {};
+  Object.keys(prop).forEach(k => {
+    if (k.includes("date") || k.includes("update") || k.includes("modif") || k.includes("creat") || k.includes("time")) {
+      dateFields[k] = prop[k];
+    }
+  });
+
+  return res.status(200).json({
+    dateFields,
+    allKeys: Object.keys(prop),
+    status: prop.status,
+    producerEmail: prop.producer?.email,
+  });
 }
