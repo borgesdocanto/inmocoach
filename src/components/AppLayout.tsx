@@ -133,29 +133,25 @@ export default function AppLayout({ children, topbarExtra, greeting }: AppLayout
 
   const SidebarContent = ({ mobile = false }: { mobile?: boolean }) => (
     <>
-      {/* InmoCoach — full width top */}
-      <div style={{ padding: "14px 16px 12px", borderBottom: agencyLogo ? "none" : "0.5px solid #f3f4f6", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div style={{ fontSize: 16, fontWeight: 500, color: "#111827", letterSpacing: "-0.3px", fontFamily: "Georgia, serif" }}>
+      {/* InmoCoach — centrado */}
+      <div style={{ padding: "14px 16px 10px", borderBottom: "none", display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
+        <div style={{ fontSize: 16, fontWeight: 500, color: "#111827", letterSpacing: "-0.3px", fontFamily: "Georgia, serif", textAlign: "center" }}>
           Inmo<span style={{ color: RED }}>Coach</span>
         </div>
         {mobile && (
-          <button onClick={() => setMobileMenu(false)} style={{ background: "none", border: "none", fontSize: 20, color: "#9ca3af", cursor: "pointer" }}>×</button>
+          <button onClick={() => setMobileMenu(false)} style={{ position: "absolute", right: 12, background: "none", border: "none", fontSize: 20, color: "#9ca3af", cursor: "pointer" }}>×</button>
         )}
       </div>
 
-      {/* Logo inmobiliaria — full width */}
-      {agencyLogo && (
-        <div style={{ padding: "10px 16px 12px", borderBottom: "0.5px solid #f3f4f6", display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <img src={agencyLogo} alt="" style={{ maxHeight: 40, maxWidth: "100%", objectFit: "contain" }} />
-        </div>
-      )}
-      {!agencyLogo && (
-        <div style={{ padding: "8px 16px 12px", borderBottom: "0.5px solid #f3f4f6", display: "flex", justifyContent: "center" }}>
-          <div style={{ width: 40, height: 40, background: RED, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, fontWeight: 700, color: "#fff" }}>
-            G
-          </div>
-        </div>
-      )}
+      {/* Logo inmobiliaria — centrado full width */}
+      <div style={{ padding: "8px 16px 14px", borderBottom: "0.5px solid #f3f4f6", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        {agencyLogo
+          ? <img src={agencyLogo} alt="" style={{ maxHeight: 44, maxWidth: 160, objectFit: "contain" }} />
+          : <div style={{ width: 44, height: 44, background: RED, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, fontWeight: 700, color: "#fff" }}>
+              G
+            </div>
+        }
+      </div>
 
       {/* Nav */}
       <nav style={{ padding: "10px 8px", flex: 1, overflowY: "auto" }}>
