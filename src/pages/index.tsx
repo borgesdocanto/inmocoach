@@ -538,32 +538,84 @@ function InstaCoacPanel({ data, calView, monthOffset, weekOffset, days = 30 }: {
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 function TokkoPortfolioCard() {
-  const [stats, setStats] = useState<{ active: number; complete: number; incomplete: number } | null>(null);
+  const [stats, setStats] = useState<{ active: number; complete: number; incomplete: number; stale: number } | null>(null);
+  const [connected, setConnected] = useState(false);
+  const [loading, setLoading] = useState(true);
+
   useEffect(() => {
     fetch("/api/tokko-portfolio", { cache: "no-store" })
       .then(r => r.ok ? r.json() : null)
-      .then(d => { if (d?.connected && d.stats) setStats(d.stats); })
-      .catch(() => {});
+      .then(d => { if (d?.connected && d.stats) { setStats(d.stats); setConnected(true); } setLoading(false); })
+      .catch(() => setLoading(false));
   }, []);
 
-  if (!stats) return (
-    <div style={{ fontSize: 12, color: "#9ca3af" }}>Sin datos de Tokko</div>
-  );
+  const cartHealth = !stats ? null
+    : stats.incomplete === 0 ? "green"
+    : stats.incomplete <= stats.active * 0.3 ? "amber"
+    : "red";
+  const cartColor = cartHealth === "green" ? "#16a34a" : cartHealth === "amber" ? "#d97706" : cartHealth === "red" ? "#dc2626" : "#9ca3af";
+  const cartLabel = cartHealth === "green" ? "Cartera al día" : cartHealth === "amber" ? "Atención requerida" : cartHealth === "red" ? "Fichas críticas" : "";
+
   return (
-    <div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
-        <div style={{ background: "#f9fafb", borderRadius: 8, padding: "8px 10px" }}>
-          <div style={{ fontSize: 22, fontWeight: 500, color: "#111827", fontFamily: "Georgia, serif" }}>{stats.active}</div>
-          <div style={{ fontSize: 10, color: "#9ca3af", marginTop: 1 }}>Disponibles</div>
+    <div style={{
+      background: "#fff",
+      border: `0.5px solid ${connected && stats ? cartColor + "30" : "#e5e7eb"}`,
+      borderTop: `4px solid ${connected && stats ? cartColor : "#e5e7eb"}`,
+      borderRadius: "0 0 14px 14px", overflow: "hidden", cursor: "pointer",
+    }}>
+      <div style={{ background: connected && stats ? cartColor + "08" : "#f9fafb", padding: "14px 16px 10px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <span style={{ fontSize: 10, fontWeight: 500, color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.07em" }}>Cartera Tokko</span>
+            <span title="Estado de tus propiedades en Tokko. Ficha completa = 15+ fotos, plano, video o tour 360, y editada en los últimos 30 días. Una ficha desactualizada frena ventas." style={{ fontSize: 10, color: "#d1d5db", cursor: "help", border: "0.5px solid #e5e7eb", borderRadius: "50%", width: 14, height: 14, display: "inline-flex", alignItems: "center", justifyContent: "center" }}>?</span>
+          </div>
+          <span style={{ fontSize: 13, color: "#d1d5db" }}>›</span>
         </div>
-        <div style={{ background: "#f9fafb", borderRadius: 8, padding: "8px 10px" }}>
-          <div style={{ fontSize: 22, fontWeight: 500, color: "#16a34a", fontFamily: "Georgia, serif" }}>{stats.complete}</div>
-          <div style={{ fontSize: 10, color: "#9ca3af", marginTop: 1 }}>Fichas OK</div>
-        </div>
+        {loading ? (
+          <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 8 }}>Cargando...</div>
+        ) : !connected || !stats ? (
+          <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 8 }}>Conectá Tokko desde configuración</div>
+        ) : (
+          <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginTop: 8 }}>
+            <div style={{ fontSize: 56, fontWeight: 500, fontFamily: "Georgia, serif", color: cartColor, lineHeight: 1 }}>{stats.active}</div>
+            <div style={{ fontSize: 13, color: "#6b7280" }}>disponibles</div>
+            {cartLabel && (
+              <div style={{
+                fontSize: 11, fontWeight: 500, padding: "3px 8px", borderRadius: 20,
+                background: cartHealth === "green" ? "#EAF3DE" : cartHealth === "amber" ? "#FAEEDA" : "#FCEBEB",
+                color: cartHealth === "green" ? "#3B6D11" : cartHealth === "amber" ? "#854F0B" : "#A32D2D",
+              }}>{cartLabel}</div>
+            )}
+          </div>
+        )}
       </div>
-      {stats.incomplete > 0 && (
-        <div style={{ fontSize: 11, color: "#d97706", marginTop: 8 }}>
-          ⚠ {stats.incomplete} ficha{stats.incomplete !== 1 ? "s" : ""} por mejorar
+      {stats && (
+        <div style={{ padding: "10px 16px 14px" }}>
+          <div style={{ display: "flex", gap: 8 }}>
+            <div style={{ flex: 1, background: "#f9fafb", borderRadius: 8, padding: "8px 10px", textAlign: "center" }}>
+              <div style={{ fontSize: 22, fontWeight: 500, fontFamily: "Georgia, serif", color: "#16a34a" }}>{stats.complete}</div>
+              <div style={{ fontSize: 10, color: "#9ca3af", marginTop: 1 }}>Fichas OK</div>
+            </div>
+            <div style={{ flex: 1, background: stats.incomplete > 0 ? "#FEF2F2" : "#f9fafb", borderRadius: 8, padding: "8px 10px", textAlign: "center", border: stats.incomplete > 0 ? "1px solid #fecaca" : "none" }}>
+              <div style={{ fontSize: 22, fontWeight: 500, fontFamily: "Georgia, serif", color: stats.incomplete > 0 ? "#dc2626" : "#9ca3af" }}>{stats.incomplete}</div>
+              <div style={{ fontSize: 10, color: stats.incomplete > 0 ? "#dc2626" : "#9ca3af", marginTop: 1 }}>Por mejorar</div>
+            </div>
+          </div>
+          {stats.incomplete > 0 && (
+            <div style={{ marginTop: 10, background: "#FEF2F2", border: "1px solid #fecaca", borderRadius: 8, padding: "8px 12px", display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ fontSize: 16, flexShrink: 0 }}>⚠️</span>
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 500, color: "#991b1b" }}>{stats.incomplete} ficha{stats.incomplete !== 1 ? "s" : ""} necesitan atención</div>
+                <div style={{ fontSize: 11, color: "#b91c1c", marginTop: 1 }}>Fotos, plano o video faltante · tocá para ver</div>
+              </div>
+            </div>
+          )}
+          {stats.stale > 0 && (
+            <div style={{ marginTop: 6, background: "#FFFBEB", border: "0.5px solid #fcd34d", borderRadius: 8, padding: "6px 12px", display: "flex", alignItems: "center", gap: 6 }}>
+              <span style={{ fontSize: 14 }}>🕐</span>
+              <span style={{ fontSize: 11, color: "#92400e" }}>{stats.stale} sin actualizar hace más de 30 días</span>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -1003,79 +1055,119 @@ export default function HomePage() {
           {/* Cards grid */}
           {data && (
             <>
-              <div className="ic-cards-grid" style={{ gap: 10, marginBottom: 10 }}>
+              <div className="ic-cards-grid" style={{ gap: 12, marginBottom: 12 }}>
 
-                {/* IAC Card */}
+                {/* ── 1. IAC ── */}
                 <div onClick={() => router.push("/iac")} style={{
-                  background: "#fff", border: "0.5px solid #e5e7eb",
-                  borderTop: `3px solid ${iacColor}`, borderRadius: "0 0 12px 12px",
-                  cursor: "pointer", padding: 16, transition: "border-color 0.15s"
+                  background: "#fff",
+                  border: `0.5px solid ${iacColor}20`,
+                  borderTop: `4px solid ${iacColor}`,
+                  borderRadius: "0 0 14px 14px",
+                  cursor: "pointer", overflow: "hidden",
                 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-                    <span style={{ fontSize: 10, fontWeight: 500, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.07em" }}>Índice de actividad</span>
-                    <span style={{ fontSize: 16, color: "#d1d5db" }}>›</span>
-                  </div>
-                  <div style={{ fontSize: 52, fontWeight: 500, fontFamily: "Georgia, serif", color: iacColor, lineHeight: 1 }}>{iac}%</div>
-                  <div style={{ fontSize: 12, color: "#6b7280", marginTop: 5 }}>{weekGreens} de {weekGoal} reuniones · {weekLabel}</div>
-                  <div style={{ height: 3, background: "#f3f4f6", borderRadius: 2, marginTop: 12 }}>
-                    <div style={{ height: "100%", borderRadius: 2, background: iacColor, width: `${Math.min(100, iac)}%`, transition: "width 0.3s" }} />
-                  </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", marginTop: 3 }}>
-                    <span style={{ fontSize: 10, color: "#9ca3af" }}>0%</span>
-                    <span style={{ fontSize: 10, color: "#9ca3af" }}>meta: 100%</span>
-                  </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 10 }}>
-                    {iacSemaforo.map((on, i) => (
-                      <div key={i} style={{ width: 8, height: 8, borderRadius: "50%", background: on ? iacColor : "#e5e7eb" }} />
-                    ))}
-                    <span style={{ fontSize: 11, color: "#6b7280", marginLeft: 4 }}>{iacLabel}</span>
-                  </div>
-                </div>
-
-                {/* Racha + Rango */}
-                <div onClick={() => {}} style={{ background: "#fff", border: "0.5px solid #e5e7eb", borderRadius: 12, cursor: "pointer", padding: 16 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-                    <span style={{ fontSize: 10, fontWeight: 500, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.07em" }}>Racha y rango</span>
-                    <span style={{ fontSize: 16, color: "#d1d5db" }}>›</span>
-                  </div>
-                  {data.streak !== undefined && (
-                    <>
-                      <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
-                        <div style={{ fontSize: 48, fontWeight: 500, fontFamily: "Georgia, serif", color: "#111827", lineHeight: 1 }}>{data.streak.current}</div>
-                        <div style={{ fontSize: 13, color: "#6b7280" }}>días</div>
+                  {/* colored header band */}
+                  <div style={{ background: `${iacColor}08`, padding: "14px 16px 10px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <span style={{ fontSize: 10, fontWeight: 500, color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.07em" }}>Actividad comercial</span>
+                        <span title="Reuniones cara a cara realizadas vs el objetivo semanal. 100% = motor encendido, pipeline activo." style={{ fontSize: 10, color: "#d1d5db", cursor: "help", border: "0.5px solid #e5e7eb", borderRadius: "50%", width: 14, height: 14, display: "inline-flex", alignItems: "center", justifyContent: "center" }}>?</span>
                       </div>
-                      <div style={{ fontSize: 12, color: "#6b7280", marginTop: 4 }}>Récord: {data.streak.best} días</div>
-                    </>
-                  )}
-                  {data.rankStats && (
-                    <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#f9fafb", border: "0.5px solid #e5e7eb", borderRadius: 8, padding: "5px 10px", marginTop: 10 }}>
-                      <span style={{ fontSize: 18 }}>{data.rankStats.currentRank?.icon ?? "🏠"}</span>
-                      <span style={{ fontSize: 13, fontWeight: 500, color: "#374151" }}>{data.rankStats.currentRank?.label ?? "Agente"}</span>
+                      <span style={{ fontSize: 13, color: "#d1d5db" }}>›</span>
                     </div>
-                  )}
-                  {data.rankStats?.nextRank && (
-                    <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 8 }}>
-                      Próximo: {data.rankStats.nextRank.label}
+                    <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginTop: 8 }}>
+                      <div style={{ fontSize: 56, fontWeight: 500, fontFamily: "Georgia, serif", color: iacColor, lineHeight: 1 }}>{iac}%</div>
+                      <div style={{
+                        fontSize: 11, fontWeight: 500, padding: "3px 8px", borderRadius: 20,
+                        background: iac >= 100 ? "#EAF3DE" : iac >= 67 ? "#FAEEDA" : "#FCEBEB",
+                        color: iac >= 100 ? "#3B6D11" : iac >= 67 ? "#854F0B" : "#A32D2D",
+                      }}>{iacLabel}</div>
                     </div>
-                  )}
+                    <div style={{ fontSize: 12, color: "#6b7280", marginTop: 4 }}>
+                      {weekGreens} de {weekGoal} reuniones · {weekLabel}
+                    </div>
+                  </div>
+                  {/* progress */}
+                  <div style={{ padding: "10px 16px 14px" }}>
+                    <div style={{ height: 6, background: "#f3f4f6", borderRadius: 3, overflow: "hidden" }}>
+                      <div style={{ height: "100%", borderRadius: 3, background: iacColor, width: `${Math.min(100, iac)}%`, transition: "width 0.4s ease" }} />
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}>
+                      <span style={{ fontSize: 10, color: "#9ca3af" }}>0</span>
+                      <span style={{ fontSize: 10, color: iacColor, fontWeight: 500 }}>{weekGoal} meta</span>
+                    </div>
+                    {/* desglose */}
+                    {visibleWeekTotals && (
+                      <div style={{ display: "flex", gap: 6, marginTop: 10, flexWrap: "wrap" }}>
+                        {visibleWeekTotals.tasaciones > 0 && <span style={{ fontSize: 10, background: "#f3f4f6", color: "#374151", borderRadius: 6, padding: "2px 7px" }}>🏠 {visibleWeekTotals.tasaciones} tasac.</span>}
+                        {visibleWeekTotals.visitas > 0 && <span style={{ fontSize: 10, background: "#f3f4f6", color: "#374151", borderRadius: 6, padding: "2px 7px" }}>👁 {visibleWeekTotals.visitas} visitas</span>}
+                        {visibleWeekTotals.propuestas > 0 && <span style={{ fontSize: 10, background: "#f3f4f6", color: "#374151", borderRadius: 6, padding: "2px 7px" }}>📋 {visibleWeekTotals.propuestas} prop.</span>}
+                        {visibleWeekTotals.firmas > 0 && <span style={{ fontSize: 10, background: "#EAF3DE", color: "#3B6D11", borderRadius: 6, padding: "2px 7px", fontWeight: 500 }}>✓ {visibleWeekTotals.firmas} firma{visibleWeekTotals.firmas !== 1 ? "s" : ""}</span>}
+                      </div>
+                    )}
+                  </div>
                 </div>
 
-                {/* Cartera Tokko */}
-                <div onClick={() => {}} style={{ background: "#fff", border: "0.5px solid #e5e7eb", borderRadius: 12, cursor: "pointer", padding: 16 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-                    <span style={{ fontSize: 10, fontWeight: 500, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.07em" }}>Cartera Tokko</span>
-                    <span style={{ fontSize: 16, color: "#d1d5db" }}>›</span>
+                {/* ── 2. CARTERA TOKKO ── */}
+                <TokkoPortfolioCard />
+
+                {/* ── 3. RACHA + RANGO ── */}
+                <div style={{ background: "#fff", border: "0.5px solid #e5e7eb", borderRadius: 14, overflow: "hidden", cursor: "pointer" }}>
+                  <div style={{ padding: "14px 16px 10px", borderBottom: "0.5px solid #f9fafb" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <span style={{ fontSize: 10, fontWeight: 500, color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.07em" }}>Racha y rango</span>
+                        <span title="Días consecutivos con al menos 1 reunión verde. Si perdés un día, la racha se reinicia. El rango sube según tu IAC sostenido en el tiempo." style={{ fontSize: 10, color: "#d1d5db", cursor: "help", border: "0.5px solid #e5e7eb", borderRadius: "50%", width: 14, height: 14, display: "inline-flex", alignItems: "center", justifyContent: "center" }}>?</span>
+                      </div>
+                      <span style={{ fontSize: 13, color: "#d1d5db" }}>›</span>
+                    </div>
                   </div>
-                  <TokkoPortfolioCard />
+                  <div style={{ padding: "12px 16px 14px" }}>
+                    {data.streak !== undefined && (
+                      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                        <div>
+                          <div style={{ display: "flex", alignItems: "baseline", gap: 5 }}>
+                            <div style={{ fontSize: 44, fontWeight: 500, fontFamily: "Georgia, serif", color: data.streak.current > 0 ? "#111827" : "#9ca3af", lineHeight: 1 }}>{data.streak.current}</div>
+                            <div style={{ fontSize: 13, color: "#6b7280" }}>días</div>
+                          </div>
+                          <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 2 }}>Récord: {data.streak.best} días 🏆</div>
+                        </div>
+                        {data.streak.current > 0 && (
+                          <div style={{ fontSize: 32, lineHeight: 1 }}>
+                            {data.streak.current >= 20 ? "🔥" : data.streak.current >= 10 ? "⚡" : "✦"}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    {data.rankStats && (
+                      <div style={{ marginTop: 10 }}>
+                        <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#f9fafb", border: "0.5px solid #e5e7eb", borderRadius: 8, padding: "5px 10px" }}>
+                          <span style={{ fontSize: 18 }}>{data.rankStats.currentRank?.icon ?? "🏠"}</span>
+                          <span style={{ fontSize: 13, fontWeight: 500, color: "#374151" }}>{data.rankStats.currentRank?.label ?? "Agente"}</span>
+                        </div>
+                        {data.rankStats.nextRank && (
+                          <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 6 }}>
+                            Próximo: <span style={{ color: "#374151" }}>{data.rankStats.nextRank.label}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
 
-                {/* Posición equipo */}
-                <div onClick={() => isOwner ? router.push("/equipo") : {}} style={{ background: "#fff", border: "0.5px solid #e5e7eb", borderRadius: 12, cursor: isOwner ? "pointer" : "default", padding: 16 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-                    <span style={{ fontSize: 10, fontWeight: 500, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.07em" }}>Posición en el equipo</span>
-                    <span style={{ fontSize: 16, color: "#d1d5db" }}>›</span>
+                {/* ── 4. POSICIÓN ── */}
+                <div onClick={() => isOwner ? router.push("/equipo") : undefined} style={{ background: "#fff", border: "0.5px solid #e5e7eb", borderRadius: 14, overflow: "hidden", cursor: isOwner ? "pointer" : "default" }}>
+                  <div style={{ padding: "14px 16px 10px", borderBottom: "0.5px solid #f9fafb" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <span style={{ fontSize: 10, fontWeight: 500, color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.07em" }}>Posición en el equipo</span>
+                        <span title="Tu posición en el ranking del equipo esta semana, basada en IAC. Se calcula comparando tus reuniones cara a cara con las del resto del equipo." style={{ fontSize: 10, color: "#d1d5db", cursor: "help", border: "0.5px solid #e5e7eb", borderRadius: "50%", width: 14, height: 14, display: "inline-flex", alignItems: "center", justifyContent: "center" }}>?</span>
+                      </div>
+                      {isOwner && <span style={{ fontSize: 13, color: "#d1d5db" }}>›</span>}
+                    </div>
                   </div>
-                  <RankingPosition compact />
+                  <div style={{ padding: "12px 16px 14px" }}>
+                    <RankingPosition compact />
+                  </div>
                 </div>
               </div>
 
