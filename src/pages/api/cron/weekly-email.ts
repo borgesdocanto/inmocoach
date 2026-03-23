@@ -24,6 +24,8 @@ export interface CoachSections {
   bien: string;
   oportunidades: string;
   acciones: string;
+  tokkoTotal?: number;
+  tokkoNeedAction?: number;
 }
 
 async function generateCoachAdvice(
@@ -46,6 +48,8 @@ async function generateCoachAdvice(
 
   const tokkoStats = await getAgentTokkoStats(userEmail);
   const tokkoSection = tokkoStats ? formatTokkoSectionForPrompt(tokkoStats) : "";
+  const tokkoTotal = tokkoStats?.total;
+  const tokkoNeedAction = tokkoStats ? (tokkoStats.incomplete + tokkoStats.stale) : undefined;
 
   const prompt = `${coachSystemPrompt}
 
@@ -89,6 +93,8 @@ Respondé EXACTAMENTE en este formato JSON, sin texto antes ni después, sin mar
       bien: parsed.bien || "",
       oportunidades: parsed.oportunidades || "",
       acciones: parsed.acciones || "",
+      tokkoTotal,
+      tokkoNeedAction,
     };
   } catch {
     return {
@@ -96,6 +102,8 @@ Respondé EXACTAMENTE en este formato JSON, sin texto antes ni después, sin mar
       bien: `Lograste ${stats.greenTotal} reuniones cara a cara y ${procesosXSemana} procesos nuevos esta semana.`,
       oportunidades: faltanReuniones > 0 ? `Te faltan ${faltanReuniones} reuniones para llegar al objetivo semanal de ${weeklyGoal}.` : "Llegaste al objetivo de reuniones esta semana.",
       acciones: `Agendá ${Math.min(faltanReuniones || 3, 5)} reuniones cara a cara antes del jueves | Revisá tus fichas en Tokko | Contactá ${Math.max(1, faltanProcesos)} prospectos nuevos`,
+      tokkoTotal,
+      tokkoNeedAction,
     };
   }
 }
@@ -141,7 +149,7 @@ async function processUser(sub: any): Promise<"sent" | "failed" | "skipped"> {
       weekStart: lastSunday.toISOString().slice(0, 10),
       greenTotal: stats.greenTotal, tasaciones: stats.tasaciones, visitas: stats.visitas,
       propuestas: stats.propuestas, productiveDays: stats.productiveDays, totalDays: stats.totalDays,
-      productivityRate: stats.productivityRate, coachAdvice: coachSections.carta, coachBien: coachSections.bien, coachOportunidades: coachSections.oportunidades, coachAcciones: coachSections.acciones, planName: plan.name,
+      productivityRate: stats.productivityRate, coachAdvice: coachSections.carta, coachBien: coachSections.bien, coachOportunidades: coachSections.oportunidades, coachAcciones: coachSections.acciones, tokkoTotal: coachSections.tokkoTotal, tokkoNeedAction: coachSections.tokkoNeedAction, planName: plan.name,
       isExpiringSoon: (subData?.plan || "free") === "free" && daysLeft <= 2, daysLeft,
       streak: streakData.current, rankSlug: rank.slug, rankLabel: rank.label, rankIcon: rank.icon,
       nextRankLabel: nextRank?.label, nextRankMinWeeks: nextRank?.minWeeks, nextRankMinIac: (nextRank as any)?.minIacUp ?? (nextRank as any)?.minIacAvg,

@@ -59,6 +59,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   // Tokko live data
   const tokkoStats = await getAgentTokkoStats(sub.email);
   const tokkoSection = tokkoStats ? formatTokkoSectionForPrompt(tokkoStats) : "";
+  const tokkoTotal = tokkoStats?.total;
+  const tokkoNeedAction = tokkoStats ? (tokkoStats.incomplete + tokkoStats.stale) : undefined;
 
   // Build prompt
   const { data: promptRow } = await supabaseAdmin.from("app_config").select("value").eq("key", "coach_prompt").single();
@@ -130,6 +132,8 @@ Respondé EXACTAMENTE en este formato JSON, sin texto antes ni después, sin mar
       coachBien: sections.bien,
       coachOportunidades: sections.oportunidades,
       coachAcciones: sections.acciones,
+      tokkoTotal,
+      tokkoNeedAction,
       planName: plan.name,
       isExpiringSoon: (sub.plan || "free") === "free" && daysLeft <= 2, daysLeft,
       streak: streakData.current, rankSlug: rank.slug, rankLabel: rank.label, rankIcon: rank.icon,

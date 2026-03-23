@@ -27,6 +27,8 @@ interface WeeklyReportData {
   coachBien?: string;
   coachOportunidades?: string;
   coachAcciones?: string;
+  tokkoTotal?: number;
+  tokkoNeedAction?: number;
 }
 
 export function generateWeeklyEmailHtml(data: WeeklyReportData): string {
@@ -37,6 +39,7 @@ export function generateWeeklyEmailHtml(data: WeeklyReportData): string {
     rankSlug = "junior", rankLabel = "Agente Junior", rankIcon = "🏠",
     nextRankLabel, nextRankMinWeeks, nextRankMinIac, activeWeeks = 0, iacAvg = 0,
     coachBien = "", coachOportunidades = "", coachAcciones = "",
+    tokkoTotal, tokkoNeedAction,
   } = data;
 
   const firstName = userName?.split(" ")[0] ?? "Inmobiliario";
@@ -163,6 +166,48 @@ export function generateWeeklyEmailHtml(data: WeeklyReportData): string {
             </table>
           </td>
         </tr>
+
+        <!-- Cartera Tokko -->
+        ${tokkoTotal !== undefined ? `
+        <tr>
+          <td style="background:#ffffff;padding:0 32px 20px;">
+            <table width="100%" cellpadding="0" cellspacing="0"
+              style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;">
+              <tr>
+                <td style="padding:12px 20px;border-bottom:1px solid #e5e7eb;">
+                  <p style="margin:0;font-size:10px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:1.5px;">🏠 Cartera Tokko</p>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:0;">
+                  <table width="100%" cellpadding="0" cellspacing="0">
+                    <tr>
+                      <td style="width:50%;padding:16px 20px;text-align:center;border-right:1px solid #e5e7eb;">
+                        <p style="margin:0;font-family:Georgia,serif;font-size:32px;font-weight:900;color:#111827;">${tokkoTotal}</p>
+                        <p style="margin:4px 0 0;font-size:10px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:1px;">Propiedades</p>
+                      </td>
+                      <td style="width:50%;padding:16px 20px;text-align:center;">
+                        <p style="margin:0;font-family:Georgia,serif;font-size:32px;font-weight:900;color:${(tokkoNeedAction || 0) > 0 ? "#aa0000" : "#16a34a"};">${tokkoNeedAction || 0}</p>
+                        <p style="margin:4px 0 0;font-size:10px;font-weight:700;color:${(tokkoNeedAction || 0) > 0 ? "#aa0000" : "#9ca3af"};text-transform:uppercase;letter-spacing:1px;">
+                          ${(tokkoNeedAction || 0) > 0 ? "Necesitan acción" : "Todo en orden"}
+                        </p>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+              ${(tokkoNeedAction || 0) > 0 ? `
+              <tr>
+                <td style="padding:10px 20px;background:#fef2f2;border-top:1px solid #fecaca;">
+                  <p style="margin:0;font-size:12px;color:#aa0000;">
+                    ⚠ Completá tus fichas — fotos, plano y video aumentan las consultas.
+                    <a href="https://inmocoach.com.ar/cartera" style="color:#aa0000;text-decoration:underline;margin-left:4px;">Ver cartera →</a>
+                  </p>
+                </td>
+              </tr>` : ""}
+            </table>
+          </td>
+        </tr>` : ""}
 
         <!-- Racha -->
         ${streak > 0 ? `
