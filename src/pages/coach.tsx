@@ -99,6 +99,27 @@ export default function CoachPage() {
   const [emailSending, setEmailSending] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
   const [history, setHistory] = useState<any[]>([]);
+  // Structured sections
+  const [carta, setCarta] = useState("");
+  const [bien, setBien] = useState("");
+  const [oportunidades, setOportunidades] = useState("");
+  const [acciones, setAcciones] = useState("");
+  const [numeroCritico, setNumeroCritico] = useState("");
+  const [tokkoTotal, setTokkoTotal] = useState<number | undefined>();
+  const [tokkoNeedAction, setTokkoNeedAction] = useState<number | undefined>();
+
+  const applySections = (d: any) => {
+    setAdvice(d.advice || "");
+    setProfile(d.profile || "");
+    setCarta(d.carta || "");
+    setBien(d.bien || "");
+    setOportunidades(d.oportunidades || "");
+    setAcciones(d.acciones || "");
+    setNumeroCritico(d.numeroCritico || "");
+    if (d.tokkoTotal !== undefined) setTokkoTotal(d.tokkoTotal);
+    if (d.tokkoNeedAction !== undefined) setTokkoNeedAction(d.tokkoNeedAction);
+  };
+
 
   useEffect(() => {
     if (status === "unauthenticated") router.replace("/login");
@@ -147,7 +168,7 @@ export default function CoachPage() {
   // Auto-fetch cached report on period change — fallback to most recent if none
   useEffect(() => {
     if (!periodStart || !calData) return;
-    setAdvice(""); setProfile(""); setFromCache(false);
+    setAdvice(""); setProfile(""); setCarta(""); setBien(""); setOportunidades(""); setAcciones(""); setNumeroCritico(""); setFromCache(false);
     fetch("/api/coach", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -160,7 +181,7 @@ export default function CoachPage() {
       }),
     }).then(r => r.json()).then(d => {
       if (d.fromCache && d.advice) {
-        setAdvice(d.advice); setProfile(d.profile || "");
+        applySections(d);
         setFromCache(true); setIsClosed(d.isClosed || false);
       } else {
         // No hay para este período — cargar el más reciente del historial
@@ -168,7 +189,7 @@ export default function CoachPage() {
           if (hist?.reports?.length > 0) {
             const latest = hist.reports[0];
             if (latest.advice) {
-              setAdvice(latest.advice); setProfile(latest.profile || "");
+              applySections(latest);
               setFromCache(true); setIsClosed(true);
               setHistory(hist.reports);
             }
@@ -180,7 +201,7 @@ export default function CoachPage() {
 
   const analyze = async (force = false) => {
     if (!calData) return;
-    setAnalyzing(true); setAdvice(""); setProfile("");
+    setAnalyzing(true); setAdvice(""); setProfile(""); setCarta(""); setBien(""); setOportunidades(""); setAcciones(""); setNumeroCritico("");
     const res = await fetch("/api/coach", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -193,7 +214,7 @@ export default function CoachPage() {
       }),
     });
     const d = await res.json();
-    setAdvice(d.advice || ""); setProfile(d.profile || "");
+    applySections(d);
     setFromCache(d.fromCache || false); setIsClosed(d.isClosed || false);
     setAnalyzing(false);
   };
@@ -214,9 +235,9 @@ export default function CoachPage() {
 
   const blocks = advice ? advice.split(/\n\n+/).filter(b => b.trim()) : [];
   const lastBlock = blocks[blocks.length - 1] || "";
-  const isNumeroCritico = lastBlock.toLowerCase().startsWith("número crítico");
-  const sections = isNumeroCritico ? blocks.slice(0, -1) : blocks;
-  const numeroCritico = isNumeroCritico ? lastBlock : "";
+  const isLegacyNC = lastBlock.toLowerCase().startsWith("número crítico");
+  const sections = isLegacyNC ? blocks.slice(0, -1) : blocks;
+  const legacyNumeroCritico = isLegacyNC ? lastBlock : "";
 
   const greeting = (() => {
     const h = new Date().getHours();
@@ -346,22 +367,92 @@ export default function CoachPage() {
                   </div>
                 )}
 
-                {/* Sections */}
-                {sections.map((block, i) => {
-                  const cfg = sectionConfig[i] || { label: "", icon: "→", color: "#374151", bg: "#f9fafb" };
-                  return (
-                    <div key={i} style={{ background: cfg.bg, borderRadius: 14, padding: 20 }}>
-                      <div style={{ fontSize: 11, fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.06em", color: cfg.color, marginBottom: 10 }}>
-                        {cfg.icon} {cfg.label}
-                      </div>
-                      <p style={{ fontSize: 14, color: "#374151", lineHeight: 1.75, margin: 0 }}>{block.trim()}</p>
+                {/* Carta motivadora */}
+                {carta && (
+                  <div style={{ background: "#111827", borderRadius: 14, padding: 20 }}>
+                    <div style={{ fontSize: 10, fontWeight: 500, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 10 }}>
+                      Inmo<span style={{ color: RED }}>Coach</span>
                     </div>
-                  );
-                })}
+                    <p style={{ fontSize: 14, color: "#fff", lineHeight: 1.8, margin: 0, fontStyle: "italic" }}>{carta}</p>
+                  </div>
+                )}
+
+                {/* Tokko block */}
+                {tokkoTotal !== undefined && (
+                  <div style={{ background: "#fff", border: "0.5px solid #e5e7eb", borderRadius: 14, overflow: "hidden" }}>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr" }}>
+                      <div style={{ padding: "14px 16px", textAlign: "center", borderRight: "0.5px solid #f3f4f6" }}>
+                        <div style={{ fontSize: 28, fontWeight: 500, fontFamily: "Georgia, serif", color: "#111827" }}>{tokkoTotal}</div>
+                        <div style={{ fontSize: 10, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.07em", marginTop: 2 }}>Propiedades</div>
+                      </div>
+                      <div style={{ padding: "14px 16px", textAlign: "center" }}>
+                        <div style={{ fontSize: 28, fontWeight: 500, fontFamily: "Georgia, serif", color: (tokkoNeedAction || 0) > 0 ? RED : "#16a34a" }}>{tokkoNeedAction || 0}</div>
+                        <div style={{ fontSize: 10, color: (tokkoNeedAction || 0) > 0 ? RED : "#9ca3af", textTransform: "uppercase", letterSpacing: "0.07em", marginTop: 2 }}>
+                          {(tokkoNeedAction || 0) > 0 ? "Necesitan acción" : "Todo en orden"}
+                        </div>
+                      </div>
+                    </div>
+                    {(tokkoNeedAction || 0) > 0 && (
+                      <div style={{ padding: "8px 16px", background: "#fef2f2", borderTop: "0.5px solid #fecaca", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                        <span style={{ fontSize: 12, color: RED }}>⚠ Completá tus fichas</span>
+                        <button onClick={() => router.push("/cartera")} style={{ fontSize: 11, color: RED, background: "none", border: "none", cursor: "pointer", textDecoration: "underline" }}>Ver cartera →</button>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* 3 secciones */}
+                {(bien || oportunidades || acciones) ? (
+                  <>
+                    {bien && (
+                      <div style={{ background: "#f0fdf4", borderRadius: 14, padding: 20 }}>
+                        <div style={{ fontSize: 11, fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.06em", color: "#16a34a", marginBottom: 10 }}>✓ Lo que hiciste bien</div>
+                        <p style={{ fontSize: 14, color: "#374151", lineHeight: 1.75, margin: 0 }}>{bien}</p>
+                      </div>
+                    )}
+                    {oportunidades && (
+                      <div style={{ background: "#FFFBEB", borderRadius: 14, padding: 20 }}>
+                        <div style={{ fontSize: 11, fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.06em", color: "#d97706", marginBottom: 10 }}>↓ Dónde perdés oportunidades</div>
+                        <p style={{ fontSize: 14, color: "#374151", lineHeight: 1.75, margin: 0 }}>{oportunidades}</p>
+                      </div>
+                    )}
+                    {acciones && (
+                      <div style={{ background: "#fef2f2", borderRadius: 14, padding: 20 }}>
+                        <div style={{ fontSize: 11, fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.06em", color: RED, marginBottom: 10 }}>→ Acciones para esta semana</div>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                          {acciones.split("|").map((a, i) => (
+                            <div key={i} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+                              <div style={{ width: 6, height: 6, borderRadius: "50%", background: RED, flexShrink: 0, marginTop: 6 }} />
+                              <span style={{ fontSize: 14, color: "#374151", lineHeight: 1.6 }}>{a.trim()}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  // Legacy: parse from advice text
+                  sections.map((block, i) => {
+                    const cfg = sectionConfig[i] || { label: "", icon: "→", color: "#374151", bg: "#f9fafb" };
+                    return (
+                      <div key={i} style={{ background: cfg.bg, borderRadius: 14, padding: 20 }}>
+                        <div style={{ fontSize: 11, fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.06em", color: cfg.color, marginBottom: 10 }}>
+                          {cfg.icon} {cfg.label}
+                        </div>
+                        <p style={{ fontSize: 14, color: "#374151", lineHeight: 1.75, margin: 0 }}>{block.trim()}</p>
+                      </div>
+                    );
+                  })
+                )}
 
                 {numeroCritico && (
                   <div style={{ background: "#f9fafb", borderRadius: 12, padding: "12px 16px", borderLeft: "3px solid #e5e7eb" }}>
                     <p style={{ fontSize: 12, color: "#6b7280", margin: 0 }}>{numeroCritico}</p>
+                  </div>
+                )}
+                {!bien && !oportunidades && !acciones && legacyNumeroCritico && (
+                  <div style={{ background: "#f9fafb", borderRadius: 12, padding: "12px 16px", borderLeft: "3px solid #e5e7eb" }}>
+                    <p style={{ fontSize: 12, color: "#6b7280", margin: 0 }}>{legacyNumeroCritico}</p>
                   </div>
                 )}
               </div>
@@ -399,7 +490,7 @@ export default function CoachPage() {
                   {history.map((r: any, i: number) => (
                     <div key={i} style={{ padding: "10px 16px", borderBottom: "0.5px solid #f9fafb", cursor: "pointer" }}
                       onClick={() => {
-                        setAdvice(r.advice); setProfile(r.profile || "");
+                        applySections(r);
                         setFromCache(true); setIsClosed(true);
                         const start = new Date(r.period_key.replace("week-", "").replace("month-", "") + "-01");
                         setView(r.period_key.startsWith("week") ? "week" : "month");

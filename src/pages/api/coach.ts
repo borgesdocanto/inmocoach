@@ -148,6 +148,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   } catch { /* silencioso */ }
 
   // Prompt = parte configurable (de DB) + datos dinámicos del período
+  const numeroCriticoText = `IAC ${periodLabel}: ${totals.iac}% — ${totals.totalGreen} reuniones cara a cara, ${totals.procesosNuevos} procesos nuevos. ${totals.iac >= 100 ? 'Motor encendido.' : 'Faltan ' + faltanReuniones + ' reuniones para el 100%.'}`;
+
   const prompt = `${coachSystemPrompt}\n\n${nombreStr}\n\nLAS 3 VARIABLES QUE MIDEN EL NEGOCIO:
 1. IAC = reuniones cara a cara / ${weeklyGoal} por semana — Objetivo: 100% = ${weeklyGoal} reuniones/semana
 2. Procesos nuevos: objetivo ${PROCESOS_GOAL} por semana
@@ -170,8 +172,14 @@ MÉTRICAS:
 - Diagnóstico: ${perfilDescripcion[perfil]}
 ${tokkoSection}
 
-Después del análisis, en línea separada:
-"IAC ${periodLabel}: ${totals.iac}% — ${totals.totalGreen} reuniones cara a cara, ${totals.procesosNuevos} proceso${totals.procesosNuevos !== 1 ? "s" : ""} nuevo${totals.procesosNuevos !== 1 ? "s" : ""}. ${totals.iac >= 100 ? `Motor encendido. El desafío ahora es sostenerlo.` : `Para llegar al 100% necesitás ${faltanReuniones} reunión${faltanReuniones !== 1 ? "es" : ""} más.`}"`;
+Respondé EXACTAMENTE en este formato JSON, sin texto antes ni después, sin markdown:
+{
+  "carta": "Párrafo motivador de 3-4 oraciones. Tono de coach directo. Integrá actividad Y cartera Tokko si hay datos. Vos/tenés/hacés.",
+  "bien": "1-2 oraciones sobre lo que hizo bien. Específico con números.",
+  "oportunidades": "1-2 oraciones donde perdió oportunidades. Incluir Tokko si hay fichas incompletas.",
+  "acciones": "2-3 acciones concretas para este período. Al menos una de cartera Tokko si hay problemas. Separadas por | (pipe).",
+  "numeroCritico": "${numeroCriticoText}"
+}`;
 
   try {
     const response = await fetch("https://api.anthropic.com/v1/messages", {
@@ -197,6 +205,23 @@ Después del análisis, en línea separada:
     const text = data.content?.map((b: any) => b.text || "").join("") || "";
     if (!text) return res.status(500).json({ error: "Sin respuesta del coach" });
 
+    // Parse structured JSON response
+    let sections = { carta: "", bien: "", oportunidades: "", acciones: "", numeroCritico: "" };
+    let adviceText = text; // fallback for legacy display
+    try {
+      const parsed = JSON.parse(text.replace(/```json|```/g, "").trim());
+      sections = parsed;
+      // Build legacy advice format for backward compat
+      adviceText = [parsed.bien, parsed.oportunidades, parsed.acciones?.split("|")[0], parsed.numeroCritico]
+        .filter(Boolean).join("\n\n");
+    } catch {
+      // AI didn't return JSON — use raw text as carta
+      sections.carta = text;
+    }
+
+    // Get Tokko stats for response (already imported at top)
+    const tokkoStats = await getAgentTokkoStats(userEmail).catch(() => null);
+
     await supabaseAdmin
       .from("coach_reports")
       .upsert({
@@ -206,16 +231,25 @@ Después del análisis, en línea separada:
         period_start: start,
         period_end: end,
         is_closed: closed,
-        advice: text,
+        advice: adviceText,
         profile: perfil,
         week_totals: totals,
         green_total: totals.totalGreen,
         updated_at: new Date().toISOString(),
-        seen_at: null, // reset seen when regenerated
+        seen_at: null,
       }, { onConflict: "user_email,period_key" });
 
     return res.status(200).json({
-      advice: text,
+      advice: adviceText,
+      // Structured sections for new UI
+      carta: sections.carta,
+      bien: sections.bien,
+      oportunidades: sections.oportunidades,
+      acciones: sections.acciones,
+      numeroCritico: sections.numeroCritico,
+      // Tokko live data
+      tokkoTotal: tokkoStats?.total,
+      tokkoNeedAction: tokkoStats ? tokkoStats.incomplete + tokkoStats.stale : undefined,
       profile: perfil,
       weekTotals: totals,
       productiveDays,
