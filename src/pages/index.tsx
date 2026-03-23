@@ -789,10 +789,24 @@ export default function HomePage() {
     loadFromCache(days).then(() => syncWithGoogle(days, true));
   }, [days]);
 
-  // Polling liviano — detecta cambios del webhook y actualiza el dashboard
+  // Polling + sync-now: garantiza que el usuario siempre vea datos frescos
   useEffect(() => {
     if (status !== "authenticated") return;
     let lastKnown: string | undefined = undefined;
+    let lastVisibleAt = Date.now();
+
+    const reloadCache = async () => {
+      const fetchDays = Math.max(days, 14);
+      const r = await fetch(`/api/calendar/cached?days=${fetchDays}`, { cache: "no-store" });
+      if (r.ok) { setData(await r.json()); setFromCache(true); }
+    };
+
+    // Dispara sync en background si los datos son viejos (>10 min)
+    // Responde inmediatamente — cuando termina actualiza last_webhook_sync
+    // y el poll lo detecta y recarga la cache
+    const triggerSync = () => {
+      fetch("/api/calendar/sync-now", { method: "POST" }).catch(() => {});
+    };
 
     const poll = async () => {
       try {
@@ -800,24 +814,30 @@ export default function HomePage() {
         if (!res.ok) return;
         const { lastUpdated } = await res.json();
         if (!lastUpdated) return;
-
-        // Primera vez — solo guardar baseline
         if (lastKnown === undefined) { lastKnown = lastUpdated; return; }
-
-        // Cambió — recargar desde DB
         if (lastUpdated !== lastKnown) {
           lastKnown = lastUpdated;
-          const fetchDays = Math.max(days, 14);
-          const r = await fetch(`/api/calendar/cached?days=${fetchDays}`, { cache: "no-store" });
-          if (r.ok) { setData(await r.json()); setFromCache(true); }
+          await reloadCache();
         }
       } catch {}
     };
 
-    const t = setTimeout(poll, 4000);
-    const i = setInterval(poll, 20000);
-    const onVisible = () => { if (document.visibilityState === "visible") poll(); };
+    const onVisible = () => {
+      if (document.visibilityState !== "visible") return;
+      const awayMs = Date.now() - lastVisibleAt;
+      // Volvió después de más de 5 min → forzar sync
+      if (awayMs > 5 * 60 * 1000) triggerSync();
+      lastVisibleAt = Date.now();
+      poll();
+    };
+
     document.addEventListener("visibilitychange", onVisible);
+
+    // Al montar: disparar sync si los datos son viejos
+    triggerSync();
+
+    const t = setTimeout(poll, 5000);
+    const i = setInterval(poll, 20000);
     return () => { clearTimeout(t); clearInterval(i); document.removeEventListener("visibilitychange", onVisible); };
   }, [status, days]);
 
