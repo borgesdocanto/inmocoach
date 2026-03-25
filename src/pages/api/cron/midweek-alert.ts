@@ -3,6 +3,7 @@ import { Resend } from "resend";
 import { supabaseAdmin } from "../../../lib/supabase";
 import { getAppConfig } from "../../../lib/appConfig";
 import { DEFAULT_MIDWEEK_PROMPT } from "../admin/midweek-prompt";
+import { getAgentTokkoStats } from "../../../lib/tokkoPortfolio";
 
 export const config = { maxDuration: 120 };
 
@@ -37,8 +38,11 @@ function buildHtml(params: {
   minGreens: number;
   weeklyGoal: number;
   advice: string;
+  tokkoTotal?: number;
+  tokkoNeedAction?: number;
+  tokkoTop3?: { title: string; address: string; issues: string[]; editUrl: string }[];
 }): string {
-  const { firstName, greenCount, minGreens, weeklyGoal, advice } = params;
+  const { firstName, greenCount, minGreens, weeklyGoal, advice, tokkoTotal, tokkoNeedAction, tokkoTop3 } = params;
   const RED = "#aa0000";
   const pct = Math.min(100, Math.round((greenCount / minGreens) * 100));
   const barColor = pct >= 100 ? "#16a34a" : pct >= 50 ? "#d97706" : RED;
@@ -56,6 +60,43 @@ function buildHtml(params: {
         </td></tr>
       </table>
     </td>`;
+
+
+  // Tokko section — shown only if there are properties needing action
+  const tokkoSection = (tokkoTotal !== undefined && (tokkoNeedAction ?? 0) > 0 && tokkoTop3?.length) ? `
+        <!-- Cartera Tokko -->
+        <tr>
+          <td style="padding:0 32px 20px;">
+            <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;">
+              <tr>
+                <td style="background:#111827;padding:14px 20px;">
+                  <p style="margin:0;font-size:10px;font-weight:700;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:2px;">&#127968; Cartera Tokko</p>
+                  <p style="margin:4px 0 0;font-size:14px;color:#fff;">
+                    <span style="font-family:Georgia,serif;font-size:24px;font-weight:900;color:#aa0000;">${tokkoNeedAction}</span>
+                    de ${tokkoTotal} propiedades necesitan atenci&#243;n
+                  </p>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:0;">
+                  ${(tokkoTop3 || []).map((prop, idx) => `
+                  <table width="100%" cellpadding="0" cellspacing="0" style="border-top:1px solid #f3f4f6;">
+                    <tr>
+                      <td style="padding:12px 20px;">
+                        <p style="margin:0;font-size:12px;font-weight:700;color:#111827;">${idx + 1}. ${prop.title}</p>
+                        ${prop.address ? `<p style="margin:2px 0 6px;font-size:11px;color:#9ca3af;">${prop.address}</p>` : ''}
+                        <p style="margin:0 0 8px;">
+                          ${prop.issues.map(issue => `<span style="display:inline-block;background:#fef2f2;border:1px solid #fecaca;border-radius:6px;padding:2px 8px;font-size:10px;font-weight:700;color:#aa0000;margin:0 4px 4px 0;">${issue}</span>`).join("")}
+                        </p>
+                        <a href="${prop.editUrl}" style="font-size:11px;color:#aa0000;font-weight:700;text-decoration:none;">Editar en Tokko &#8594;</a>
+                      </td>
+                    </tr>
+                  </table>`).join("")}
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>` : "";
 
   return `<!DOCTYPE html>
 <html lang="es">
@@ -158,6 +199,8 @@ function buildHtml(params: {
           </td>
         </tr>
 
+        ${tokkoSection}
+
         <!-- CTA -->
         <tr>
           <td style="background:#ffffff;padding:0 32px 32px;text-align:center;">
@@ -227,7 +270,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const filteredUsers = targetEmail ? validUsers.filter(u => u.email === targetEmail) : validUsers;
 
   // Filtrar los que no llegaron al mínimo lun–mié
-  const eligible: { email: string; name: string; greenCount: number }[] = [];
+  const eligible: {
+    email: string; name: string; greenCount: number;
+    tokkoTotal?: number; tokkoNeedAction?: number;
+    tokkoTop3?: { title: string; address: string; issues: string[]; editUrl: string }[];
+  }[] = [];
   for (const user of filteredUsers) {
     const { count } = await supabaseAdmin
       .from("calendar_events")
@@ -238,10 +285,60 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .lte("start_at", `${todayAR}T23:59:59Z`);
 
     if ((count ?? 0) < minGreens) {
+      // Fetch Tokko data for this user
+      let tokkoTotal: number | undefined;
+      let tokkoNeedAction: number | undefined;
+      let tokkoTop3: { title: string; address: string; issues: string[]; editUrl: string }[] | undefined;
+      try {
+        const tokkoStats = await getAgentTokkoStats(user.email);
+        if (tokkoStats) {
+          tokkoTotal = tokkoStats.total;
+          tokkoNeedAction = tokkoStats.incomplete + tokkoStats.stale;
+          // Get top 3 most important to fix — fetch raw props for detail
+          const { data: teamSub } = await supabaseAdmin.from("subscriptions").select("team_id").eq("email", user.email).single();
+          if (teamSub?.team_id) {
+            const { data: team } = await supabaseAdmin.from("teams").select("tokko_api_key").eq("id", teamSub.team_id).single();
+            if (team?.tokko_api_key) {
+              const { data: tokkoAgent } = await supabaseAdmin.from("tokko_agents").select("tokko_id").eq("team_id", teamSub.team_id).eq("email", user.email).maybeSingle();
+              const r = await fetch(`https://www.tokkobroker.com/api/v1/property/?key=${team.tokko_api_key}&format=json&lang=es_ar&limit=200`);
+              if (r.ok) {
+                const d = await r.json();
+                const now2 = Date.now();
+                const allProps: any[] = d.objects || [];
+                const agentProps = tokkoAgent?.tokko_id
+                  ? allProps.filter((p: any) => p.producer?.id === tokkoAgent.tokko_id && (p.status === 2 || p.status === "2"))
+                  : allProps.filter((p: any) => p.status === 2 || p.status === "2");
+
+                // Score: more issues = higher priority
+                const scored = agentProps.map((p: any) => {
+                  const issues: string[] = [];
+                  const photos = (p.photos || []).filter((ph: any) => !ph.is_blueprint);
+                  if (photos.length < 15) issues.push(`${photos.length}/15 fotos`);
+                  if (!(p.photos || []).some((ph: any) => ph.is_blueprint)) issues.push("sin plano");
+                  if (!p.videos?.length && !p.tags?.some((t: any) => t.name?.toLowerCase().includes("360"))) issues.push("sin video/tour");
+                  const dateStr = p.deleted_at || p.created_at;
+                  const ageDays = dateStr ? Math.floor((now2 - new Date(dateStr).getTime()) / 86400000) : null;
+                  if (ageDays !== null && ageDays > 90) issues.push(`+${ageDays} días sin editar`);
+                  return { p, issues };
+                }).filter(x => x.issues.length > 0).sort((a, b) => b.issues.length - a.issues.length);
+
+                tokkoTop3 = scored.slice(0, 3).map(({ p, issues }) => ({
+                  title: p.publication_title || p.type?.name || "Propiedad",
+                  address: p.fake_address || p.address || "",
+                  issues,
+                  editUrl: `https://www.tokkobroker.com/property/${p.id}/`,
+                }));
+              }
+            }
+          }
+        }
+      } catch { /* silencioso */ }
+
       eligible.push({
         email: user.email,
         name: user.name || user.email.split("@")[0],
         greenCount: count ?? 0,
+        tokkoTotal, tokkoNeedAction, tokkoTop3,
       });
     }
   }
@@ -262,7 +359,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         from: "InmoCoach <coach@inmocoach.com.ar>",
         to: user.email,
         subject: `A mitad de semana · ${user.greenCount} de ${minGreens} eventos verdes`,
-        html: buildHtml({ firstName, greenCount: user.greenCount, minGreens, weeklyGoal, advice }),
+        html: buildHtml({ firstName, greenCount: user.greenCount, minGreens, weeklyGoal, advice, tokkoTotal: user.tokkoTotal, tokkoNeedAction: user.tokkoNeedAction, tokkoTop3: user.tokkoTop3 }),
       });
       if (error) { failed++; console.error(`❌ ${user.email}:`, error); }
       else { sent++; console.log(`✅ ${user.email} (${user.greenCount} verdes)`); }
