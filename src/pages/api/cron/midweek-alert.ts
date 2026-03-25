@@ -32,6 +32,24 @@ async function generateMidweekAdvice(prompt: string): Promise<string> {
   }
 }
 
+
+// Pool de mensajes de felicitación para cartera en orden
+// Se elige uno por semana (mismo para todos) — sin gastar tokens de IA
+const CONGRATS_MESSAGES = [
+  { emoji: "✦", text: "Tu cartera está impecable. Fotos, planos, videos — todo completo y actualizado. Eso se nota en las consultas." },
+  { emoji: "🏆", text: "Fichas perfectas. Los compradores ven lo que necesitan para tomar decisiones. Así se genera confianza antes de la visita." },
+  { emoji: "⭐", text: "Tu cartera habla bien de vos. Fichas completas y al día — una ventaja real sobre el mercado." },
+  { emoji: "✅", text: "Todo en orden en Tokko. Fotos, plano, video y actualizado. El 80% de los agentes no llega a este nivel. Vos sí." },
+  { emoji: "🎯", text: "Cartera perfecta esta semana. Cada ficha tiene lo que un comprador necesita para dar el paso. Ese trabajo silencioso genera resultados." },
+  { emoji: "💎", text: "Tus propiedades están listas para vender. Ficha completa y actualizada — la base de toda operación que se cierra rápido." },
+];
+
+// Selector determinístico por semana — mismo mensaje para todos, cambia cada lunes
+function weeklyCongratsMessage(): { emoji: string; text: string } {
+  const weekNum = Math.floor(Date.now() / (7 * 24 * 60 * 60 * 1000));
+  return CONGRATS_MESSAGES[weekNum % CONGRATS_MESSAGES.length];
+}
+
 function buildHtml(params: {
   firstName: string;
   greenCount: number;
@@ -49,6 +67,22 @@ function buildHtml(params: {
   const missing = Math.max(0, minGreens - greenCount);
 
   const adviceParts = advice.split(/\n\n+/).filter(Boolean);
+  const { emoji: congratsEmoji, text: congratsText } = weeklyCongratsMessage();
+  const tokkoCongrats = tokkoTotal ? `
+        <!-- Cartera en orden -->
+        <tr>
+          <td style="padding:0 32px 20px;">
+            <table width="100%" cellpadding="0" cellspacing="0"
+              style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:16px 20px;">
+              <tr><td>
+                <p style="margin:0 0 6px;font-size:22px;">${congratsEmoji}</p>
+                <p style="margin:0 0 4px;font-size:13px;font-weight:700;color:#166534;">Cartera en orden</p>
+                <p style="margin:0;font-size:13px;color:#15803d;line-height:1.6;">${congratsText}</p>
+              </td></tr>
+            </table>
+          </td>
+        </tr>` : "";
+
 
   const kpi = (value: string | number, label: string) => `
     <td style="padding:0 4px;">
@@ -96,7 +130,8 @@ function buildHtml(params: {
               </tr>
             </table>
           </td>
-        </tr>` : "";
+        </tr>` : (tokkoTotal !== undefined && (tokkoNeedAction ?? 0) === 0 && tokkoTotal > 0) ? tokkoCongrats : "";
+
 
   return `<!DOCTYPE html>
 <html lang="es">
