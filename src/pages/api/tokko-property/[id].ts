@@ -62,8 +62,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       title: v.title || "",
     }));
 
-    // Owner/contact data — Tokko puts it in different places depending on version
-    const owner = prop.contact || prop.owner || prop.client || null;
+    // Tokko API does NOT expose property owners — only the assigned producer (agent)
+    // Owner data is only visible in Tokko's web interface
+    const producer = prop.producer ? {
+      name: prop.producer.name || null,
+      email: prop.producer.email || null,
+      phone: prop.producer.phone || prop.producer.cellphone || null,
+      picture: prop.producer.picture || null,
+    } : null;
 
     return res.status(200).json({
       id: prop.id,
@@ -78,7 +84,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       priceLabel: price ? `${price.currency === "USD" ? "USD " : "$"}${Number(price.price).toLocaleString("es-AR")}` : null,
       status: prop.status,
       // Surfaces
-      totalSurface: prop.total_surface || prop.surface || null,
+      totalSurface: prop.total_surface || null,
       coveredSurface: prop.roofed_surface || null,
       uncoveredSurface: prop.unroofed_surface || null,
       semiCoveredSurface: prop.semiroofed_surface || null,
@@ -108,12 +114,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         email: prop.producer.email,
         phone: prop.producer.phone || prop.producer.cellphone,
       } : null,
-      // Owner/contact
-      owner: owner ? {
-        name: owner.name || owner.display_name || null,
-        email: owner.email || null,
-        phone: owner.phone || owner.cellphone || null,
-      } : null,
+      // Producer (assigned agent) — owners not available via Tokko API
+      producer,
+      owner: null, // Not available via Tokko API — see Tokko web for owner data
+      owners: [],
       // Dates
       daysOnline: (prop.deleted_at || prop.created_at)
         ? Math.floor((now - new Date(prop.deleted_at || prop.created_at).getTime()) / 86400000)

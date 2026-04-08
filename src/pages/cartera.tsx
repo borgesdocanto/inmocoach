@@ -259,53 +259,51 @@ function PropertyModal({ propId, onClose }: { propId: string; onClose: () => voi
 
             {/* Propietario tab */}
             {!loading && detail && tab === "propietario" && (() => {
-              const ownerList = detail.owners?.length ? detail.owners : detail.owner ? [detail.owner] : [];
+              const ownerList = detail.owners?.length ? detail.owners : [];
+              const producer = detail.producer;
               return (
-                <div style={{ padding: 20 }}>
-                  {ownerList.length > 0 ? (
-                    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                      {ownerList.map((o: any, i: number) => (
-                        <div key={i} style={{ background: "#f9fafb", border: "0.5px solid #e5e7eb", borderRadius: 14, padding: 20 }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
-                            <div style={{ width: 40, height: 40, borderRadius: "50%", background: RED + "20", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                              <User size={18} color={RED} />
-                            </div>
-                            <div>
-                              <div style={{ fontSize: 15, fontWeight: 500, color: "#111827" }}>{o.name || "Propietario"}</div>
-                              {ownerList.length > 1 && <div style={{ fontSize: 11, color: "#9ca3af" }}>Propietario {i + 1}</div>}
-                            </div>
-                          </div>
-                          {[
-                            { label: "Email", value: o.email, href: o.email ? `mailto:${o.email}` : null },
-                            { label: "Teléfono", value: o.phone, href: o.phone ? `tel:${o.phone}` : null },
-                          ].filter(r => r.value).map(r => (
-                            <div key={r.label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderTop: "0.5px solid #f3f4f6" }}>
-                              <span style={{ fontSize: 13, color: "#6b7280" }}>{r.label}</span>
-                              {r.href ? (
-                                <a href={r.href} style={{ fontSize: 13, fontWeight: 500, color: RED, textDecoration: "none" }}>{r.value}</a>
-                              ) : (
-                                <span style={{ fontSize: 13, fontWeight: 500, color: "#111827" }}>{r.value}</span>
-                              )}
-                            </div>
-                          ))}
+                <div style={{ padding: 20, display: "flex", flexDirection: "column", gap: 12 }}>
+
+                  {/* Producer card */}
+                  {producer && (
+                    <div style={{ background: "#f9fafb", border: "0.5px solid #e5e7eb", borderRadius: 14, padding: 20 }}>
+                      <div style={{ fontSize: 11, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 12 }}>Agente asignado</div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
+                        {producer.picture
+                          ? <img src={producer.picture} alt="" style={{ width: 40, height: 40, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }} />
+                          : <div style={{ width: 40, height: 40, borderRadius: "50%", background: RED + "20", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><User size={18} color={RED} /></div>
+                        }
+                        <div>
+                          <div style={{ fontSize: 14, fontWeight: 500, color: "#111827" }}>{producer.name}</div>
+                          <div style={{ fontSize: 11, color: "#9ca3af" }}>Productor</div>
+                        </div>
+                      </div>
+                      {[
+                        { label: "Email", value: producer.email, href: producer.email ? `mailto:${producer.email}` : null },
+                        { label: "Teléfono", value: producer.phone, href: producer.phone ? `tel:${producer.phone}` : null },
+                      ].filter(r => r.value).map(r => (
+                        <div key={r.label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderTop: "0.5px solid #f3f4f6" }}>
+                          <span style={{ fontSize: 13, color: "#6b7280" }}>{r.label}</span>
+                          <a href={r.href!} style={{ fontSize: 13, fontWeight: 500, color: RED, textDecoration: "none" }}>{r.value}</a>
                         </div>
                       ))}
-                      <a href={detail.editUrl} target="_blank" rel="noopener noreferrer"
-                        style={{ display: "flex", alignItems: "center", gap: 6, justifyContent: "center", fontSize: 13, color: RED, fontWeight: 500, textDecoration: "none", padding: "10px 0" }}>
-                        Ver datos completos en Tokko <ExternalLink size={13} />
-                      </a>
-                    </div>
-                  ) : (
-                    <div style={{ textAlign: "center", padding: "40px 20px" }}>
-                      <div style={{ fontSize: 32, marginBottom: 12 }}>👤</div>
-                      <div style={{ fontSize: 14, color: "#374151", fontWeight: 500, marginBottom: 6 }}>Datos de propietario no disponibles</div>
-                      <div style={{ fontSize: 13, color: "#9ca3af", marginBottom: 20 }}>Tokko no retornó datos de contacto para esta propiedad.</div>
-                      <a href={detail.editUrl} target="_blank" rel="noopener noreferrer"
-                        style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, color: RED, fontWeight: 500, textDecoration: "none", background: "#fef2f2", borderRadius: 8, padding: "8px 16px" }}>
-                        Ver en Tokko <ExternalLink size={13} />
-                      </a>
                     </div>
                   )}
+
+                  {/* Owner — only in Tokko web */}
+                  <div style={{ background: "#FFFBEB", border: "0.5px solid #fcd34d", borderRadius: 14, padding: 16, display: "flex", gap: 12, alignItems: "flex-start" }}>
+                    <span style={{ fontSize: 20, flexShrink: 0 }}>👤</span>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 500, color: "#92400e", marginBottom: 4 }}>Datos del propietario</div>
+                      <div style={{ fontSize: 12, color: "#78350f", lineHeight: 1.6, marginBottom: 10 }}>
+                        Los datos del propietario no están disponibles via API de Tokko. Para verlos, accedé directamente a la ficha en Tokko Broker.
+                      </div>
+                      <a href={detail.editUrl} target="_blank" rel="noopener noreferrer"
+                        style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, color: "#92400e", fontWeight: 500, textDecoration: "none", background: "rgba(0,0,0,0.06)", borderRadius: 7, padding: "6px 12px" }}>
+                        Ver ficha completa en Tokko <ExternalLink size={11} />
+                      </a>
+                    </div>
+                  </div>
                 </div>
               );
             })()}
