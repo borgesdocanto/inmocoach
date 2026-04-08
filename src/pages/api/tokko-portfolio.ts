@@ -106,7 +106,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         id: p.id,
         referenceCode: p.reference_code || null,
         title: p.publication_title || p.address || "Sin título",
-        address: p.address || null,
+        address: p.fake_address || p.address || null,
+        realAddress: p.address || null,
         type: p.type?.name || null,
         operationType: op?.operation_type || null,
         price: price?.price || null,
@@ -117,6 +118,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         hasTour360,
         hasBlueprint,
         thumbnail: photos[0]?.thumb || null,
+        photos: photos.map((ph: any) => ({ thumb: ph.thumb, image: ph.image || ph.original || ph.thumb })),
+        blueprint: (p.photos || []).filter((ph: any) => ph.is_blueprint).map((ph: any) => ({ thumb: ph.thumb, image: ph.image || ph.original || ph.thumb })),
+        surface: p.total_surface || p.roofed_surface || p.surface || null,
+        rooms: p.room_amount || null,
+        bathrooms: p.bathroom_amount || null,
+        floors: p.floor || null,
+        description: p.description || null,
+        owners: (p.owners || []).map((o: any) => ({
+          name: [o.first_name, o.last_name].filter(Boolean).join(" ") || o.name || null,
+          email: o.email || null,
+          phone: o.phone || o.cellphone || null,
+        })),
         editUrl: `https://www.tokkobroker.com/property/${p.id}/`,
         daysOnline: (p.deleted_at || p.created_at)
           ? Math.floor((now.getTime() - new Date(p.deleted_at || p.created_at).getTime()) / 86400000)

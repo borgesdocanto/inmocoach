@@ -48,6 +48,16 @@ function PropertyModal({ propId, onClose }: { propId: string; onClose: () => voi
   const prevPhoto = () => setPhotoIdx(i => (i - 1 + photos.length) % photos.length);
   const nextPhoto = () => setPhotoIdx(i => (i + 1) % photos.length);
 
+  // Swipe support for photos
+  const touchStartX = useRef<number>(0);
+  const handleTouchStart = (e: React.TouchEvent) => { touchStartX.current = e.touches[0].clientX; };
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    const dx = e.changedTouches[0].clientX - touchStartX.current;
+    if (Math.abs(dx) > 40) { dx < 0 ? nextPhoto() : prevPhoto(); }
+  };
+
+
+
   return (
     <>
       {/* Backdrop */}
@@ -61,7 +71,7 @@ function PropertyModal({ propId, onClose }: { propId: string; onClose: () => voi
       }}>
         <div onClick={e => e.stopPropagation()} style={{
           background: "#fff", borderRadius: 18, width: "100%", maxWidth: 860,
-          maxHeight: "92vh", display: "flex", flexDirection: "column",
+          maxHeight: "92dvh", display: "flex", flexDirection: "column",
           boxShadow: "0 24px 80px rgba(0,0,0,0.3)", pointerEvents: "all",
           overflow: "hidden",
         }}>
@@ -119,7 +129,7 @@ function PropertyModal({ propId, onClose }: { propId: string; onClose: () => voi
               <div>
                 {/* Photo gallery */}
                 {photos.length > 0 ? (
-                  <div style={{ position: "relative", background: "#111", height: 320 }}>
+                  <div onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd} style={{ position: "relative", background: "#111", height: "min(320px, 45vw)" }}>
                     <img
                       src={photos[photoIdx]?.url || photos[photoIdx]?.thumb}
                       alt=""
@@ -135,11 +145,11 @@ function PropertyModal({ propId, onClose }: { propId: string; onClose: () => voi
                     {/* Nav arrows */}
                     {photos.length > 1 && (
                       <>
-                        <button onClick={prevPhoto} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", background: "rgba(0,0,0,0.5)", border: "none", borderRadius: "50%", width: 36, height: 36, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                          <ChevronLeft size={20} color="#fff" />
+                        <button onClick={prevPhoto} style={{ position: "absolute", left: 8, top: "50%", transform: "translateY(-50%)", background: "rgba(0,0,0,0.55)", border: "none", borderRadius: "50%", width: 40, height: 40, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", touchAction: "manipulation" }}>
+                          <ChevronLeft size={22} color="#fff" />
                         </button>
-                        <button onClick={nextPhoto} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "rgba(0,0,0,0.5)", border: "none", borderRadius: "50%", width: 36, height: 36, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                          <ChevronRight size={20} color="#fff" />
+                        <button onClick={nextPhoto} style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", background: "rgba(0,0,0,0.55)", border: "none", borderRadius: "50%", width: 40, height: 40, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", touchAction: "manipulation" }}>
+                          <ChevronRight size={22} color="#fff" />
                         </button>
                         <div style={{ position: "absolute", bottom: 12, right: 12, background: "rgba(0,0,0,0.6)", color: "#fff", fontSize: 12, borderRadius: 6, padding: "3px 10px" }}>
                           {photoIdx + 1} / {photos.length}
@@ -158,7 +168,7 @@ function PropertyModal({ propId, onClose }: { propId: string; onClose: () => voi
                   <div style={{ display: "flex", gap: 6, padding: "10px 16px", overflowX: "auto", background: "#f9fafb", borderBottom: "0.5px solid #f3f4f6" }}>
                     {photos.map((ph: any, i: number) => (
                       <div key={i} onClick={() => setPhotoIdx(i)} style={{ position: "relative", flexShrink: 0, cursor: "pointer" }}>
-                        <img src={ph.thumb || ph.url} alt="" style={{ width: 56, height: 42, objectFit: "cover", borderRadius: 6, border: i === photoIdx ? `2px solid ${RED}` : "2px solid transparent", opacity: i === photoIdx ? 1 : 0.7 }} />
+                        <img src={ph.thumb || ph.url} alt="" style={{ width: 64, height: 48, objectFit: "cover", borderRadius: 6, border: i === photoIdx ? `2px solid ${RED}` : "2px solid transparent", opacity: i === photoIdx ? 1 : 0.7 }} />
                         {ph.isBlueprint && (
                           <div style={{ position: "absolute", bottom: 2, right: 2, background: "rgba(0,0,0,0.7)", borderRadius: 3, padding: "1px 3px", fontSize: 8, color: "#fff" }}>📐</div>
                         )}
@@ -248,52 +258,57 @@ function PropertyModal({ propId, onClose }: { propId: string; onClose: () => voi
             )}
 
             {/* Propietario tab */}
-            {!loading && detail && tab === "propietario" && (
-              <div style={{ padding: 24 }}>
-                {detail.owner ? (
-                  <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                    <div style={{ background: "#f9fafb", border: "0.5px solid #e5e7eb", borderRadius: 14, padding: 20 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
-                        <div style={{ width: 44, height: 44, borderRadius: "50%", background: RED + "20", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                          <User size={20} color={RED} />
-                        </div>
-                        <div>
-                          <div style={{ fontSize: 16, fontWeight: 500, color: "#111827" }}>{detail.owner.name || "Propietario"}</div>
-                          <div style={{ fontSize: 12, color: "#9ca3af" }}>Contacto de la propiedad</div>
-                        </div>
-                      </div>
-                      {[
-                        { label: "Email", value: detail.owner.email, href: detail.owner.email ? `mailto:${detail.owner.email}` : null },
-                        { label: "Teléfono", value: detail.owner.phone, href: detail.owner.phone ? `tel:${detail.owner.phone}` : null },
-                      ].filter(r => r.value).map(r => (
-                        <div key={r.label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderTop: "0.5px solid #f3f4f6" }}>
-                          <span style={{ fontSize: 13, color: "#6b7280" }}>{r.label}</span>
-                          {r.href ? (
-                            <a href={r.href} style={{ fontSize: 13, fontWeight: 500, color: RED, textDecoration: "none" }}>{r.value}</a>
-                          ) : (
-                            <span style={{ fontSize: 13, fontWeight: 500, color: "#111827" }}>{r.value}</span>
-                          )}
+            {!loading && detail && tab === "propietario" && (() => {
+              const ownerList = detail.owners?.length ? detail.owners : detail.owner ? [detail.owner] : [];
+              return (
+                <div style={{ padding: 20 }}>
+                  {ownerList.length > 0 ? (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                      {ownerList.map((o: any, i: number) => (
+                        <div key={i} style={{ background: "#f9fafb", border: "0.5px solid #e5e7eb", borderRadius: 14, padding: 20 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
+                            <div style={{ width: 40, height: 40, borderRadius: "50%", background: RED + "20", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                              <User size={18} color={RED} />
+                            </div>
+                            <div>
+                              <div style={{ fontSize: 15, fontWeight: 500, color: "#111827" }}>{o.name || "Propietario"}</div>
+                              {ownerList.length > 1 && <div style={{ fontSize: 11, color: "#9ca3af" }}>Propietario {i + 1}</div>}
+                            </div>
+                          </div>
+                          {[
+                            { label: "Email", value: o.email, href: o.email ? `mailto:${o.email}` : null },
+                            { label: "Teléfono", value: o.phone, href: o.phone ? `tel:${o.phone}` : null },
+                          ].filter(r => r.value).map(r => (
+                            <div key={r.label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderTop: "0.5px solid #f3f4f6" }}>
+                              <span style={{ fontSize: 13, color: "#6b7280" }}>{r.label}</span>
+                              {r.href ? (
+                                <a href={r.href} style={{ fontSize: 13, fontWeight: 500, color: RED, textDecoration: "none" }}>{r.value}</a>
+                              ) : (
+                                <span style={{ fontSize: 13, fontWeight: 500, color: "#111827" }}>{r.value}</span>
+                              )}
+                            </div>
+                          ))}
                         </div>
                       ))}
+                      <a href={detail.editUrl} target="_blank" rel="noopener noreferrer"
+                        style={{ display: "flex", alignItems: "center", gap: 6, justifyContent: "center", fontSize: 13, color: RED, fontWeight: 500, textDecoration: "none", padding: "10px 0" }}>
+                        Ver datos completos en Tokko <ExternalLink size={13} />
+                      </a>
                     </div>
-                    <a href={detail.editUrl} target="_blank" rel="noopener noreferrer"
-                      style={{ display: "flex", alignItems: "center", gap: 6, justifyContent: "center", fontSize: 13, color: RED, fontWeight: 500, textDecoration: "none", padding: "10px 0" }}>
-                      Ver datos completos en Tokko <ExternalLink size={13} />
-                    </a>
-                  </div>
-                ) : (
-                  <div style={{ textAlign: "center", padding: "40px 20px" }}>
-                    <div style={{ fontSize: 32, marginBottom: 12 }}>👤</div>
-                    <div style={{ fontSize: 14, color: "#374151", fontWeight: 500, marginBottom: 6 }}>Datos de propietario no disponibles</div>
-                    <div style={{ fontSize: 13, color: "#9ca3af", marginBottom: 20 }}>Tokko no retornó datos de contacto para esta propiedad.</div>
-                    <a href={detail.editUrl} target="_blank" rel="noopener noreferrer"
-                      style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, color: RED, fontWeight: 500, textDecoration: "none", background: "#fef2f2", borderRadius: 8, padding: "8px 16px" }}>
-                      Ver en Tokko <ExternalLink size={13} />
-                    </a>
-                  </div>
-                )}
-              </div>
-            )}
+                  ) : (
+                    <div style={{ textAlign: "center", padding: "40px 20px" }}>
+                      <div style={{ fontSize: 32, marginBottom: 12 }}>👤</div>
+                      <div style={{ fontSize: 14, color: "#374151", fontWeight: 500, marginBottom: 6 }}>Datos de propietario no disponibles</div>
+                      <div style={{ fontSize: 13, color: "#9ca3af", marginBottom: 20 }}>Tokko no retornó datos de contacto para esta propiedad.</div>
+                      <a href={detail.editUrl} target="_blank" rel="noopener noreferrer"
+                        style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, color: RED, fontWeight: 500, textDecoration: "none", background: "#fef2f2", borderRadius: 8, padding: "8px 16px" }}>
+                        Ver en Tokko <ExternalLink size={13} />
+                      </a>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
           </div>
         </div>
       </div>
