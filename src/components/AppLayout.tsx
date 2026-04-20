@@ -43,7 +43,9 @@ export default function AppLayout({ children, topbarExtra, greeting }: AppLayout
           const role = d.subscription?.teamRole;
           setIsOwner(role === "owner" || role === "team_leader");
           // Redirect expired users to pricing wall
-          if (d.subscription?.isExpired) {
+          // Nunca redirigir si el super admin está impersonando un usuario
+          const isAdminImpersonating = isSuperAdmin(session?.user?.email);
+          if (d.subscription?.isExpired && !isAdminImpersonating) {
             router.replace("/expired");
           }
         })
