@@ -81,7 +81,7 @@ export default function AdminPanel() {
   const [actionMsg, setActionMsg] = useState<Record<string, string>>({});
   const [opsLoading, setOpsLoading] = useState(false);
   const [opsMsg, setOpsMsg] = useState("");
-  const [emailTemplate, setEmailTemplate] = useState<"welcome" | "weekly">("welcome");
+  const [emailTemplate, setEmailTemplate] = useState<"welcome" | "weekly" | "team">("welcome");
   const [emailRecipient, setEmailRecipient] = useState<"all" | "specific">("specific");
   const [emailSearch, setEmailSearch] = useState("");
   const [emailSearchResults, setEmailSearchResults] = useState<{email:string;name?:string}[]>([]);
@@ -871,10 +871,11 @@ export default function AdminPanel() {
               {/* Paso 1: Seleccionar template */}
               <div className="mb-5">
                 <div className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">1. Seleccioná el email</div>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-3 gap-2">
                   {([
                     { id: "welcome", label: "Bienvenida", desc: "Mail de bienvenida al registrarse", icon: "👋" },
                     { id: "weekly",  label: "Informe semanal", desc: "Informe con IAC, stats y consejo del coach", icon: "📊" },
+                    { id: "team",    label: "Resumen de equipo", desc: "Resumen semanal para brokers y team leaders (IAC del equipo + alertas Tokko)", icon: "🏢" },
                   ] as const).map(t => (
                     <button key={t.id} onClick={() => setEmailTemplate(t.id)}
                       className="text-left p-3 rounded-xl border-2 transition-all"
@@ -959,7 +960,7 @@ export default function AdminPanel() {
               <button onClick={sendEmails} disabled={emailSending || (emailRecipient === "specific" && emailSelected.length === 0)}
                 className="w-full py-3 rounded-xl text-sm font-black text-white transition-all hover:opacity-90 disabled:opacity-40 flex items-center justify-center gap-2"
                 style={{ background: RED }}>
-                {emailSending ? <><Loader2 size={14} className="animate-spin" /> Enviando...</> : `Enviar "${emailTemplate === "welcome" ? "Bienvenida" : "Informe semanal"}" ${emailRecipient === "all" ? "a todos" : emailSelected.length > 0 ? `a ${emailSelected.length} usuario${emailSelected.length > 1 ? "s" : ""}` : ""}`}
+                {emailSending ? <><Loader2 size={14} className="animate-spin" /> Enviando...</> : `Enviar "${emailTemplate === "welcome" ? "Bienvenida" : emailTemplate === "weekly" ? "Informe semanal" : "Resumen de equipo"}" ${emailRecipient === "all" ? "a todos" : emailSelected.length > 0 ? `a ${emailSelected.length} usuario${emailSelected.length > 1 ? "s" : ""}` : ""}`}
               </button>
             </div>
           </div>

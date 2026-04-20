@@ -5,6 +5,11 @@ import { authOptions } from "../../../lib/auth";
 import { supabaseAdmin } from "../../../lib/supabase";
 import { Resend } from "resend";
 import { generateWelcomeEmailHtml, generateWeeklyEmailHtml } from "../../../lib/emailTemplate";
+import { generateTeamEmailHtml } from "../../../lib/teamEmailTemplate";
+import { getStoredEvents, calcIAC } from "../../../lib/calendarSync";
+import { getAgentTokkoStats } from "../../../lib/tokkoPortfolio";
+import { subDays, startOfWeek, format } from "date-fns";
+import { es } from "date-fns/locale";
 import { fetchCalendarEvents, computeWeekStats } from "../../../lib/calendarSync";
 import { getGoals } from "../../../lib/appConfig";
 import { getValidAccessToken } from "../../../lib/googleToken";
@@ -109,6 +114,101 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           isExpiringSoon: (subData?.plan || "free") === "free" && daysLeft <= 2,
           daysLeft, streak: streakData.current,
         });
+      } else if (template === "team") {
+        // Resumen de equipo — solo para owners y team_leaders
+        const { data: ownerSub } = await supabaseAdmin
+          .from("subscriptions")
+          .select("team_id, team_role, name, mail_prefs")
+          .eq("email", email)
+          .single();
+
+        if (!ownerSub?.team_id || !["owner", "team_leader"].includes(ownerSub.team_role || "")) {
+          results.failed++;
+          results.errors.push(`${email}: no es broker ni team leader`);
+          continue;
+        }
+
+        const { weeklyGoal } = await getGoals();
+        const now = new Date();
+        const lastSunday = subDays(startOfWeek(now, { weekStartsOn: 1 }), 1);
+        const lastMonday = subDays(lastSunday, 6);
+        const from = new Date(lastMonday); from.setHours(0, 0, 0, 0);
+        const to = new Date(lastSunday); to.setHours(23, 59, 59, 999);
+        const weekDates = `${format(lastMonday, "d MMM", { locale: es })} - ${format(lastSunday, "d MMM yyyy", { locale: es })}`;
+
+        // Traer todos los miembros del equipo
+        const { data: members } = await supabaseAdmin
+          .from("subscriptions")
+          .select("email, name, team_role")
+          .eq("team_id", ownerSub.team_id);
+
+        if (!members?.length) {
+          results.failed++;
+          results.errors.push(`${email}: equipo sin miembros`);
+          continue;
+        }
+
+        // Stats de cada miembro
+        const agentRows = await Promise.all(members.map(async (m) => {
+          const isSelf = m.email === email;
+          try {
+            const events = await getStoredEvents(m.email, from, to);
+            const greenEvents = events.filter((e: any) => e.isGreen);
+            const greenTotal = greenEvents.length;
+            const byDay: Record<string, number> = {};
+            greenEvents.forEach((e: any) => {
+              const day = e.start.slice(0, 10);
+              byDay[day] = (byDay[day] || 0) + 1;
+            });
+            const productiveDays = Object.values(byDay).filter(c => c >= 2).length;
+            const totalDays = new Set(events.map((e: any) => e.start.slice(0, 10))).size;
+            const avgPerWeek = greenTotal;
+            const iac = Math.min(100, Math.round(calcIAC(avgPerWeek, weeklyGoal)));
+            const tokkoStats = await getAgentTokkoStats(m.email).catch(() => null);
+            return {
+              name: m.name || m.email.split("@")[0],
+              email: m.email,
+              role: m.team_role || "member",
+              iac, greenTotal, productiveDays, totalDays,
+              tokkoTotal: tokkoStats?.total,
+              tokkoIncomplete: tokkoStats?.incomplete,
+              tokkoStale: tokkoStats?.stale,
+              isSelf,
+            };
+          } catch {
+            return {
+              name: m.name || m.email.split("@")[0],
+              email: m.email, role: m.team_role || "member",
+              iac: 0, greenTotal: 0, productiveDays: 0, totalDays: 0, isSelf,
+            };
+          }
+        }));
+
+        // Ordenar: self primero, luego por IAC asc
+        agentRows.sort((a, b) => {
+          if (a.isSelf) return -1;
+          if (b.isSelf) return 1;
+          return a.iac - b.iac;
+        });
+
+        const DEFAULT_PREFS = { recv_agent: true, recv_team: true, include_self_activity: true, include_self_tokko: true };
+        const prefs = { ...DEFAULT_PREFS, ...(ownerSub.mail_prefs || {}) };
+
+        const lowCount = agentRows.filter(a => !a.isSelf && a.iac < 40).length;
+        const subjectAlert = lowCount > 0 ? ` · 🔴 ${lowCount} agente${lowCount > 1 ? "s" : ""} inactivo${lowCount > 1 ? "s" : ""}` : "";
+
+        subject = `Resumen de equipo · ${weekDates}${subjectAlert}`;
+        html = generateTeamEmailHtml({
+          recipientName: ownerSub.name || email.split("@")[0],
+          recipientEmail: email,
+          recipientRole: ownerSub.team_role || "owner",
+          weekDates,
+          agents: agentRows,
+          includeSelfActivity: prefs.include_self_activity,
+          includeSelfTokko: prefs.include_self_tokko,
+          weeklyGoal,
+        });
+
       } else {
         return res.status(400).json({ error: "template desconocido" });
       }
