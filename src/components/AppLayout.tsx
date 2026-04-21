@@ -248,6 +248,22 @@ export default function AppLayout({ children, topbarExtra, greeting }: AppLayout
 
         {/* Content */}
         <main style={{ flex: 1, overflow: "auto" }}>
+          {impersonating && (
+            <div style={{ background: "#7c3aed", padding: "10px 20px", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+              <span style={{ fontSize: 13, color: "#fff", flex: 1 }}>
+                👁 Estás viendo el dashboard de <strong>{impersonating}</strong>
+              </span>
+              <button
+                onClick={async () => {
+                  await fetch("/api/impersonate", { method: "DELETE" });
+                  setImpersonating(null);
+                  window.location.href = "/admin";
+                }}
+                style={{ background: "rgba(255,255,255,0.2)", border: "0.5px solid rgba(255,255,255,0.4)", borderRadius: 7, padding: "5px 14px", fontSize: 12, fontWeight: 500, color: "#fff", cursor: "pointer", whiteSpace: "nowrap" }}>
+                ✕ Salir de impersonación
+              </button>
+            </div>
+          )}
           {children}
         </main>
       </div>
