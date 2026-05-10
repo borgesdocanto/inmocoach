@@ -382,13 +382,12 @@ export default function PortalFirma() {
   const completarFirma = async () => {
     setFirmando(true);
     try {
-      const res = await fetch(`/api/firmar/${token}`, {
+      const res = await fetch(`/api/firmar/${token}/firmar`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "firmar" }),
       });
       if (res.ok) {
-        // Generar PDF final con auditoría en background
+        // Generar PDF en background
         fetch("/api/firma/generar-pdf-final", {
           method: "POST",
           headers: { "Content-Type": "application/json" },

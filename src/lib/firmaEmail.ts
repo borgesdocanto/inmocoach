@@ -12,8 +12,16 @@ export function buildFirmaEmailHtml(params: {
   agency_name: string;
   nombre_documento: string;
   link_firma: string;
+  rol_firmante?: string;
+  total_firmantes?: number;
 }): string {
-  const { firmante_nombre, agency_name, nombre_documento, link_firma } = params;
+  const { firmante_nombre, agency_name, nombre_documento, link_firma, rol_firmante, total_firmantes } = params;
+  const infoFirmantes = total_firmantes && total_firmantes > 1
+    ? `<div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:12px;color:#92400e;">
+        📋 Este documento requiere la firma de <strong>${total_firmantes} personas</strong>. 
+        Tu rol en este documento es: <strong>${rol_firmante || "Firmante"}</strong>.
+      </div>`
+    : "";
   return emailWrapperFirma(`
     <h2 style="font-size:20px;font-weight:800;color:#111;margin:0 0 6px;">
       Tenés un documento para firmar
@@ -39,6 +47,7 @@ export function buildFirmaEmailHtml(params: {
       </div>
     </div>
 
+    ${infoFirmantes}
     <a href="${link_firma}" style="display:block;background:#aa0000;color:#fff;text-align:center;
       padding:16px;border-radius:12px;font-size:16px;font-weight:800;text-decoration:none;margin-bottom:16px;">
       ✍ Firmar documento
@@ -61,6 +70,8 @@ export async function enviarEmailFirma(params: {
   firma_token: string;
   nombre_documento: string;
   agency_name: string;
+  rol_firmante?: string;
+  total_firmantes?: number;
 }): Promise<{ ok: boolean; error?: string }> {
   const link = `${BASE_URL}/firmar/${params.firma_token}`;
 
@@ -73,6 +84,8 @@ export async function enviarEmailFirma(params: {
       agency_name: params.agency_name,
       nombre_documento: params.nombre_documento,
       link_firma: link,
+      rol_firmante: params.rol_firmante,
+      total_firmantes: params.total_firmantes,
     }),
   });
 

@@ -30,6 +30,18 @@ interface Plantilla {
   team_id: string | null;
 }
 
+interface Firmante {
+  id: string;
+  nombre: string;
+  email: string;
+  rol: string;
+  orden: number;
+  estado: "pendiente" | "firmado" | "rechazado";
+  signed_at: string | null;
+  firma_token: string;
+  email_enviado_at: string | null;
+}
+
 interface Documento {
   id: string;
   firma_token: string;
@@ -45,6 +57,7 @@ interface Documento {
   firma_plantillas: { nombre: string; descripcion: string } | null;
   docuseal_submission_id: number | null;
   url_documento_firmado: string | null;
+  firma_firmantes?: Firmante[];
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -349,17 +362,32 @@ function FormularioDatos({
 }: {
   plantilla: Plantilla;
   onBack: () => void;
-  onSubmit: (datos: Record<string, string>, firmante: { nombre: string; email: string; telefono: string }) => void;
+  onSubmit: (datos: Record<string, string>, firmantes: Array<{nombre: string; email: string; telefono: string; rol: string}>) => void;
   loading: boolean;
 }) {
   const [campos, setCampos] = useState<Record<string, string>>({});
-  const [firmante, setFirmante] = useState({ nombre: "", email: "", telefono: "" });
+  const [firmantes, setFirmantes] = useState([{ nombre: "", email: "", telefono: "", rol: "Firmante" }]);
 
   const inputStyle: React.CSSProperties = {
     width: "100%", border: "1.5px solid #e5e7eb", borderRadius: 8,
     padding: "8px 12px", fontSize: 13, outline: "none", boxSizing: "border-box",
     fontFamily: "inherit", background: "#fff", color: "#111"
   };
+
+  const actualizarFirmante = (i: number, campo: string, valor: string) => {
+    setFirmantes(prev => prev.map((f, idx) => idx === i ? { ...f, [campo]: valor } : f));
+  };
+
+  const agregarFirmante = () => {
+    setFirmantes(prev => [...prev, { nombre: "", email: "", telefono: "", rol: "Firmante" }]);
+  };
+
+  const quitarFirmante = (i: number) => {
+    if (firmantes.length === 1) return;
+    setFirmantes(prev => prev.filter((_, idx) => idx !== i));
+  };
+
+  const rolesComunes = ["Firmante", "Vendedor", "Comprador", "Locador", "Locatario", "Garante", "Testigo"];
 
   const handleSubmit = () => {
     for (const c of plantilla.campos) {
@@ -368,11 +396,13 @@ function FormularioDatos({
         return;
       }
     }
-    if (!firmante.nombre || !firmante.email) {
-      alert("Nombre y email del firmante son obligatorios");
-      return;
+    for (const f of firmantes) {
+      if (!f.nombre || !f.email) {
+        alert("Nombre y email de cada firmante son obligatorios");
+        return;
+      }
     }
-    onSubmit(campos, firmante);
+    onSubmit(campos, firmantes);
   };
 
   return (
@@ -388,63 +418,94 @@ function FormularioDatos({
       <div style={{ fontSize: 14, fontWeight: 700, color: "#111", marginBottom: 2 }}>{plantilla.nombre}</div>
       <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 20 }}>{plantilla.descripcion}</div>
 
-      {/* Datos del firmante */}
-      <div style={{ background: "#f8fafc", border: "1px solid #e5e7eb", borderRadius: 10, padding: 14, marginBottom: 18 }}>
-        <div style={{ fontSize: 11, fontWeight: 700, color: "#374151", marginBottom: 12, textTransform: "uppercase", letterSpacing: .5 }}>
-          ¿Quién tiene que firmar?
+      {/* Firmantes */}
+      <div style={{ marginBottom: 18 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: "#374151", textTransform: "uppercase", letterSpacing: .5, marginBottom: 10 }}>
+          Quiénes tienen que firmar
         </div>
         <div style={{ display: "grid", gap: 10 }}>
-          <div>
-            <label style={{ fontSize: 11, fontWeight: 600, color: "#6b7280", display: "block", marginBottom: 4 }}>Nombre y apellido *</label>
-            <input value={firmante.nombre} onChange={e => setFirmante(f => ({ ...f, nombre: e.target.value }))}
-              style={inputStyle} placeholder="Juan García" />
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-            <div>
-              <label style={{ fontSize: 11, fontWeight: 600, color: "#6b7280", display: "flex", alignItems: "center", gap: 3, marginBottom: 4 }}>
-                <Mail size={10} /> Email *
-              </label>
-              <input type="email" value={firmante.email} onChange={e => setFirmante(f => ({ ...f, email: e.target.value }))}
-                style={inputStyle} placeholder="juan@gmail.com" />
+          {firmantes.map((f, i) => (
+            <div key={i} style={{ background: "#f8fafc", border: "1px solid #e5e7eb", borderRadius: 10, padding: 14 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: "#374151" }}>
+                  Firmante {i + 1}
+                  {firmantes.length > 1 && <span style={{ color: "#9ca3af", fontWeight: 400, marginLeft: 4 }}>· {f.rol}</span>}
+                </div>
+                {firmantes.length > 1 && (
+                  <button onClick={() => quitarFirmante(i)} style={{ background: "none", border: "none", cursor: "pointer", color: "#ef4444", fontSize: 11, fontWeight: 600 }}>
+                    ✕ Quitar
+                  </button>
+                )}
+              </div>
+              <div style={{ display: "grid", gap: 8 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                  <div>
+                    <label style={{ fontSize: 10, fontWeight: 600, color: "#6b7280", display: "block", marginBottom: 3 }}>Nombre *</label>
+                    <input value={f.nombre} onChange={e => actualizarFirmante(i, "nombre", e.target.value)} style={inputStyle} placeholder="Juan García" />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: 10, fontWeight: 600, color: "#6b7280", display: "block", marginBottom: 3 }}>Rol</label>
+                    <select value={f.rol} onChange={e => actualizarFirmante(i, "rol", e.target.value)} style={inputStyle}>
+                      {rolesComunes.map(r => <option key={r} value={r}>{r}</option>)}
+                    </select>
+                  </div>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                  <div>
+                    <label style={{ fontSize: 10, fontWeight: 600, color: "#6b7280", display: "flex", alignItems: "center", gap: 2, marginBottom: 3 }}>
+                      <Mail size={9} /> Email *
+                    </label>
+                    <input type="email" value={f.email} onChange={e => actualizarFirmante(i, "email", e.target.value)} style={inputStyle} placeholder="juan@gmail.com" />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: 10, fontWeight: 600, color: "#6b7280", display: "flex", alignItems: "center", gap: 2, marginBottom: 3 }}>
+                      <Phone size={9} /> Teléfono
+                    </label>
+                    <input value={f.telefono} onChange={e => actualizarFirmante(i, "telefono", e.target.value)} style={inputStyle} placeholder="+54 11..." />
+                  </div>
+                </div>
+              </div>
             </div>
-            <div>
-              <label style={{ fontSize: 11, fontWeight: 600, color: "#6b7280", display: "flex", alignItems: "center", gap: 3, marginBottom: 4 }}>
-                <Phone size={10} /> Teléfono
-              </label>
-              <input value={firmante.telefono} onChange={e => setFirmante(f => ({ ...f, telefono: e.target.value }))}
-                style={inputStyle} placeholder="+54 11..." />
-            </div>
-          </div>
+          ))}
         </div>
+        <button onClick={agregarFirmante} style={{
+          width: "100%", background: "none", border: `1.5px dashed ${RED}`, color: RED,
+          borderRadius: 8, padding: "8px 0", fontSize: 12, fontWeight: 600,
+          cursor: "pointer", marginTop: 8, display: "flex", alignItems: "center", justifyContent: "center", gap: 5
+        }}>
+          <Plus size={13} /> Agregar otro firmante
+        </button>
       </div>
 
       {/* Campos del documento */}
-      <div style={{ fontSize: 11, fontWeight: 700, color: "#374151", marginBottom: 12, textTransform: "uppercase", letterSpacing: .5 }}>
-        Datos del documento
-      </div>
-      <div style={{ display: "grid", gap: 10 }}>
-        {plantilla.campos.map(campo => (
-          <div key={campo.nombre}>
-            <label style={{ fontSize: 11, fontWeight: 600, color: "#6b7280", display: "block", marginBottom: 4 }}>
-              {campo.etiqueta}{campo.requerido ? " *" : ""}
-            </label>
-            {campo.tipo === "textarea" ? (
-              <textarea value={campos[campo.nombre] || ""} onChange={e => setCampos(p => ({ ...p, [campo.nombre]: e.target.value }))}
-                style={{ ...inputStyle, height: 70, resize: "vertical" }} />
-            ) : campo.tipo === "select" ? (
-              <select value={campos[campo.nombre] || ""} onChange={e => setCampos(p => ({ ...p, [campo.nombre]: e.target.value }))}
-                style={inputStyle}>
-                <option value="">Seleccioná...</option>
-                {campo.opciones?.map(o => <option key={o} value={o}>{o}</option>)}
-              </select>
-            ) : (
-              <input type={campo.tipo} value={campos[campo.nombre] || ""}
-                onChange={e => setCampos(p => ({ ...p, [campo.nombre]: e.target.value }))}
-                style={inputStyle} />
-            )}
+      {plantilla.campos.length > 0 && (
+        <>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "#374151", marginBottom: 12, textTransform: "uppercase", letterSpacing: .5 }}>
+            Datos del documento
           </div>
-        ))}
-      </div>
+          <div style={{ display: "grid", gap: 10 }}>
+            {plantilla.campos.map(campo => (
+              <div key={campo.nombre}>
+                <label style={{ fontSize: 11, fontWeight: 600, color: "#6b7280", display: "block", marginBottom: 4 }}>
+                  {campo.etiqueta}{campo.requerido ? " *" : ""}
+                </label>
+                {campo.tipo === "textarea" ? (
+                  <textarea value={campos[campo.nombre] || ""} onChange={e => setCampos(p => ({ ...p, [campo.nombre]: e.target.value }))}
+                    style={{ ...inputStyle, height: 70, resize: "vertical" }} />
+                ) : campo.tipo === "select" ? (
+                  <select value={campos[campo.nombre] || ""} onChange={e => setCampos(p => ({ ...p, [campo.nombre]: e.target.value }))} style={inputStyle}>
+                    <option value="">Seleccioná...</option>
+                    {campo.opciones?.map(o => <option key={o} value={o}>{o}</option>)}
+                  </select>
+                ) : (
+                  <input type={campo.tipo} value={campos[campo.nombre] || ""}
+                    onChange={e => setCampos(p => ({ ...p, [campo.nombre]: e.target.value }))} style={inputStyle} />
+                )}
+              </div>
+            ))}
+          </div>
+        </>
+      )}
 
       <button onClick={handleSubmit} disabled={loading} style={{
         width: "100%", background: loading ? "#9ca3af" : RED, color: "#fff",
@@ -452,11 +513,12 @@ function FormularioDatos({
         fontWeight: 700, cursor: loading ? "not-allowed" : "pointer", marginTop: 22,
         display: "flex", alignItems: "center", justifyContent: "center", gap: 8
       }}>
-        <Send size={14} /> {loading ? "Enviando..." : "Enviar para firma"}
+        <Send size={14} /> {loading ? "Enviando..." : `Enviar a ${firmantes.length} firmante${firmantes.length > 1 ? "s" : ""}`}
       </button>
     </div>
   );
 }
+
 
 // ─── Botón para generar PDF firmado si no existe aún ─────────────────────────
 
@@ -514,6 +576,10 @@ function GenerarPdfBtn({ docId, firmaToken, onListo }: { docId: string; firmaTok
 function FilaDocumento({ doc, onVer }: { doc: Documento; onVer: () => void }) {
   const alertar = esPendienteMasDe48h(doc);
   const firmado = doc.estado === "firmado";
+  const firmantes = doc.firma_firmantes || [];
+  const firmados = firmantes.filter(f => f.estado === "firmado").length;
+  const total = firmantes.length;
+  const progreso = total > 0 ? Math.round((firmados / total) * 100) : (firmado ? 100 : 0);
 
   return (
     <div style={{
@@ -535,46 +601,74 @@ function FilaDocumento({ doc, onVer }: { doc: Documento; onVer: () => void }) {
             </span>
             {alertar && <span title="Pendiente más de 48hs" style={{ display: "inline-flex" }}><AlertCircle size={13} color="#ef4444" /></span>}
           </div>
-          <div style={{ fontSize: 11, color: "#6b7280" }}>{doc.firmante_nombre} · {doc.firmante_email}</div>
-          <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 2 }}>
+
+          {/* Firmantes inline */}
+          {firmantes.length > 0 ? (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 4 }}>
+              {firmantes.map(f => (
+                <span key={f.id} style={{
+                  fontSize: 10, fontWeight: 600, padding: "2px 7px", borderRadius: 999,
+                  background: f.estado === "firmado" ? "#d1fae5" : "#f3f4f6",
+                  color: f.estado === "firmado" ? "#065f46" : "#6b7280",
+                  display: "inline-flex", alignItems: "center", gap: 3
+                }}>
+                  {f.estado === "firmado" ? "✅" : "⏳"} {f.nombre.split(" ")[0]}
+                  {f.rol !== "Firmante" ? ` (${f.rol})` : ""}
+                </span>
+              ))}
+            </div>
+          ) : (
+            <div style={{ fontSize: 11, color: "#6b7280", marginBottom: 4 }}>
+              {doc.firmante_nombre} · {doc.firmante_email}
+            </div>
+          )}
+
+          <div style={{ fontSize: 11, color: "#9ca3af" }}>
             {formatFecha(doc.created_at)}
-            {doc.signed_at ? ` · ✅ Firmado ${formatFecha(doc.signed_at)}` : ` · Vence ${formatFecha(doc.expires_at)}`}
+            {doc.signed_at ? ` · ✅ Completado ${formatFecha(doc.signed_at)}` : ` · Vence ${formatFecha(doc.expires_at)}`}
           </div>
+
+          {/* Barra de progreso si hay múltiples firmantes */}
+          {total > 1 && (
+            <div style={{ marginTop: 6 }}>
+              <div style={{ background: "#f3f4f6", borderRadius: 4, height: 4, overflow: "hidden" }}>
+                <div style={{ background: firmado ? "#10b981" : RED, width: `${progreso}%`, height: "100%", transition: "width .3s" }} />
+              </div>
+              <div style={{ fontSize: 10, color: "#9ca3af", marginTop: 3 }}>
+                {firmados} de {total} firmaron
+              </div>
+            </div>
+          )}
         </div>
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6, flexShrink: 0 }}>
           {estadoBadge(doc.estado)}
         </div>
       </div>
 
-      {/* Botón descarga visible directamente en la fila si está firmado */}
+      {/* Barra de descarga si está firmado */}
       {firmado && (
         <div style={{ borderTop: "1px solid #f0fdf4", padding: "10px 16px", background: "#f0fdf4", display: "flex", gap: 10, alignItems: "center" }}>
           {doc.url_documento_firmado ? (
-            <a
-              href={doc.url_documento_firmado}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={e => e.stopPropagation()}
+            <a href={doc.url_documento_firmado} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}
               style={{
                 display: "flex", alignItems: "center", gap: 6,
                 background: "#065f46", color: "#fff", borderRadius: 8,
-                padding: "7px 14px", fontSize: 12, fontWeight: 700,
-                textDecoration: "none", flexShrink: 0
-              }}
-            >
+                padding: "7px 14px", fontSize: 12, fontWeight: 700, textDecoration: "none", flexShrink: 0
+              }}>
               <Download size={13} /> Descargar PDF firmado
             </a>
           ) : (
             <GenerarPdfBtn docId={doc.id} firmaToken={doc.firma_token} onListo={onVer} />
           )}
           <span style={{ fontSize: 11, color: "#065f46" }}>
-            Firmado el {formatFecha(doc.signed_at!)}
+            {doc.signed_at ? `Completado el ${formatFecha(doc.signed_at)}` : "Firmado"}
           </span>
         </div>
       )}
     </div>
   );
 }
+
 
 // ─── Modal detalle documento ───────────────────────────────────────────────────
 
@@ -982,7 +1076,7 @@ export default function FirmaDigital() {
     }
   };
 
-  const handleEnviar = async (datos: Record<string, string>, firmante: { nombre: string; email: string; telefono: string }) => {
+  const handleEnviar = async (datos: Record<string, string>, firmantes: Array<{nombre: string; email: string; telefono: string; rol: string}>) => {
     if (!plantillaSel) return;
     setEnviando(true);
     try {
@@ -992,16 +1086,15 @@ export default function FirmaDigital() {
         body: JSON.stringify({
           plantilla_id: plantillaSel.id,
           datos_json: datos,
-          firmante_nombre: firmante.nombre,
-          firmante_email: firmante.email,
-          firmante_telefono: firmante.telefono,
+          firmantes: firmantes.map((f, i) => ({ ...f, orden: i + 1 })),
         }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Error");
       setModalNuevo(false);
       await cargarDatos();
-      setExito(`✅ Documento enviado a ${firmante.email}`);
+      const nombres = firmantes.map(f => f.nombre.split(" ")[0]).join(", ");
+      setExito(`✅ Documento enviado a: ${nombres}`);
       setTimeout(() => setExito(""), 5000);
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : "Error");
@@ -1203,3 +1296,5 @@ export default function FirmaDigital() {
     </>
   );
 }
+
+
