@@ -33,6 +33,7 @@ export default function AppLayout({ children, topbarExtra, greeting }: AppLayout
   const [agencyLogo, setAgencyLogo] = useState<string | null>(null);
   const [agencyName, setAgencyName] = useState<string | null>(null);
   const [unseenCoach, setUnseenCoach] = useState(0);
+  const [firmaAlerta, setFirmaAlerta] = useState(0);
   const [impersonating, setImpersonating] = useState<string | null>(null);
   const [impersonatedUser, setImpersonatedUser] = useState<{ name: string; email: string; avatar: string | null } | null>(null);
 
@@ -82,6 +83,18 @@ export default function AppLayout({ children, topbarExtra, greeting }: AppLayout
         .then(r => r.ok ? r.json() : null)
         .then(d => { if (d?.unseen) setUnseenCoach(d.unseen); })
         .catch(() => {});
+
+      // Badge firma digital: documentos pendientes > 48hs
+      fetch("/api/firma/documentos")
+        .then(r => r.ok ? r.json() : [])
+        .then((docs: Array<{ estado: string; created_at: string }>) => {
+          const alerta = docs.filter(d => {
+            if (d.estado !== "pendiente") return false;
+            return Date.now() - new Date(d.created_at).getTime() > 48 * 60 * 60 * 1000;
+          }).length;
+          setFirmaAlerta(alerta);
+        })
+        .catch(() => {});
     };
 
     loadAll();
@@ -96,6 +109,7 @@ export default function AppLayout({ children, topbarExtra, greeting }: AppLayout
     { label: "Racha y rango", icon: "✦", href: "/racha-rango", active: path === "/racha-rango" },
     { label: "Cartera Tokko", icon: "🏠", href: "/cartera", active: path === "/cartera" },
     { label: "Posición equipo", icon: "◎", href: "/posicion", active: path === "/posicion" },
+    { label: "Firma Digital", icon: "✍", href: "/firma-digital", active: path === "/firma-digital", badge: firmaAlerta > 0 ? firmaAlerta : undefined },
     ...(isOwner ? [
       {
         label: "Mi equipo",
