@@ -2,10 +2,10 @@
 
 import { NextApiRequest, NextApiResponse } from "next";
 import { getServerSession } from "next-auth";
-import { authOptions } from "../../lib/auth";
-import { supabaseAdmin } from "../../lib/supabase";
-import { getEffectiveEmail } from "../../lib/impersonation";
-import { createSubmission, isDocusealConfigured } from "../../lib/docuseal";
+import { authOptions } from "../../../lib/auth";
+import { supabaseAdmin } from "../../../lib/supabase";
+import { getEffectiveEmail } from "../../../lib/impersonation";
+import { createSubmission, isDocusealConfigured } from "../../../lib/docuseal";
 
 const LIMITE_MENSUAL_FREE = 5;
 

@@ -2,10 +2,10 @@
 
 import { NextApiRequest, NextApiResponse } from "next";
 import { getServerSession } from "next-auth";
-import { authOptions } from "../../lib/auth";
-import { supabaseAdmin } from "../../lib/supabase";
-import { getEffectiveEmail } from "../../lib/impersonation";
-import { getSubmission, resendSubmitterEmail } from "../../lib/docuseal";
+import { authOptions } from "../../../lib/auth";
+import { supabaseAdmin } from "../../../lib/supabase";
+import { getEffectiveEmail } from "../../../lib/impersonation";
+import { getSubmission, resendSubmitterEmail } from "../../../lib/docuseal";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const session = await getServerSession(req, res, authOptions);
