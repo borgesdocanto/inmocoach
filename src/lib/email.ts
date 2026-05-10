@@ -6,7 +6,7 @@ export const EMAIL_FOOTER = `
   <div style="margin-top:32px;padding-top:20px;border-top:1px solid #f3f4f6;text-align:center;">
     <p style="color:#9ca3af;font-size:11px;line-height:1.6;margin:0;">
       Este es un email automático — por favor no respondas este mensaje.<br/>
-      Para consultas escribí a <a href="mailto:hola@inmocoach.com.ar" style="color:#aa0000;text-decoration:none;">hola@inmocoach.com.ar</a>
+      Para consultas comunicate con tu inmobiliario de confianza.
     </p>
   </div>
 `;
