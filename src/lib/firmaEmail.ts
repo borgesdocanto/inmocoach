@@ -87,10 +87,18 @@ export async function enviarEmailFirma(params: {
 export async function getAgencyName(userEmail: string): Promise<string> {
   const { data: sub } = await supabaseAdmin
     .from("subscriptions")
-    .select("name, team_id, teams(agency_name, name)")
+    .select("name, team_id")
     .eq("email", userEmail)
     .single();
 
-  const teams = sub?.teams as unknown as { agency_name?: string; name?: string } | null;
-  return teams?.agency_name || teams?.name || sub?.name || "InmoCoach";
+  if (sub?.team_id) {
+    const { data: team } = await supabaseAdmin
+      .from("teams")
+      .select("agency_name, name")
+      .eq("id", sub.team_id)
+      .single();
+    if (team?.agency_name) return team.agency_name;
+    if (team?.name) return team.name;
+  }
+  return sub?.name || "InmoCoach";
 }
