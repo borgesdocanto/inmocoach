@@ -302,7 +302,7 @@ function FilaDocumento({ doc, onVer }: { doc: Documento; onVer: () => void }) {
           <span style={{ fontSize: 13, fontWeight: 600, color: "#111", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {doc.firma_plantillas?.nombre || "Documento"}
           </span>
-          {alertar && <AlertCircle size={13} color="#ef4444" title="Pendiente más de 48hs" />}
+          {alertar && <span title="Pendiente más de 48hs" style={{ display: "inline-flex" }}><AlertCircle size={13} color="#ef4444" /></span>}
         </div>
         <div style={{ fontSize: 11, color: "#6b7280" }}>{doc.firmante_nombre} · {doc.firmante_email}</div>
         <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 2 }}>
