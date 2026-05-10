@@ -222,11 +222,11 @@ function FormularioPdf({
   onBack, onSubmit, loading
 }: {
   onBack: () => void;
-  onSubmit: (payload: { nombre_documento: string; firmante_nombre: string; firmante_email: string; firmante_telefono: string; pdf_base64: string }) => void;
+  onSubmit: (payload: { nombre_documento: string; firmantes: Array<{nombre: string; email: string; telefono: string; rol: string}>; pdf_base64: string }) => void;
   loading: boolean;
 }) {
   const [nombreDoc, setNombreDoc] = useState("");
-  const [firmante, setFirmante] = useState({ nombre: "", email: "", telefono: "" });
+  const [firmantes, setFirmantes] = useState([{ nombre: "", email: "", telefono: "", rol: "Firmante" }]);
   const [pdfBase64, setPdfBase64] = useState("");
   const [pdfNombre, setPdfNombre] = useState("");
   const [dragging, setDragging] = useState(false);
@@ -237,13 +237,19 @@ function FormularioPdf({
     fontFamily: "inherit", background: "#fff", color: "#111"
   };
 
+  const actualizarFirmante = (i: number, campo: string, valor: string) => {
+    setFirmantes(prev => prev.map((f, idx) => idx === i ? { ...f, [campo]: valor } : f));
+  };
+
+  const rolesComunes = ["Firmante", "Vendedor", "Comprador", "Locador", "Locatario", "Garante", "Testigo"];
+
   const procesarPdf = (file: File) => {
     if (file.type !== "application/pdf") { alert("Solo se aceptan archivos PDF"); return; }
     if (file.size > 9 * 1024 * 1024) { alert("El PDF no puede superar 9 MB"); return; }
     const reader = new FileReader();
     reader.onload = e => {
       const result = e.target?.result as string;
-      setPdfBase64(result); // data:application/pdf;base64,XXXX
+      setPdfBase64(result);
       setPdfNombre(file.name);
       if (!nombreDoc) setNombreDoc(file.name.replace(/\.pdf$/i, ""));
     };
@@ -263,9 +269,11 @@ function FormularioPdf({
 
   const handleSubmit = () => {
     if (!pdfBase64) { alert("Seleccioná un PDF"); return; }
-    if (!firmante.nombre || !firmante.email) { alert("Nombre y email del firmante son obligatorios"); return; }
     if (!nombreDoc) { alert("Ingresá un nombre para el documento"); return; }
-    onSubmit({ nombre_documento: nombreDoc, firmante_nombre: firmante.nombre, firmante_email: firmante.email, firmante_telefono: firmante.telefono, pdf_base64: pdfBase64 });
+    for (const f of firmantes) {
+      if (!f.nombre || !f.email) { alert("Nombre y email de cada firmante son obligatorios"); return; }
+    }
+    onSubmit({ nombre_documento: nombreDoc, firmantes, pdf_base64: pdfBase64 });
   };
 
   return (
@@ -316,31 +324,64 @@ function FormularioPdf({
         <input value={nombreDoc} onChange={e => setNombreDoc(e.target.value)} style={inputStyle} placeholder="Ej: Contrato de alquiler Pérez" />
       </div>
 
-      {/* Datos del firmante */}
-      <div style={{ background: "#f8fafc", border: "1px solid #e5e7eb", borderRadius: 10, padding: 14, marginBottom: 18 }}>
-        <div style={{ fontSize: 11, fontWeight: 700, color: "#374151", marginBottom: 12, textTransform: "uppercase", letterSpacing: .5 }}>
-          ¿Quién tiene que firmar?
+      {/* Firmantes */}
+      <div style={{ marginBottom: 18 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: "#374151", textTransform: "uppercase", letterSpacing: .5, marginBottom: 10 }}>
+          Quiénes tienen que firmar
         </div>
         <div style={{ display: "grid", gap: 10 }}>
-          <div>
-            <label style={{ fontSize: 11, fontWeight: 600, color: "#6b7280", display: "block", marginBottom: 4 }}>Nombre y apellido *</label>
-            <input value={firmante.nombre} onChange={e => setFirmante(f => ({ ...f, nombre: e.target.value }))} style={inputStyle} placeholder="Juan García" />
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-            <div>
-              <label style={{ fontSize: 11, fontWeight: 600, color: "#6b7280", display: "flex", alignItems: "center", gap: 3, marginBottom: 4 }}>
-                <Mail size={10} /> Email *
-              </label>
-              <input type="email" value={firmante.email} onChange={e => setFirmante(f => ({ ...f, email: e.target.value }))} style={inputStyle} placeholder="juan@gmail.com" />
+          {firmantes.map((f, i) => (
+            <div key={i} style={{ background: "#f8fafc", border: "1px solid #e5e7eb", borderRadius: 10, padding: 14 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: "#374151" }}>
+                  Firmante {i + 1}
+                  {firmantes.length > 1 && <span style={{ color: "#9ca3af", fontWeight: 400, marginLeft: 4 }}>· {f.rol}</span>}
+                </div>
+                {firmantes.length > 1 && (
+                  <button onClick={() => setFirmantes(prev => prev.filter((_, idx) => idx !== i))}
+                    style={{ background: "none", border: "none", cursor: "pointer", color: "#ef4444", fontSize: 11, fontWeight: 600 }}>
+                    ✕ Quitar
+                  </button>
+                )}
+              </div>
+              <div style={{ display: "grid", gap: 8 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                  <div>
+                    <label style={{ fontSize: 10, fontWeight: 600, color: "#6b7280", display: "block", marginBottom: 3 }}>Nombre *</label>
+                    <input value={f.nombre} onChange={e => actualizarFirmante(i, "nombre", e.target.value)} style={inputStyle} placeholder="Juan García" />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: 10, fontWeight: 600, color: "#6b7280", display: "block", marginBottom: 3 }}>Rol</label>
+                    <select value={f.rol} onChange={e => actualizarFirmante(i, "rol", e.target.value)} style={inputStyle}>
+                      {rolesComunes.map(r => <option key={r} value={r}>{r}</option>)}
+                    </select>
+                  </div>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                  <div>
+                    <label style={{ fontSize: 10, fontWeight: 600, color: "#6b7280", display: "flex", alignItems: "center", gap: 2, marginBottom: 3 }}>
+                      <Mail size={9} /> Email *
+                    </label>
+                    <input type="email" value={f.email} onChange={e => actualizarFirmante(i, "email", e.target.value)} style={inputStyle} placeholder="juan@gmail.com" />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: 10, fontWeight: 600, color: "#6b7280", display: "flex", alignItems: "center", gap: 2, marginBottom: 3 }}>
+                      <Phone size={9} /> Teléfono
+                    </label>
+                    <input value={f.telefono} onChange={e => actualizarFirmante(i, "telefono", e.target.value)} style={inputStyle} placeholder="+54 11..." />
+                  </div>
+                </div>
+              </div>
             </div>
-            <div>
-              <label style={{ fontSize: 11, fontWeight: 600, color: "#6b7280", display: "flex", alignItems: "center", gap: 3, marginBottom: 4 }}>
-                <Phone size={10} /> Teléfono
-              </label>
-              <input value={firmante.telefono} onChange={e => setFirmante(f => ({ ...f, telefono: e.target.value }))} style={inputStyle} placeholder="+54 11..." />
-            </div>
-          </div>
+          ))}
         </div>
+        <button onClick={() => setFirmantes(prev => [...prev, { nombre: "", email: "", telefono: "", rol: "Firmante" }])} style={{
+          width: "100%", background: "none", border: `1.5px dashed ${RED}`, color: RED,
+          borderRadius: 8, padding: "8px 0", fontSize: 12, fontWeight: 600,
+          cursor: "pointer", marginTop: 8, display: "flex", alignItems: "center", justifyContent: "center", gap: 5
+        }}>
+          <Plus size={13} /> Agregar otro firmante
+        </button>
       </div>
 
       <button onClick={handleSubmit} disabled={loading || !pdfBase64} style={{
@@ -349,7 +390,7 @@ function FormularioPdf({
         fontWeight: 700, cursor: loading || !pdfBase64 ? "not-allowed" : "pointer",
         display: "flex", alignItems: "center", justifyContent: "center", gap: 8
       }}>
-        <Send size={14} /> {loading ? "Enviando..." : "Enviar para firma"}
+        <Send size={14} /> {loading ? "Enviando..." : `Enviar a ${firmantes.length} firmante${firmantes.length > 1 ? "s" : ""}`}
       </button>
     </div>
   );
@@ -1055,7 +1096,7 @@ export default function FirmaDigital() {
 
   const abrirNuevo = () => { setModalNuevo(true); setPaso("selector"); setPlantillaSel(null); };
 
-  const handleEnviarPdf = async (payload: { nombre_documento: string; firmante_nombre: string; firmante_email: string; firmante_telefono: string; pdf_base64: string }) => {
+  const handleEnviarPdf = async (payload: { nombre_documento: string; firmantes: Array<{nombre: string; email: string; telefono: string; rol: string}>; pdf_base64: string }) => {
     setEnviando(true);
     try {
       const res = await fetch("/api/firma/subir-pdf", {
@@ -1067,7 +1108,8 @@ export default function FirmaDigital() {
       if (!res.ok) throw new Error(json.error || "Error");
       setModalNuevo(false);
       await cargarDatos();
-      setExito(`✅ PDF enviado a ${payload.firmante_email} para firma`);
+      const nombres = payload.firmantes.map(f => f.nombre.split(" ")[0]).join(", ");
+      setExito(`✅ PDF enviado a: ${nombres}`);
       setTimeout(() => setExito(""), 5000);
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : "Error al enviar");

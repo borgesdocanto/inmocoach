@@ -1,4 +1,4 @@
-// pages/api/firma/subir-pdf.ts — Subir PDF libre para firma via DocuSeal
+// pages/api/firma/subir-pdf.ts — Subir PDF libre con múltiples firmantes
 
 import { NextApiRequest, NextApiResponse } from "next";
 import { getServerSession } from "next-auth";
@@ -21,9 +21,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const email = getEffectiveEmail(req, session);
   if (!email) return res.status(401).json({ error: "No autenticado" });
 
-  const { nombre_documento, firmante_nombre, firmante_email, firmante_telefono, pdf_base64 } = req.body;
-  if (!nombre_documento || !firmante_nombre || !firmante_email || !pdf_base64) {
+  const { nombre_documento, firmantes, pdf_base64 } = req.body;
+  // firmantes: [{ nombre, email, telefono, rol }]
+
+  if (!nombre_documento || !firmantes?.length || !pdf_base64) {
     return res.status(400).json({ error: "Faltan campos obligatorios" });
+  }
+
+  for (const f of firmantes) {
+    if (!f.nombre || !f.email) {
+      return res.status(400).json({ error: "Cada firmante debe tener nombre y email" });
+    }
   }
 
   const pdfBase64Clean = pdf_base64.replace(/^data:application\/pdf;base64,/, "");
@@ -43,49 +51,46 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .from("firma_documentos").select("id", { count: "exact", head: true })
       .eq("usuario_email", email).gte("created_at", inicioMes.toISOString());
     if ((count || 0) >= LIMITE_MENSUAL_FREE) {
-      return res.status(403).json({ error: `Límite de ${LIMITE_MENSUAL_FREE} documentos por mes alcanzado` });
+      return res.status(403).json({ error: `Límite de ${LIMITE_MENSUAL_FREE} documentos por mes` });
     }
   }
 
   const agencyName = await getAgencyName(email);
+  const primerFirmante = firmantes[0];
 
+  // DocuSeal — solo con el primer firmante por ahora (no soporta múltiples en el mismo flow)
   let docuseal_submission_id: number | null = null;
   let docuseal_slug: string | null = null;
-  let sign_page_url: string | null = null;
 
-  if (isDocusealConfigured()) {
+  if (isDocusealConfigured() && firmantes.length === 1) {
     try {
       const submissions = await createSubmissionFromPdf({
         name: nombre_documento,
         base64: pdfBase64Clean,
-        firmante_nombre,
-        firmante_email,
-        firmante_telefono: firmante_telefono || undefined,
-        send_email: true, // DocuSeal envía el email con el link de firma real
-        email_subject: `Firma para ${agencyName}: ${nombre_documento}`,
-        email_body: `Hola ${firmante_nombre}, ${agencyName} te envió el documento "${nombre_documento}" para que lo firmes digitalmente.`,
+        firmante_nombre: primerFirmante.nombre,
+        firmante_email: primerFirmante.email,
+        firmante_telefono: primerFirmante.telefono || undefined,
+        send_email: false,
       });
       if (submissions?.[0]) {
         docuseal_submission_id = submissions[0].id;
         docuseal_slug = submissions[0].slug;
-        sign_page_url = submissions[0].submitters?.[0]?.sign_page_url || null;
       }
     } catch (err) {
       console.error("DocuSeal error:", err);
-      // Fallback: enviar nuestro email con el portal propio
     }
   }
 
-  // Crear documento en Supabase
+  // Crear documento padre
   const { data: doc, error } = await supabaseAdmin
     .from("firma_documentos")
     .insert({
       usuario_email: email,
       plantilla_id: null,
       datos_json: { nombre_documento },
-      firmante_nombre,
-      firmante_email,
-      firmante_telefono: firmante_telefono || null,
+      firmante_nombre: primerFirmante.nombre,
+      firmante_email: primerFirmante.email,
+      firmante_telefono: primerFirmante.telefono || null,
       docuseal_submission_id,
       docuseal_slug,
       team_id: teamId,
@@ -95,20 +100,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     .select("*, firma_plantillas(nombre)")
     .single();
 
-  if (error) return res.status(500).json({ error: error.message });
+  if (error || !doc) return res.status(500).json({ error: error?.message || "Error al crear documento" });
 
-  // Si DocuSeal no está disponible → enviar nuestro email con el portal propio
-  if (!docuseal_submission_id) {
-    await enviarEmailFirma({
-      firmante_nombre,
-      firmante_email,
-      firma_token: doc.firma_token,
-      nombre_documento,
-      agency_name: agencyName,
-    });
-  }
-
-  // Guardar PDF original en Storage para generar el PDF final después
+  // Guardar PDF original en Storage
   await supabaseAdmin.storage
     .from("firma-docs")
     .upload(`${doc.id}/documento_original.pdf`,
@@ -116,5 +110,39 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       { contentType: "application/pdf", upsert: true }
     );
 
-  return res.status(201).json({ ...doc, sign_page_url });
+  // Crear firmantes individuales
+  const firmantesData = firmantes.map((f: { nombre: string; email: string; telefono?: string; rol?: string }, i: number) => ({
+    documento_id: doc.id,
+    nombre: f.nombre,
+    email: f.email,
+    telefono: f.telefono || null,
+    rol: f.rol || "Firmante",
+    orden: i + 1,
+    estado: "pendiente",
+  }));
+
+  const { data: firmantesCreados } = await supabaseAdmin
+    .from("firma_firmantes")
+    .insert(firmantesData)
+    .select();
+
+  // Enviar email a cada firmante
+  for (const firmante of firmantesCreados || []) {
+    await enviarEmailFirma({
+      firmante_nombre: firmante.nombre,
+      firmante_email: firmante.email,
+      firma_token: firmante.firma_token,
+      nombre_documento,
+      agency_name: agencyName,
+      rol_firmante: firmante.rol,
+      total_firmantes: firmantesCreados!.length,
+    }).catch(e => console.error("Email error:", e));
+
+    await supabaseAdmin
+      .from("firma_firmantes")
+      .update({ email_enviado_at: new Date().toISOString() })
+      .eq("id", firmante.id);
+  }
+
+  return res.status(201).json({ ...doc, firma_firmantes: firmantesCreados });
 }
