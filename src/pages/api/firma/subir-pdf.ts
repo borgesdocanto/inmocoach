@@ -108,5 +108,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
   }
 
+  // Guardar PDF original en Storage para generar el PDF final después
+  await supabaseAdmin.storage
+    .from("firma-docs")
+    .upload(`${doc.id}/documento_original.pdf`,
+      Buffer.from(pdfBase64Clean, "base64"),
+      { contentType: "application/pdf", upsert: true }
+    );
+
   return res.status(201).json({ ...doc, sign_page_url });
 }

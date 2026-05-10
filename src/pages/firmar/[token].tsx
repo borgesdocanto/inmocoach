@@ -246,6 +246,13 @@ export default function PortalFirma() {
         body: JSON.stringify({ action: "firmar" }),
       });
       if (res.ok) {
+        // Generar PDF final con auditoría en background
+        fetch("/api/firma/generar-pdf-final", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ firma_token: token }),
+        }).catch(() => {});
+
         setPaso("completado");
         setDoc(prev => prev ? { ...prev, estado: "firmado" } : prev);
       } else {
