@@ -51,6 +51,17 @@ function sha256(bytes: Uint8Array): string {
   return crypto.createHash("sha256").update(bytes).digest("hex");
 }
 
+// Sanitizar texto para Helvetica (solo Latin-1, sin tildes ni ñ)
+function safe(str: string): string {
+  return str
+    .replace(/á/g, "a").replace(/é/g, "e").replace(/í/g, "i")
+    .replace(/ó/g, "o").replace(/ú/g, "u").replace(/ü/g, "u")
+    .replace(/Á/g, "A").replace(/É/g, "E").replace(/Í/g, "I")
+    .replace(/Ó/g, "O").replace(/Ú/g, "U").replace(/Ü/g, "U")
+    .replace(/ñ/g, "n").replace(/Ñ/g, "N")
+    .replace(/[^\x00-\xFF]/g, "?");
+}
+
 // Dibujar línea horizontal
 function hline(page: PDFPage, y: number, color = rgb(0.85, 0.85, 0.85)) {
   const { width } = page.getSize();
@@ -95,11 +106,11 @@ export async function generarPdfConAuditoria(
     color: RED,
   });
 
-  auditPage.drawText("REGISTRO DE FIRMA ELECTRÓNICA", {
+  auditPage.drawText(safe("REGISTRO DE FIRMA ELECTRÓNICA"), {
     x: margin, y: pageHeight - 28,
     size: 14, font: helveticaBold, color: WHITE,
   });
-  auditPage.drawText(`${datos.agency_name} · InmoCoach`, {
+  auditPage.drawText(safe(`${datos.agency_name} · InmoCoach`), {
     x: margin, y: pageHeight - 46,
     size: 9, font: helvetica, color: rgb(1, 0.85, 0.85),
   });
@@ -110,7 +121,7 @@ export async function generarPdfConAuditoria(
     width: 70, height: 22,
     color: rgb(0, 0.6, 0.3),
   });
-  auditPage.drawText("✓ VÁLIDO", {
+  auditPage.drawText(safe("✓ VÁLIDO"), {
     x: pageWidth - 104, y: pageHeight - 44,
     size: 9, font: helveticaBold, color: WHITE,
   });
@@ -118,13 +129,13 @@ export async function generarPdfConAuditoria(
   y = pageHeight - 90;
 
   // ── Sección: Documento ──────────────────────────────────────────────────────
-  auditPage.drawText("DOCUMENTO", {
+  auditPage.drawText(safe("DOCUMENTO"), {
     x: margin, y,
     size: 7, font: helveticaBold, color: RED,
   });
   y -= 14;
 
-  auditPage.drawText(truncate(datos.nombre_documento, 80), {
+  auditPage.drawText(safe(truncate(datos.nombre_documento, 80)), {
     x: margin, y,
     size: 12, font: helveticaBold, color: DARK,
   });
@@ -134,7 +145,7 @@ export async function generarPdfConAuditoria(
   y -= 16;
 
   // ── Sección: Firmante ───────────────────────────────────────────────────────
-  auditPage.drawText("DATOS DEL FIRMANTE", {
+  auditPage.drawText(safe("DATOS DEL FIRMANTE"), {
     x: margin, y,
     size: 7, font: helveticaBold, color: RED,
   });
@@ -147,8 +158,8 @@ export async function generarPdfConAuditoria(
   ];
 
   for (const [label, valor] of campos) {
-    auditPage.drawText(label, { x: margin, y, size: 8, font: helvetica, color: GRAY });
-    auditPage.drawText(truncate(valor, 70), { x: margin + 120, y, size: 8, font: helveticaBold, color: DARK });
+    auditPage.drawText(safe(label), { x: margin, y, size: 8, font: helvetica, color: GRAY });
+    auditPage.drawText(safe(truncate(valor, 70)), { x: margin + 120, y, size: 8, font: helveticaBold, color: DARK });
     y -= 13;
   }
 
@@ -156,7 +167,7 @@ export async function generarPdfConAuditoria(
   y -= 16;
 
   // ── Sección: Tracking ───────────────────────────────────────────────────────
-  auditPage.drawText("REGISTRO DE ACTIVIDAD", {
+  auditPage.drawText(safe("REGISTRO DE ACTIVIDAD"), {
     x: margin, y,
     size: 7, font: helveticaBold, color: RED,
   });
@@ -177,8 +188,8 @@ export async function generarPdfConAuditoria(
   ];
 
   for (const [label, valor] of trackingItems) {
-    auditPage.drawText(label, { x: margin, y, size: 8, font: helvetica, color: GRAY });
-    auditPage.drawText(valor, { x: margin + 140, y, size: 7, font: helveticaBold, color: DARK });
+    auditPage.drawText(safe(label), { x: margin, y, size: 8, font: helvetica, color: GRAY });
+    auditPage.drawText(safe(valor), { x: margin + 140, y, size: 7, font: helveticaBold, color: DARK });
     y -= 13;
   }
 
@@ -186,7 +197,7 @@ export async function generarPdfConAuditoria(
   y -= 16;
 
   // ── Sección: Imágenes de verificación ───────────────────────────────────────
-  auditPage.drawText("VERIFICACIÓN DE IDENTIDAD", {
+  auditPage.drawText(safe("VERIFICACIÓN DE IDENTIDAD"), {
     x: margin, y,
     size: 7, font: helveticaBold, color: RED,
   });
@@ -214,7 +225,7 @@ export async function generarPdfConAuditoria(
     });
 
     // Label debajo
-    auditPage.drawText(slot.label, {
+    auditPage.drawText(safe(slot.label), {
       x: slot.x + 2, y: imgY - 12,
       size: 7, font: helveticaBold, color: GRAY,
     });
@@ -249,21 +260,21 @@ export async function generarPdfConAuditoria(
         } catch { /* ignorar errores de imagen */ }
 
         // Hash debajo del label
-        auditPage.drawText("SHA256:", {
+        auditPage.drawText(safe("SHA256:"), {
           x: slot.x, y: imgY - 22,
           size: 5, font: helvetica, color: GRAY,
         });
-        auditPage.drawText(hash.slice(0, 32), {
+        auditPage.drawText(safe(hash.slice(0, 32)), {
           x: slot.x, y: imgY - 30,
           size: 5, font: helvetica, color: GRAY,
         });
-        auditPage.drawText(hash.slice(32), {
+        auditPage.drawText(safe(hash.slice(32)), {
           x: slot.x, y: imgY - 38,
           size: 5, font: helvetica, color: GRAY,
         });
       }
     } else {
-      auditPage.drawText("Sin imagen", {
+      auditPage.drawText(safe("Sin imagen"), {
         x: slot.x + 20, y: imgY + 45,
         size: 8, font: helvetica, color: GRAY,
       });
@@ -275,14 +286,14 @@ export async function generarPdfConAuditoria(
   y -= 16;
 
   // ── Hash del documento completo ─────────────────────────────────────────────
-  auditPage.drawText("INTEGRIDAD DEL DOCUMENTO", {
+  auditPage.drawText(safe("INTEGRIDAD DEL DOCUMENTO"), {
     x: margin, y,
     size: 7, font: helveticaBold, color: RED,
   });
   y -= 14;
 
   const docHash = sha256(pdfOriginalBytes);
-  auditPage.drawText("Hash SHA-256 del documento original:", {
+  auditPage.drawText(safe("Hash SHA-256 del documento original:"), {
     x: margin, y, size: 8, font: helvetica, color: GRAY,
   });
   y -= 12;
@@ -290,7 +301,7 @@ export async function generarPdfConAuditoria(
     x: margin, y: y - 4, width: contentWidth, height: 16,
     color: LIGHT,
   });
-  auditPage.drawText(docHash, {
+  auditPage.drawText(safe(docHash), {
     x: margin + 4, y: y + 1,
     size: 7, font: helvetica, color: DARK,
   });
@@ -316,18 +327,18 @@ export async function generarPdfConAuditoria(
   });
 
   for (const line of legalText) {
-    auditPage.drawText(line, { x: margin + 6, y, size: 7, font: helvetica, color: GRAY });
+    auditPage.drawText(safe(line), { x: margin + 6, y, size: 7, font: helvetica, color: GRAY });
     y -= 11;
   }
 
   y -= 16;
 
   // Número de página y branding
-  auditPage.drawText(`Generado por InmoCoach · ${datos.agency_name} · ${new Date().toISOString()}`, {
+  auditPage.drawText(safe(`Generado por InmoCoach · ${datos.agency_name} · ${new Date().toISOString()}`), {
     x: margin, y: 20,
     size: 6, font: helvetica, color: rgb(0.7, 0.7, 0.7),
   });
-  auditPage.drawText(`Página ${pdfDoc.getPageCount()} de ${pdfDoc.getPageCount()}`, {
+  auditPage.drawText(safe(`Pagina ${pdfDoc.getPageCount()} de ${pdfDoc.getPageCount()}`), {
     x: pageWidth - 80, y: 20,
     size: 6, font: helvetica, color: rgb(0.7, 0.7, 0.7),
   });

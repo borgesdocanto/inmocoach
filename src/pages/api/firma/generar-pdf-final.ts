@@ -58,8 +58,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     } catch { /* ignorar */ }
   }
 
+  // Si no hay PDF original, crear uno vacío como base para la auditoría
   if (!pdfOriginalBytes) {
-    return res.status(400).json({ error: "No se encontró el PDF original del documento" });
+    const { PDFDocument } = await import("pdf-lib");
+    const blankDoc = await PDFDocument.create();
+    pdfOriginalBytes = await blankDoc.save();
   }
 
   try {
