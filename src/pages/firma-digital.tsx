@@ -494,71 +494,189 @@ function FilaDocumento({ doc, onVer }: { doc: Documento; onVer: () => void }) {
 
 // ─── Modal detalle documento ───────────────────────────────────────────────────
 
-function ModalDetalle({ doc, onClose, onReenviar }: { doc: Documento; onClose: () => void; onReenviar: () => void }) {
+function ModalDetalle({
+  doc, onClose, onReenviar, onEditar
+}: {
+  doc: Documento;
+  onClose: () => void;
+  onReenviar: () => Promise<void>;
+  onEditar: (nombre: string, email: string, tel: string) => Promise<void>;
+}) {
+  const [modo, setModo] = useState<"ver" | "editar">("ver");
   const [reenviando, setReenviando] = useState(false);
+  const [guardando, setGuardando] = useState(false);
+  const [fnombre, setFnombre] = useState(doc.firmante_nombre || "");
+  const [femail, setFemail] = useState(doc.firmante_email || "");
+  const [ftel, setFtel] = useState(doc.firmante_telefono || "");
+  const [msgExito, setMsgExito] = useState("");
+
+  const inputStyle: React.CSSProperties = {
+    width: "100%", border: "1.5px solid #e5e7eb", borderRadius: 8,
+    padding: "8px 12px", fontSize: 13, outline: "none", boxSizing: "border-box",
+    fontFamily: "inherit", color: "#111", background: "#fff"
+  };
 
   const handleReenviar = async () => {
     setReenviando(true);
     await onReenviar();
+    setMsgExito("✅ Email enviado");
+    setTimeout(() => setMsgExito(""), 4000);
     setReenviando(false);
   };
 
-  return (
-    <Modal title={doc.firma_plantillas?.nombre || "Documento"} onClose={onClose}>
-      <div style={{ display: "grid", gap: 10, marginBottom: 20 }}>
-        {[
-          ["Estado", estadoBadge(doc.estado)],
-          ["Firmante", <span style={{ fontSize: 12, fontWeight: 500 }}>{doc.firmante_nombre}</span>],
-          ["Email", doc.firmante_email],
-          ...(doc.firmante_telefono ? [["Teléfono", doc.firmante_telefono]] : []),
-          ["Enviado", formatFecha(doc.created_at)],
-          ...(doc.signed_at ? [["Firmado ✅", <span style={{ fontWeight: 700, color: "#065f46" }}>{formatFecha(doc.signed_at)}</span>]] : []),
-          ["Vence", formatFecha(doc.expires_at)],
-        ].map(([k, v], i) => (
-          <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingBottom: 8, borderBottom: "1px solid #f3f4f6" }}>
-            <span style={{ fontSize: 12, color: "#6b7280" }}>{k}</span>
-            {typeof v === "string" ? <span style={{ fontSize: 12, color: "#111" }}>{v}</span> : v}
-          </div>
-        ))}
-      </div>
+  const handleGuardar = async () => {
+    if (!fnombre || !femail) { alert("Nombre y email son obligatorios"); return; }
+    setGuardando(true);
+    await onEditar(fnombre, femail, ftel);
+    setModo("ver");
+    setMsgExito("✅ Datos actualizados");
+    setTimeout(() => setMsgExito(""), 4000);
+    setGuardando(false);
+  };
 
-      {Object.keys(doc.datos_json || {}).length > 0 && (
-        <div style={{ background: "#f8fafc", borderRadius: 10, padding: 14, marginBottom: 20 }}>
-          <div style={{ fontSize: 10, fontWeight: 700, color: "#9ca3af", textTransform: "uppercase", letterSpacing: .5, marginBottom: 10 }}>
-            Datos del documento
-          </div>
-          <div style={{ display: "grid", gap: 7 }}>
-            {Object.entries(doc.datos_json).map(([k, v]) => (
-              <div key={k} style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
-                <span style={{ fontSize: 11, color: "#6b7280", textTransform: "capitalize" }}>{k.replace(/_/g, " ")}</span>
-                <span style={{ fontSize: 11, color: "#111", fontWeight: 500, textAlign: "right" }}>{v}</span>
-              </div>
-            ))}
-          </div>
+  const handleGuardarYReenviar = async () => {
+    if (!fnombre || !femail) { alert("Nombre y email son obligatorios"); return; }
+    setGuardando(true);
+    await onEditar(fnombre, femail, ftel);
+    setModo("ver");
+    setGuardando(false);
+    setReenviando(true);
+    await onReenviar();
+    setMsgExito("✅ Datos actualizados y email reenviado");
+    setTimeout(() => setMsgExito(""), 5000);
+    setReenviando(false);
+  };
+
+  const nombreDoc = doc.datos_json?.nombre_documento || doc.firma_plantillas?.nombre || "Documento";
+
+  return (
+    <Modal title={nombreDoc} onClose={onClose}>
+      {doc.estado === "pendiente" && (
+        <div style={{ display: "flex", gap: 4, background: "#f3f4f6", borderRadius: 8, padding: 4, marginBottom: 20 }}>
+          {(["ver", "editar"] as const).map(m => (
+            <button key={m} onClick={() => setModo(m)} style={{
+              flex: 1, background: modo === m ? "#fff" : "transparent",
+              border: "none", borderRadius: 6, padding: "7px 0", fontSize: 12,
+              fontWeight: 600, color: modo === m ? RED : "#6b7280",
+              cursor: "pointer", boxShadow: modo === m ? "0 1px 3px rgba(0,0,0,.08)" : "none"
+            }}>
+              {m === "ver" ? "📄 Detalle" : "✏️ Editar firmante"}
+            </button>
+          ))}
         </div>
       )}
 
-      <div style={{ display: "grid", gap: 10 }}>
-        {doc.url_documento_firmado && (
-          <a href={doc.url_documento_firmado} target="_blank" rel="noopener noreferrer" style={{
-            display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-            background: "#065f46", color: "#fff", borderRadius: 10, padding: "11px 0",
-            fontSize: 13, fontWeight: 700, textDecoration: "none"
-          }}>
-            <CheckCircle2 size={14} /> Descargar PDF firmado
-          </a>
-        )}
-        {doc.estado === "pendiente" && doc.docuseal_submission_id && (
-          <button onClick={handleReenviar} disabled={reenviando} style={{
-            width: "100%", background: reenviando ? "#9ca3af" : RED, color: "#fff",
-            border: "none", borderRadius: 10, padding: "11px 0", fontSize: 13,
-            fontWeight: 700, cursor: reenviando ? "not-allowed" : "pointer",
+      {msgExito && (
+        <div style={{ background: "#d1fae5", color: "#065f46", borderRadius: 8, padding: "8px 14px", fontSize: 13, fontWeight: 500, marginBottom: 16 }}>
+          {msgExito}
+        </div>
+      )}
+
+      {modo === "ver" && (
+        <>
+          <div style={{ display: "grid", marginBottom: 20 }}>
+            {[
+              ["Estado", estadoBadge(doc.estado)],
+              ["Firmante", <span style={{ fontSize: 12, fontWeight: 500 }} key="fn">{doc.firmante_nombre}</span>],
+              ["Email", doc.firmante_email],
+              ...(doc.firmante_telefono ? [["Teléfono", doc.firmante_telefono]] : []),
+              ["Enviado", formatFecha(doc.created_at)],
+              ...(doc.signed_at ? [["Firmado ✅", <span key="fs" style={{ fontWeight: 700, color: "#065f46" }}>{formatFecha(doc.signed_at)}</span>]] : []),
+              ["Vence", formatFecha(doc.expires_at)],
+            ].map(([k, v], i) => (
+              <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: "1px solid #f3f4f6" }}>
+                <span style={{ fontSize: 12, color: "#6b7280" }}>{k}</span>
+                {typeof v === "string" ? <span style={{ fontSize: 12, color: "#111" }}>{v}</span> : v}
+              </div>
+            ))}
+          </div>
+
+          {Object.keys(doc.datos_json || {}).filter(k => k !== "nombre_documento").length > 0 && (
+            <div style={{ background: "#f8fafc", borderRadius: 10, padding: 14, marginBottom: 20 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: "#9ca3af", textTransform: "uppercase", letterSpacing: .5, marginBottom: 10 }}>
+                Datos del documento
+              </div>
+              <div style={{ display: "grid", gap: 7 }}>
+                {Object.entries(doc.datos_json).filter(([k]) => k !== "nombre_documento").map(([k, v]) => (
+                  <div key={k} style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+                    <span style={{ fontSize: 11, color: "#6b7280", textTransform: "capitalize" }}>{k.replace(/_/g, " ")}</span>
+                    <span style={{ fontSize: 11, color: "#111", fontWeight: 500, textAlign: "right" }}>{v}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div style={{ display: "grid", gap: 10 }}>
+            {doc.url_documento_firmado && (
+              <a href={doc.url_documento_firmado} target="_blank" rel="noopener noreferrer" style={{
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                background: "#065f46", color: "#fff", borderRadius: 10, padding: "11px 0",
+                fontSize: 13, fontWeight: 700, textDecoration: "none"
+              }}>
+                <CheckCircle2 size={14} /> Descargar PDF firmado
+              </a>
+            )}
+            {doc.estado === "pendiente" && (
+              <button onClick={handleReenviar} disabled={reenviando} style={{
+                width: "100%", background: reenviando ? "#9ca3af" : RED, color: "#fff",
+                border: "none", borderRadius: 10, padding: "11px 0", fontSize: 13,
+                fontWeight: 700, cursor: reenviando ? "not-allowed" : "pointer",
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 8
+              }}>
+                <Send size={14} /> {reenviando ? "Enviando..." : "Reenviar email de firma"}
+              </button>
+            )}
+          </div>
+        </>
+      )}
+
+      {modo === "editar" && (
+        <div style={{ display: "grid", gap: 14 }}>
+          <p style={{ fontSize: 12, color: "#6b7280", margin: 0 }}>
+            Corregí los datos del firmante. Después podés reenviarle el email.
+          </p>
+          <div>
+            <label style={{ fontSize: 11, fontWeight: 600, color: "#6b7280", display: "block", marginBottom: 4 }}>Nombre y apellido *</label>
+            <input value={fnombre} onChange={e => setFnombre(e.target.value)} style={inputStyle} />
+          </div>
+          <div>
+            <label style={{ fontSize: 11, fontWeight: 600, color: "#6b7280", display: "flex", alignItems: "center", gap: 3, marginBottom: 4 }}>
+              <Mail size={10} /> Email *
+            </label>
+            <input type="email" value={femail} onChange={e => setFemail(e.target.value)} style={inputStyle} />
+          </div>
+          <div>
+            <label style={{ fontSize: 11, fontWeight: 600, color: "#6b7280", display: "flex", alignItems: "center", gap: 3, marginBottom: 4 }}>
+              <Phone size={10} /> Teléfono
+            </label>
+            <input value={ftel} onChange={e => setFtel(e.target.value)} style={inputStyle} />
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            <button onClick={() => setModo("ver")} style={{
+              background: "#f3f4f6", border: "none", borderRadius: 10, padding: "11px 0",
+              fontSize: 13, fontWeight: 600, color: "#374151", cursor: "pointer"
+            }}>
+              Cancelar
+            </button>
+            <button onClick={handleGuardar} disabled={guardando} style={{
+              background: guardando ? "#9ca3af" : "#374151", color: "#fff",
+              border: "none", borderRadius: 10, padding: "11px 0",
+              fontSize: 13, fontWeight: 700, cursor: guardando ? "not-allowed" : "pointer"
+            }}>
+              {guardando ? "Guardando..." : "Solo guardar"}
+            </button>
+          </div>
+          <button onClick={handleGuardarYReenviar} disabled={guardando || reenviando} style={{
+            width: "100%", background: guardando || reenviando ? "#9ca3af" : RED, color: "#fff",
+            border: "none", borderRadius: 10, padding: "12px 0", fontSize: 13,
+            fontWeight: 700, cursor: guardando || reenviando ? "not-allowed" : "pointer",
             display: "flex", alignItems: "center", justifyContent: "center", gap: 8
           }}>
-            <Send size={14} /> {reenviando ? "Reenviando..." : "Reenviar link de firma"}
+            <Send size={14} /> {guardando || reenviando ? "Procesando..." : "Guardar y reenviar email"}
           </button>
-        )}
-      </div>
+        </div>
+      )}
     </Modal>
   );
 }
@@ -806,16 +924,32 @@ export default function FirmaDigital() {
     }
   };
 
-  const handleReenviar = async (doc: Documento) => {
+  const handleReenviar = async (doc: Documento): Promise<void> => {
     const res = await fetch(`/api/firma/${doc.id}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "reenviar" }),
     });
+    if (!res.ok) {
+      const json = await res.json();
+      alert(json.error || "Error al reenviar");
+    }
+  };
+
+  const handleEditar = async (doc: Documento, nombre: string, emailFirmante: string, tel: string): Promise<void> => {
+    const res = await fetch(`/api/firma/${doc.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ firmante_nombre: nombre, firmante_email: emailFirmante, firmante_telefono: tel }),
+    });
     if (res.ok) {
-      setDocSel(null);
-      setExito("✅ Email de firma reenviado");
-      setTimeout(() => setExito(""), 4000);
+      // Actualizar doc en el estado local sin cerrar el modal
+      const { doc: updated } = await res.json();
+      setDocumentos(prev => prev.map(d => d.id === doc.id ? { ...d, ...updated } : d));
+      setDocSel(prev => prev ? { ...prev, firmante_nombre: nombre, firmante_email: emailFirmante, firmante_telefono: tel } : prev);
+    } else {
+      const json = await res.json();
+      alert(json.error || "Error al guardar");
     }
   };
 
@@ -976,6 +1110,7 @@ export default function FirmaDigital() {
             doc={docSel}
             onClose={() => setDocSel(null)}
             onReenviar={() => handleReenviar(docSel)}
+            onEditar={(nombre, emailF, tel) => handleEditar(docSel, nombre, emailF, tel)}
           />
         )}
       </AppLayout>

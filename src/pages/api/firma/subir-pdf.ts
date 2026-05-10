@@ -6,6 +6,8 @@ import { authOptions } from "../../../lib/auth";
 import { supabaseAdmin } from "../../../lib/supabase";
 import { getEffectiveEmail } from "../../../lib/impersonation";
 import { createSubmissionFromPdf, isDocusealConfigured } from "../../../lib/docuseal";
+import { Resend } from "resend";
+import { emailWrapper, EMAIL_FROM } from "../../../lib/email";
 
 // PDF puede ser grande — aumentar límite del body
 export const config = {
@@ -104,5 +106,40 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     .single();
 
   if (error) return res.status(500).json({ error: error.message });
+
+  // Si no hay DocuSeal, enviar email via Resend con el link de firma
+  if (!docuseal_submission_id) {
+    const resend = new Resend(process.env.RESEND_API_KEY!);
+    const { data: sub } = await supabaseAdmin
+      .from("subscriptions").select("name").eq("email", email).single();
+    const inmobiliarioNombre = sub?.name || "Tu inmobiliario";
+
+    await resend.emails.send({
+      from: EMAIL_FROM,
+      to: firmante_email,
+      subject: `Documento para firmar: ${nombre_documento}`,
+      html: emailWrapper(`
+        <h2 style="font-size:18px;font-weight:700;color:#111;margin:0 0 8px;">
+          Tenés un documento para firmar
+        </h2>
+        <p style="color:#6b7280;font-size:14px;margin:0 0 24px;">
+          Hola <strong>${firmante_nombre}</strong>, <strong>${inmobiliarioNombre}</strong> te envió 
+          <strong>${nombre_documento}</strong> para que lo firmes digitalmente.
+        </p>
+        <div style="background:#f8fafc;border:1px solid #e5e7eb;border-radius:12px;padding:20px;margin-bottom:24px;">
+          <p style="color:#374151;font-size:13px;margin:0 0 4px;font-weight:600;">Próximos pasos</p>
+          <p style="color:#6b7280;font-size:13px;margin:0;line-height:1.7;">
+            Tu inmobiliario se va a contactar con vos para coordinar la firma del documento 
+            <strong>${nombre_documento}</strong>. Si tenés consultas, respondé este email 
+            o contactá a ${inmobiliarioNombre} directamente.
+          </p>
+        </div>
+        <p style="color:#9ca3af;font-size:11px;text-align:center;margin-top:20px;">
+          Enviado desde InmoCoach · ${inmobiliarioNombre}
+        </p>
+      `),
+    }).catch(err => console.error("Resend error en subir-pdf:", err));
+  }
+
   return res.status(201).json(doc);
 }
