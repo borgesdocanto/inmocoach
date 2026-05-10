@@ -15,6 +15,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const email = getEffectiveEmail(req, session);
 
+  // Obtener team_id del usuario para multitenancy
+  const { data: subData } = await supabaseAdmin
+    .from("subscriptions")
+    .select("team_id, plan, status, created_at")
+    .eq("email", email)
+    .single();
+  const teamId = subData?.team_id || null;
+
   if (req.method === "GET") {
     // Listar documentos del usuario
     const { data, error } = await supabaseAdmin
@@ -38,13 +46,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     // Verificar plan y límites
-    const { data: sub } = await supabaseAdmin
-      .from("subscriptions")
-      .select("plan, status, created_at")
-      .eq("email", email)
-      .single();
-
-    const plan = sub?.plan || "free";
+    const plan = subData?.plan || "free";
     const isPaidPlan = plan === "individual" || plan === "teams";
 
     if (!isPaidPlan) {
@@ -129,6 +131,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         firmante_telefono: firmante_telefono || null,
         docuseal_submission_id,
         docuseal_slug,
+        team_id: teamId,
         estado: "pendiente",
         expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
       })
