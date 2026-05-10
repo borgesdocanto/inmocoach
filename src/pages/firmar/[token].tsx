@@ -382,9 +382,11 @@ export default function PortalFirma() {
   const completarFirma = async () => {
     setFirmando(true);
     try {
-      const res = await fetch(`/api/firmar/${token}/firmar`, {
+      // Usar el endpoint unificado que maneja tanto firmante-token como doc-token
+      const res = await fetch(`/api/firmar/${token}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "firmar" }),
       });
       if (res.ok) {
         // Generar PDF en background
