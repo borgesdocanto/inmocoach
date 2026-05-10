@@ -110,7 +110,7 @@ export async function generarPdfConAuditoria(
     x: margin, y: pageHeight - 28,
     size: 14, font: helveticaBold, color: WHITE,
   });
-  auditPage.drawText(safe(`${datos.agency_name} · InmoCoach`), {
+  auditPage.drawText(safe(datos.agency_name), {
     x: margin, y: pageHeight - 46,
     size: 9, font: helvetica, color: rgb(1, 0.85, 0.85),
   });
@@ -312,7 +312,7 @@ export async function generarPdfConAuditoria(
 
   // ── Footer legal ────────────────────────────────────────────────────────────
   const legalText = [
-    "Este documento fue firmado electrónicamente mediante InmoCoach. La firma electrónica tiene",
+    "Este documento fue firmado electronicamente. La firma electronica tiene",
     "plena validez legal según la Ley 25.506 de Firma Digital de la República Argentina.",
     "Los datos de verificación de identidad (DNI, selfie, IP, timestamp) quedan registrados",
     "y son parte integral de este documento como prueba de la manifestación de voluntad del firmante.",
@@ -334,7 +334,7 @@ export async function generarPdfConAuditoria(
   y -= 16;
 
   // Número de página y branding
-  auditPage.drawText(safe(`Generado por InmoCoach · ${datos.agency_name} · ${new Date().toISOString()}`), {
+  auditPage.drawText(safe(`${datos.agency_name} · ${new Date().toISOString()}`), {
     x: margin, y: 20,
     size: 6, font: helvetica, color: rgb(0.7, 0.7, 0.7),
   });

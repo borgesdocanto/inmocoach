@@ -1,7 +1,7 @@
 // lib/firmaEmail.ts — Email centralizado para el portal de firma
 
 import { Resend } from "resend";
-import { emailWrapper, EMAIL_FROM } from "./email";
+import { emailWrapperFirma, EMAIL_FROM } from "./email";
 import { supabaseAdmin } from "./supabase";
 
 const resend = new Resend(process.env.RESEND_API_KEY!);
@@ -14,7 +14,7 @@ export function buildFirmaEmailHtml(params: {
   link_firma: string;
 }): string {
   const { firmante_nombre, agency_name, nombre_documento, link_firma } = params;
-  return emailWrapper(`
+  return emailWrapperFirma(`
     <h2 style="font-size:20px;font-weight:800;color:#111;margin:0 0 6px;">
       Tenés un documento para firmar
     </h2>
@@ -52,7 +52,7 @@ export function buildFirmaEmailHtml(params: {
     <div style="margin-top:20px;padding:12px 16px;background:#eff6ff;border-radius:8px;font-size:12px;color:#1e40af;">
       🔒 Este link es personal e intransferible. Expira en 30 días.
     </div>
-  `);
+  `, agency_name);
 }
 
 export async function enviarEmailFirma(params: {
@@ -100,5 +100,5 @@ export async function getAgencyName(userEmail: string): Promise<string> {
     if (team?.agency_name) return team.agency_name;
     if (team?.name) return team.name;
   }
-  return sub?.name || "InmoCoach";
+  return sub?.name || "Inmobiliaria";
 }

@@ -7,7 +7,7 @@ import { supabaseAdmin } from "../../../lib/supabase";
 import { generarPdfConAuditoria } from "../../../lib/firmaAuditPdf";
 import { getAgencyName } from "../../../lib/firmaEmail";
 import { Resend } from "resend";
-import { emailWrapper, EMAIL_FROM } from "../../../lib/email";
+import { emailWrapperFirma, EMAIL_FROM } from "../../../lib/email";
 
 export const config = { api: { bodyParser: { sizeLimit: "25mb" } } };
 
@@ -115,7 +115,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         from: EMAIL_FROM,
         to: doc.firmante_email,
         subject: `Tu copia firmada: ${nombreDoc}`,
-        html: emailWrapper(`
+        html: emailWrapperFirma(`
           <h2 style="font-size:18px;font-weight:800;color:#111;margin:0 0 8px;">
             ✅ Firmaste el documento correctamente
           </h2>
@@ -131,9 +131,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             </div>
           </div>
           <p style="color:#9ca3af;font-size:11px;text-align:center;margin:0;">
-            ${agencyName} · Firma Digital via InmoCoach
+            ${agencyName}
           </p>
-        `),
+        `, agencyName),
         attachments: [
           {
             filename: `${nombreDoc.replace(/[^a-zA-Z0-9]/g, "_")}_firmado.pdf`,
@@ -148,7 +148,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       from: EMAIL_FROM,
       to: doc.usuario_email,
       subject: `✅ ${doc.firmante_nombre} firmó: ${nombreDoc}`,
-      html: emailWrapper(`
+      html: emailWrapperFirma(`
         <h2 style="font-size:18px;font-weight:800;color:#111;margin:0 0 8px;">
           ✅ Documento firmado
         </h2>
@@ -166,9 +166,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           📄 Ver documento firmado
         </a>` : ""}
         <p style="color:#9ca3af;font-size:11px;text-align:center;margin:0;">
-          ${agencyName} · InmoCoach
+          ${agencyName}
         </p>
-      `),
+      `, agencyName),
       attachments: [
         {
           filename: `${nombreDoc.replace(/[^a-zA-Z0-9]/g, "_")}_firmado.pdf`,

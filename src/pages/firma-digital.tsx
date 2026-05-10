@@ -1055,7 +1055,7 @@ export default function FirmaDigital() {
 
   return (
     <>
-      <Head><title>Firma Digital · InmoCoach</title></Head>
+      <Head><title>Firma Digital</title></Head>
       <AppLayout>
         <div style={{ maxWidth: 600, margin: "0 auto", padding: "0 16px 40px" }}>
 

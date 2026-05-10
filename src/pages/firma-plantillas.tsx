@@ -528,7 +528,7 @@ export default function FirmaPlantillas() {
 
   return (
     <>
-      <Head><title>Plantillas de Firma · InmoCoach</title></Head>
+      <Head><title>Plantillas de Firma</title></Head>
       <AppLayout>
         <div style={{ maxWidth: 640, margin: "0 auto", padding: "0 16px 40px" }}>
 

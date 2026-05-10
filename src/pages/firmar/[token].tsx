@@ -437,7 +437,7 @@ export default function PortalFirma() {
   return (
     <>
       <Head>
-        <title>Firmar — {doc.nombre_documento}</title>
+        <title>{doc.nombre_documento} · {doc.agency_name}</title>
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
       </Head>
       <div style={{ minHeight: "100vh", background: "#f1f5f9", fontFamily: "'Helvetica Neue',Helvetica,Arial,sans-serif" }}>
@@ -450,7 +450,7 @@ export default function PortalFirma() {
             </div>
             <div>
               <div style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>{agencyName}</div>
-              <div style={{ fontSize: 11, color: "#9ca3af" }}>Firma Digital</div>
+              <div style={{ fontSize: 11, color: "#9ca3af" }}>Documentos · Firma electrónica</div>
             </div>
           </div>
         </div>

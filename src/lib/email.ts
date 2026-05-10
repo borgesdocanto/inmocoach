@@ -11,7 +11,7 @@ export const EMAIL_FOOTER = `
   </div>
 `;
 
-// Wrapper HTML base para todos los mails
+// Wrapper HTML base para todos los mails (con logo InmoCoach)
 export function emailWrapper(content: string): string {
   return `
     <div style="font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;max-width:560px;margin:0 auto;padding:40px 24px;background:#ffffff;">
@@ -21,6 +21,31 @@ export function emailWrapper(content: string): string {
       </div>
       ${content}
       ${EMAIL_FOOTER}
+    </div>
+  `;
+}
+
+// Wrapper white label para emails de firma — muestra el nombre de la inmobiliaria
+export function emailWrapperFirma(content: string, agencyName: string): string {
+  return `
+    <div style="font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;max-width:560px;margin:0 auto;padding:40px 24px;background:#ffffff;">
+      <div style="height:4px;background:#aa0000;margin-bottom:28px;border-radius:2px;"></div>
+      <div style="margin-bottom:24px;display:flex;align-items:center;gap:12px;">
+        <div style="width:40px;height:40px;background:#aa0000;border-radius:10px;display:inline-flex;align-items:center;justify-content:center;">
+          <span style="color:#fff;font-size:20px;">✍</span>
+        </div>
+        <div>
+          <div style="font-size:18px;font-weight:800;color:#111;">${agencyName}</div>
+          <div style="font-size:11px;color:#9ca3af;margin-top:1px;">Documentos · Firma Electrónica</div>
+        </div>
+      </div>
+      ${content}
+      <div style="margin-top:32px;padding-top:20px;border-top:1px solid #f3f4f6;text-align:center;">
+        <p style="color:#d1d5db;font-size:10px;line-height:1.6;margin:0;">
+          Este es un email automático generado por ${agencyName}.<br/>
+          Por favor no respondas este mensaje.
+        </p>
+      </div>
     </div>
   `;
 }

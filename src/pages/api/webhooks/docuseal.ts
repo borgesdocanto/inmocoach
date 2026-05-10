@@ -3,7 +3,7 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import { supabaseAdmin } from "../../../lib/supabase";
 import { Resend } from "resend";
-import { emailWrapper, EMAIL_FROM } from "../../../lib/email";
+import { emailWrapperFirma, EMAIL_FROM } from "../../../lib/email";
 import { getAgencyName } from "../../../lib/firmaEmail";
 import webpush from "web-push";
 
@@ -29,7 +29,7 @@ function emailDocumentoFirmadoHtml(params: {
     ? `El documento <strong>${nombre_documento}</strong> fue firmado por <strong>${firmante_nombre}</strong>.`
     : `Firmaste el documento <strong>${nombre_documento}</strong> enviado por <strong>${agency_name}</strong>.`;
 
-  return emailWrapper(`
+  return emailWrapperFirma(`
     <h2 style="font-size:20px;font-weight:800;color:#111;margin:0 0 6px;">${titulo}</h2>
     <p style="color:#6b7280;font-size:14px;margin:0 0 24px;line-height:1.6;">
       Hola <strong>${destinatario_nombre}</strong>, ${subtitulo}
@@ -57,9 +57,9 @@ function emailDocumentoFirmadoHtml(params: {
     `}
 
     <p style="color:#9ca3af;font-size:11px;text-align:center;margin:0;">
-      ${agency_name} · Firma Digital via InmoCoach
+      ${agency_name}
     </p>
-  `);
+  `, agency_name);
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
