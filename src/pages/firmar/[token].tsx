@@ -17,6 +17,148 @@ interface DocInfo {
   tiene_dni: boolean;
   tiene_selfie: boolean;
   tiene_firma: boolean;
+  datos_formulario?: Record<string, string>;
+}
+
+// ─── Paso 1: Ver documento + info antes de firmar ─────────────────────────────
+
+function BienvenidaConPdf({
+  doc, token, agencyName, onContinuar
+}: {
+  doc: DocInfo;
+  token: string;
+  agencyName: string;
+  onContinuar: () => void;
+}) {
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [cargandoPdf, setCargandoPdf] = useState(true);
+  const [leido, setLeido] = useState(false);
+
+  useEffect(() => {
+    fetch(`/api/firmar/${token}/pdf`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.pdf_url) setPdfUrl(d.pdf_url); })
+      .finally(() => setCargandoPdf(false));
+  }, [token]);
+
+  return (
+    <div>
+      {/* Header */}
+      <div style={{ background: RED, borderRadius: "12px 12px 0 0", padding: "18px 20px" }}>
+        <div style={{ fontSize: 10, color: "rgba(255,255,255,.7)", marginBottom: 3, textTransform: "uppercase", letterSpacing: 1 }}>
+          {agencyName} · Firma Digital
+        </div>
+        <div style={{ fontSize: 17, fontWeight: 700, color: "#fff" }}>{doc.nombre_documento}</div>
+      </div>
+
+      {/* Info del destinatario */}
+      <div style={{ background: "#f8fafc", padding: "12px 20px", borderBottom: "1px solid #e5e7eb", display: "flex", gap: 16, alignItems: "center" }}>
+        <div>
+          <div style={{ fontSize: 10, color: "#9ca3af", textTransform: "uppercase", letterSpacing: .5 }}>Destinatario</div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: "#111" }}>{doc.firmante_nombre}</div>
+          <div style={{ fontSize: 11, color: "#6b7280" }}>{doc.firmante_email}</div>
+        </div>
+      </div>
+
+      {/* Visor del PDF */}
+      <div style={{ background: "#fff", padding: 0 }}>
+        {cargandoPdf ? (
+          <div style={{ height: 400, display: "flex", alignItems: "center", justifyContent: "center", background: "#f8fafc" }}>
+            <div style={{ textAlign: "center" }}>
+              <div style={{ fontSize: 24, marginBottom: 8 }}>📄</div>
+              <div style={{ fontSize: 13, color: "#6b7280" }}>Cargando documento...</div>
+            </div>
+          </div>
+        ) : pdfUrl ? (
+          <div>
+            <div style={{ background: "#1e293b", padding: "8px 16px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <span style={{ fontSize: 11, color: "#94a3b8" }}>📄 {doc.nombre_documento}</span>
+              <a href={pdfUrl} target="_blank" rel="noopener noreferrer"
+                style={{ fontSize: 11, color: "#60a5fa", textDecoration: "none" }}>
+                Abrir en nueva pestaña ↗
+              </a>
+            </div>
+            <iframe
+              src={`${pdfUrl}#toolbar=0&navpanes=0&scrollbar=1`}
+              style={{ width: "100%", height: 480, border: "none", display: "block" }}
+              title="Documento para firmar"
+              onLoad={() => {
+                // Marcar como leído después de 3 segundos de ver el PDF
+                setTimeout(() => setLeido(true), 3000);
+              }}
+            />
+          </div>
+        ) : (
+          // Sin PDF subido — mostrar los datos del formulario
+          <div style={{ padding: 20 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: "#374151", marginBottom: 12, textTransform: "uppercase", letterSpacing: .5 }}>
+              Datos del documento
+            </div>
+            {doc.datos_formulario && Object.keys(doc.datos_formulario).length > 0 ? (
+              <div style={{ display: "grid", gap: 8 }}>
+                {Object.entries(doc.datos_formulario).filter(([k]) => k !== "nombre_documento").map(([k, v]) => (
+                  <div key={k} style={{ display: "flex", gap: 12, padding: "8px 0", borderBottom: "1px solid #f3f4f6" }}>
+                    <span style={{ fontSize: 12, color: "#6b7280", textTransform: "capitalize", minWidth: 130 }}>
+                      {k.replace(/_/g, " ")}
+                    </span>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: "#111" }}>{String(v)}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{ background: "#fffbeb", border: "1px solid #fcd34d", borderRadius: 10, padding: 14, fontSize: 13, color: "#92400e" }}>
+                ⚠ El inmobiliario no adjuntó el PDF del documento. Contactalo para verificar el contenido antes de firmar.
+              </div>
+            )}
+            {/* Auto-habilitar el botón si no hay PDF */}
+            {!leido && setTimeout(() => setLeido(true), 100) as unknown as null}
+          </div>
+        )}
+      </div>
+
+      {/* Checklist + botón continuar */}
+      <div style={{ padding: 20, background: "#fff", borderTop: "1px solid #e5e7eb", borderRadius: "0 0 12px 12px" }}>
+        <div style={{ background: "#f8fafc", borderRadius: 10, padding: 14, marginBottom: 16 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: "#374151", marginBottom: 10 }}>
+            Para firmar vas a necesitar:
+          </div>
+          {[
+            { icono: "🪪", texto: "Foto del frente y dorso de tu DNI" },
+            { icono: "🤳", texto: "Selfie sosteniendo el DNI" },
+            { icono: "✍️", texto: "Tu firma con el dedo o el mouse" },
+          ].map((item, i) => (
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+              <span style={{ fontSize: 18 }}>{item.icono}</span>
+              <span style={{ fontSize: 13, color: "#374151" }}>{item.texto}</span>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 10, padding: 10, marginBottom: 16, fontSize: 11, color: "#1e40af" }}>
+          🔒 Tus datos se usan únicamente para validar tu identidad en este documento.
+        </div>
+
+        {pdfUrl && !leido && (
+          <div style={{ background: "#fef3c7", border: "1px solid #fcd34d", borderRadius: 10, padding: 10, marginBottom: 12, fontSize: 12, color: "#92400e", textAlign: "center" }}>
+            Revisá el documento antes de continuar...
+          </div>
+        )}
+
+        <button
+          onClick={onContinuar}
+          disabled={pdfUrl ? !leido : false}
+          style={{
+            width: "100%", background: (pdfUrl && !leido) ? "#9ca3af" : RED,
+            color: "#fff", border: "none", borderRadius: 12,
+            padding: "14px 0", fontSize: 15, fontWeight: 700,
+            cursor: (pdfUrl && !leido) ? "not-allowed" : "pointer",
+            transition: "background .3s"
+          }}>
+          {(pdfUrl && !leido) ? "Revisá el documento primero..." : "He leído el documento → Continuar"}
+        </button>
+      </div>
+    </div>
+  );
 }
 
 // ─── Canvas de firma ───────────────────────────────────────────────────────────
@@ -348,48 +490,14 @@ export default function PortalFirma() {
             </div>
           )}
 
-          {/* ── Paso 1: Bienvenida / ver documento ── */}
+          {/* ── Paso 1: Ver documento ── */}
           {paso === "bienvenida" && (
-            <div style={cardStyle}>
-              <div style={{ background: RED, padding: "20px 24px" }}>
-                <div style={{ fontSize: 11, color: "rgba(255,255,255,.7)", marginBottom: 4 }}>{agencyName} · Firma Digital</div>
-                <div style={{ fontSize: 18, fontWeight: 700, color: "#fff" }}>{doc.nombre_documento}</div>
-              </div>
-              <div style={{ padding: 24 }}>
-                <div style={{ background: "#f8fafc", borderRadius: 10, padding: 16, marginBottom: 20 }}>
-                  <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 4 }}>Destinatario</div>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: "#111" }}>{doc.firmante_nombre}</div>
-                  <div style={{ fontSize: 12, color: "#6b7280" }}>{doc.firmante_email}</div>
-                </div>
-
-                <div style={{ marginBottom: 20 }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: "#111", marginBottom: 12 }}>
-                    Para completar la firma necesitás:
-                  </div>
-                  {[
-                    { icono: "🪪", texto: "Foto del frente y dorso de tu DNI" },
-                    { icono: "🤳", texto: "Una selfie con el DNI en mano" },
-                    { icono: "✍️", texto: "Tu firma digital" },
-                  ].map((item, i) => (
-                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
-                      <div style={{ fontSize: 20, width: 32, textAlign: "center" }}>{item.icono}</div>
-                      <div style={{ fontSize: 13, color: "#374151" }}>{item.texto}</div>
-                    </div>
-                  ))}
-                </div>
-
-                <div style={{ background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 10, padding: 12, marginBottom: 20, fontSize: 12, color: "#1e40af" }}>
-                  🔒 Tu información está protegida y se usa únicamente para validar tu identidad en este documento.
-                </div>
-
-                <button onClick={() => setPaso("documentos_id")} style={{
-                  width: "100%", background: RED, color: "#fff", border: "none",
-                  borderRadius: 12, padding: "14px 0", fontSize: 15, fontWeight: 700, cursor: "pointer"
-                }}>
-                  Comenzar →
-                </button>
-              </div>
-            </div>
+            <BienvenidaConPdf
+              doc={doc}
+              token={token}
+              agencyName={agencyName}
+              onContinuar={() => setPaso("documentos_id")}
+            />
           )}
 
           {/* ── Paso 2: Foto DNI ── */}

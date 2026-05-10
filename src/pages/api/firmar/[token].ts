@@ -74,6 +74,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       tiene_dni: !!(doc.dni_frente_url && doc.dni_dorso_url),
       tiene_selfie: !!doc.selfie_url,
       tiene_firma: !!doc.firma_imagen_url,
+      datos_formulario: doc.datos_json || {},
     });
   }
 
