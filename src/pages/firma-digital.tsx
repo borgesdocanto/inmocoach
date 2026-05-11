@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { useSession } from "next-auth/react";
+import { useRouter } from "next/router";
 import Head from "next/head";
 import AppLayout from "../components/AppLayout";
 import {
@@ -1199,6 +1200,7 @@ function TabPlantillas({ plantillas, onRefresh }: { plantillas: Plantilla[]; onR
 
 export default function FirmaDigital() {
   const { data: session, status } = useSession();
+  const router = useRouter();
   const [tab, setTab] = useState<"documentos" | "plantillas">("documentos");
   const [documentos, setDocumentos] = useState<Documento[]>([]);
   const [plantillas, setPlantillas] = useState<Plantilla[]>([]);
@@ -1406,7 +1408,7 @@ export default function FirmaDigital() {
 
               {/* Buscador */}
               {documentos.length > 3 && (
-                <BuscadorDocumentos documentos={documentos} onVer={d => setDocSel(d)} />
+                <BuscadorDocumentos documentos={documentos} onVer={d => router.push(`/firma-digital/${d.id}`)} />
               )}
 
               {/* Lista */}
@@ -1429,7 +1431,7 @@ export default function FirmaDigital() {
               ) : (
                 <div style={{ display: "grid", gap: 10 }}>
                   {documentos.map(doc => (
-                    <FilaDocumento key={doc.id} doc={doc} onVer={() => setDocSel(doc)} />
+                    <FilaDocumento key={doc.id} doc={doc} onVer={() => router.push(`/firma-digital/${doc.id}`)} />
                   ))}
                 </div>
               )}
