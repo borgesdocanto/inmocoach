@@ -93,7 +93,14 @@ export async function inviteAgent(teamId: string, agentEmail: string, invitedBy:
     .eq("status", "pending")
     .single();
 
-  if (existing) return { token: existing.token };
+  if (existing) {
+    // Actualizar created_at para reflejar el reenvío
+    await supabaseAdmin
+      .from("team_invitations")
+      .update({ created_at: new Date().toISOString() })
+      .eq("id", existing.id);
+    return { token: existing.token };
+  }
 
   const { data } = await supabaseAdmin
     .from("team_invitations")

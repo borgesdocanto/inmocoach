@@ -6,11 +6,19 @@ import AppLayout from "../../components/AppLayout";
 import {
   ArrowLeft, Loader2, Users,
   TrendingUp, TrendingDown, Minus, AlertTriangle,
-  ChevronRight, Flame, RefreshCw
+  ChevronRight, Flame, RefreshCw, Clock, Send, Mail
 } from "lucide-react";
 
 const RED = "#aa0000";
 // IAC_GOAL now comes from overview.weeklyGoal
+
+interface PendingInvitation {
+  id: string;
+  email: string;
+  created_at: string;
+  expires_at?: string;
+  token: string;
+}
 
 type TeamRole = "owner" | "team_leader" | "member";
 
@@ -97,6 +105,8 @@ export default function BrokerDashboard() {
   const [syncing, setSyncing] = useState(false);
   const [syncErrors, setSyncErrors] = useState<{email: string; status: string}[]>([]);
   const [weekOffset, setWeekOffset] = useState(0);
+  const [pendingInvitations, setPendingInvitations] = useState<PendingInvitation[]>([]);
+  const [resendingInvite, setResendingInvite] = useState<string | null>(null);
 
   useEffect(() => { if (status === "unauthenticated") router.replace("/login"); }, [status, router]);
 
@@ -107,6 +117,7 @@ export default function BrokerDashboard() {
       if (res.status === 403) { router.replace("/"); return; }
       const data = await res.json();
       setRequesterRole(data.requesterRole);
+      if (data.pending) setPendingInvitations(data.pending);
       const agRes = await fetch("/api/teams/agency");
       if (agRes.ok) { const ag = await agRes.json(); setAgencyName(ag.agencyName || ""); }
       const stRes = await fetch("/api/teams/settings");
@@ -138,6 +149,26 @@ export default function BrokerDashboard() {
       .then(d => { if (d) setPortfolio(d); })
       .catch(() => {});
   }, [status]);
+
+  const resendInvite = async (email: string) => {
+    setResendingInvite(email);
+    try {
+      const r = await fetch("/api/teams/invite", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email }) });
+      const d = await r.json();
+      if (d.ok) {
+        // Actualizar created_at de la invitación en el estado local
+        setPendingInvitations(prev => prev.map(inv =>
+          inv.email === email ? { ...inv, created_at: new Date().toISOString() } : inv
+        ));
+        alert(`✓ Invitación reenviada a ${email}`);
+      } else {
+        alert(d.error || "Error al reenviar");
+      }
+    } catch {
+      alert("Error al reenviar la invitación");
+    }
+    setResendingInvite(null);
+  };
 
   const syncAll = async () => {
     setSyncing(true);
@@ -240,6 +271,56 @@ export default function BrokerDashboard() {
               ))}
             </div>
             <button onClick={() => setSyncErrors([])} style={{ background: "none", border: "none", color: "#d97706", cursor: "pointer", fontSize: 16, flexShrink: 0 }}>×</button>
+          </div>
+        )}
+
+        {/* Invitaciones pendientes */}
+        {pendingInvitations.length > 0 && (
+          <div style={{ background: "#fff", border: "0.5px solid #e5e7eb", borderRadius: 14, overflow: "hidden", marginBottom: 16 }}>
+            <div style={{ padding: "12px 16px", borderBottom: "0.5px solid #f3f4f6", display: "flex", alignItems: "center", gap: 8, background: "#f9fafb" }}>
+              <Clock size={13} style={{ color: "#9ca3af" }} />
+              <span style={{ fontSize: 12, fontWeight: 500, color: "#374151" }}>Invitaciones pendientes</span>
+              <span style={{ fontSize: 11, fontWeight: 600, background: "#e5e7eb", color: "#6b7280", borderRadius: 10, padding: "1px 8px", marginLeft: 4 }}>{pendingInvitations.length}</span>
+            </div>
+            {pendingInvitations.map((inv, i) => {
+              const sentAgo = (() => {
+                const diff = Date.now() - new Date(inv.created_at).getTime();
+                const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+                const hours = Math.floor(diff / (1000 * 60 * 60));
+                if (days >= 1) return `hace ${days} día${days !== 1 ? "s" : ""}`;
+                if (hours >= 1) return `hace ${hours}h`;
+                return "hace un momento";
+              })();
+              const isOld = Date.now() - new Date(inv.created_at).getTime() > 3 * 24 * 60 * 60 * 1000;
+              const isSending = resendingInvite === inv.email;
+              return (
+                <div key={inv.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "11px 16px", borderBottom: i < pendingInvitations.length - 1 ? "0.5px solid #f9fafb" : "none" }}>
+                  <div style={{ width: 32, height: 32, borderRadius: "50%", background: "#f3f4f6", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <Mail size={14} style={{ color: "#9ca3af" }} />
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 500, color: "#111827", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{inv.email}</div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 2 }}>
+                      <span style={{ fontSize: 11, color: isOld ? "#d97706" : "#9ca3af" }}>
+                        {isOld ? "⚠ " : ""}Invitado {sentAgo}
+                      </span>
+                      {isOld && (
+                        <span style={{ fontSize: 10, background: "#FFFBEB", color: "#d97706", borderRadius: 4, padding: "1px 5px", fontWeight: 500 }}>
+                          Sin respuesta
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => resendInvite(inv.email)}
+                    disabled={isSending}
+                    style={{ display: "flex", alignItems: "center", gap: 5, background: isSending ? "#f3f4f6" : "#f9fafb", color: isSending ? "#9ca3af" : "#374151", border: "0.5px solid #e5e7eb", borderRadius: 8, padding: "6px 12px", fontSize: 11, fontWeight: 500, cursor: isSending ? "default" : "pointer", flexShrink: 0 }}>
+                    <Send size={11} />
+                    {isSending ? "Enviando..." : "Reenviar"}
+                  </button>
+                </div>
+              );
+            })}
           </div>
         )}
 
