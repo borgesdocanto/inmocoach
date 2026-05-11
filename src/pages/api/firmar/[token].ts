@@ -140,6 +140,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       expires_at: doc.expires_at,
       signed_at: tipo === "firmante" ? firmante!.signed_at : (doc as unknown as Record<string, string | null>).signed_at,
       tiene_dni:    !!(dniFrente && dniDorso),
+      tiene_dni_frente: !!dniFrente,
+      tiene_dni_dorso:  !!dniDorso,
       tiene_selfie: !!selfie,
       tiene_firma:  !!firmaImg,
       datos_formulario: doc.datos_json || {},

@@ -15,6 +15,8 @@ interface DocInfo {
   expires_at: string;
   signed_at: string | null;
   tiene_dni: boolean;
+  tiene_dni_frente: boolean;
+  tiene_dni_dorso: boolean;
   tiene_selfie: boolean;
   tiene_firma: boolean;
   datos_formulario?: Record<string, string>;
@@ -358,17 +360,23 @@ export default function PortalFirma() {
       }
       const data = await res.json();
       setDoc(data);
-      // Restaurar progreso
-      if (data.tiene_firma && data.tiene_selfie && data.tiene_dni) {
-        if (data.estado === "firmado") setPaso("completado");
-        else setPaso("firma");
+      // Restaurar progreso — granular por imagen
+      if (data.tiene_firma) setFirmaOk(true);
+      if (data.tiene_selfie) setSelfieOk(true);
+      if (data.tiene_dni_frente) setDniFrenteOk(true);
+      if (data.tiene_dni_dorso) setDniDorsoOk(true);
+
+      // Determinar paso actual
+      if (data.estado === "firmado") {
+        setPaso("completado");
       } else if (data.tiene_selfie) {
-        setSelfieOk(true);
         setPaso("firma");
-      } else if (data.tiene_dni) {
-        setDniFrenteOk(true); setDniDorsoOk(true);
+      } else if (data.tiene_dni_frente && data.tiene_dni_dorso) {
         setPaso("selfie");
+      } else if (data.tiene_dni_frente || data.tiene_dni_dorso) {
+        setPaso("documentos_id"); // tiene uno de los dos, puede completar el otro
       }
+      // Si nada → queda en "bienvenida"
     } catch {
       setError("Error de conexión");
     }
@@ -377,7 +385,7 @@ export default function PortalFirma() {
 
   useEffect(() => { cargarDoc(); }, [cargarDoc]);
 
-  const subirImagen = async (tipo: string, base64: string, mime: string) => {
+  const subirImagen = async (tipo: string, base64: string, mime: string): Promise<boolean> => {
     setSubiendo(true);
     try {
       const res = await fetch(`/api/firmar/${token}`, {
@@ -385,9 +393,19 @@ export default function PortalFirma() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "subir_imagen", tipo, base64, mime }),
       });
-      if (!res.ok) { const j = await res.json(); alert(j.error || "Error al subir"); }
-    } catch { alert("Error de conexión"); }
-    setSubiendo(false);
+      if (!res.ok) {
+        const j = await res.json();
+        alert(j.error || "Error al subir imagen. Intentá de nuevo.");
+        setSubiendo(false);
+        return false;
+      }
+      setSubiendo(false);
+      return true;
+    } catch {
+      alert("Error de conexión. Verificá tu internet e intentá de nuevo.");
+      setSubiendo(false);
+      return false;
+    }
   };
 
   const completarFirma = async () => {
@@ -527,8 +545,8 @@ export default function PortalFirma() {
                     icono="🪪"
                     capturado={dniFrenteOk}
                     onCaptura={async (b64, mime) => {
-                      await subirImagen("dni_frente", b64, mime);
-                      setDniFrenteOk(true);
+                      const ok = await subirImagen("dni_frente", b64, mime);
+                      if (ok) setDniFrenteOk(true);
                     }}
                   />
                   <CapturaImagen
@@ -537,8 +555,8 @@ export default function PortalFirma() {
                     icono="📋"
                     capturado={dniDorsoOk}
                     onCaptura={async (b64, mime) => {
-                      await subirImagen("dni_dorso", b64, mime);
-                      setDniDorsoOk(true);
+                      const ok = await subirImagen("dni_dorso", b64, mime);
+                      if (ok) setDniDorsoOk(true);
                     }}
                   />
                 </div>
@@ -576,8 +594,8 @@ export default function PortalFirma() {
                     icono="🤳"
                     capturado={selfieOk}
                     onCaptura={async (b64, mime) => {
-                      await subirImagen("selfie", b64, mime);
-                      setSelfieOk(true);
+                      const ok = await subirImagen("selfie", b64, mime);
+                      if (ok) setSelfieOk(true);
                     }}
                   />
                 </div>
@@ -610,8 +628,8 @@ export default function PortalFirma() {
                 </div>
                 <CanvasFirma
                   onFirma={async (b64) => {
-                    await subirImagen("firma", b64, "image/png");
-                    setFirmaOk(true);
+                    const ok = await subirImagen("firma", b64, "image/png");
+                    if (ok) setFirmaOk(true);
                   }}
                 />
                 {firmaOk && (
