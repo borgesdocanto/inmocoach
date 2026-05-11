@@ -1226,39 +1226,44 @@ export default function FirmaDigital() {
   const [exito, setExito] = useState("");
 
   const cargarDatos = useCallback(async (filtro = "mis") => {
-    const url = filtro === "mis" ? "/api/firma/documentos" : "/api/firma/documentos?verEquipo=1";
-    const [docsRes, plantRes, subRes] = await Promise.all([
-      fetch(url),
-      fetch("/api/firma/plantillas"),
-      fetch("/api/subscription"),
-    ]);
+    try {
+      const url = filtro === "mis" ? "/api/firma/documentos" : "/api/firma/documentos?verEquipo=1";
+      const [docsRes, plantRes, subRes] = await Promise.all([
+        fetch(url),
+        fetch("/api/firma/plantillas"),
+        fetch("/api/subscription"),
+      ]);
 
-    let docs = docsRes.ok ? await docsRes.json() : [];
+      let docs = docsRes.ok ? await docsRes.json() : [];
 
-    // Filtrar por agente específico si corresponde
-    if (filtro !== "mis" && filtro !== "todos") {
-      docs = docs.filter((d: Documento) => d.usuario_email === filtro);
-    }
+      if (filtro !== "mis" && filtro !== "todos") {
+        docs = docs.filter((d: Documento) => d.usuario_email === filtro);
+      }
 
-    setDocumentos(docs);
-    if (plantRes.ok) setPlantillas(await plantRes.json());
+      setDocumentos(docs);
+      if (plantRes.ok) setPlantillas(await plantRes.json());
 
-    if (subRes.ok) {
-      const sub = await subRes.json();
-      const role = sub.subscription?.teamRole;
-      const isBroker = role === "owner" || role === "team_leader";
-      setEsBroker(isBroker);
+      if (subRes.ok) {
+        const sub = await subRes.json();
+        const role = sub.subscription?.teamRole;
+        const isBroker = role === "owner" || role === "team_leader";
+        setEsBroker(isBroker);
 
-      if (isBroker && sub.subscription?.teamId) {
-        // Cargar agentes del equipo
-        const teamRes = await fetch("/api/teams/members");
-        if (teamRes.ok) {
-          const members = await teamRes.json();
-          setAgentesEquipo(members.map((m: {email: string; name: string}) => ({ email: m.email, name: m.name })));
+        if (isBroker) {
+          try {
+            const teamRes = await fetch("/api/teams/members");
+            if (teamRes.ok) {
+              const members = await teamRes.json();
+              setAgentesEquipo((members || []).map((m: {email: string; name: string}) => ({ email: m.email, name: m.name })));
+            }
+          } catch { /* ignorar error de miembros */ }
         }
       }
+    } catch (e) {
+      console.error("Error cargando firma-digital:", e);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, []);
 
   useEffect(() => {
