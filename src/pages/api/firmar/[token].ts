@@ -3,6 +3,10 @@
 
 import { NextApiRequest, NextApiResponse } from "next";
 import { supabaseAdmin } from "../../../lib/supabase";
+import { getAgencyName, enviarEmailFirma } from "../../../lib/firmaEmail";
+import { generarPdfConAuditoria, FirmanteDatos } from "../../../lib/firmaAuditPdf";
+import { Resend } from "resend";
+import { emailWrapperFirma, EMAIL_FROM } from "../../../lib/email";
 
 export const config = { api: { bodyParser: { sizeLimit: "15mb" } } };
 
@@ -201,58 +205,184 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.json({ ok: true, url });
     }
 
-    // action === "firmar" → redirigir al endpoint específico del firmante
+    // action === "firmar"
     if (action === "firmar") {
-      if (tipo === "firmante") {
+      const ip = (req.headers["x-forwarded-for"] as string)?.split(",")[0] || "";
+      const ua = req.headers["user-agent"] || "";
+
+      if (tipo === "firmante" && firmante) {
         // Verificar imágenes del firmante individual
         const { data: fresh } = await supabaseAdmin
           .from("firma_firmantes")
           .select("firma_imagen_url, dni_frente_url, selfie_url")
-          .eq("id", firmante!.id)
+          .eq("id", firmante.id)
           .single();
 
         if (!fresh?.firma_imagen_url) return res.status(400).json({ error: "Falta la firma" });
-        if (!fresh?.dni_frente_url)  return res.status(400).json({ error: "Falta la foto del DNI" });
-        if (!fresh?.selfie_url)      return res.status(400).json({ error: "Falta la selfie" });
-
-        // Delegar al endpoint de firmante
-        const ip = (req.headers["x-forwarded-for"] as string)?.split(",")[0] || "";
-        const ua = req.headers["user-agent"] || "";
+        if (!fresh?.dni_frente_url)   return res.status(400).json({ error: "Falta la foto del DNI" });
+        if (!fresh?.selfie_url)       return res.status(400).json({ error: "Falta la selfie" });
 
         await supabaseAdmin.from("firma_firmantes").update({
           estado: "firmado",
           signed_at: new Date().toISOString(),
           ip_firmante: ip,
           user_agent_firmante: ua,
-        }).eq("id", firmante!.id);
+        }).eq("id", firmante.id);
 
-        // Verificar si todos firmaron
-        const { data: todos } = await supabaseAdmin
+        // Verificar si todos firmaron (excluyendo el que acaba de firmar)
+        const { data: todosFirmantes } = await supabaseAdmin
           .from("firma_firmantes")
-          .select("id, estado")
+          .select("*")
           .eq("documento_id", doc.id);
 
-        const pendientes = (todos || []).filter(f => f.id !== firmante!.id && f.estado !== "firmado");
-        if (pendientes.length === 0) {
+        const pendientes = (todosFirmantes || []).filter(f => f.id !== firmante.id && f.estado !== "firmado");
+        const todosHanFirmado = pendientes.length === 0;
+
+        const agencyName = await getAgencyName(resolved.usuarioEmail);
+        const nombreDoc = (doc.datos_json as Record<string,string>)?.nombre_documento
+          || (doc.firma_plantillas as {nombre?:string}|null)?.nombre || "Documento";
+
+        if (todosHanFirmado) {
+          // Marcar documento como firmado
           await supabaseAdmin.from("firma_documentos")
             .update({ estado: "firmado", signed_at: new Date().toISOString() })
             .eq("id", doc.id);
+
+          // Generar PDF con auditoría de todos los firmantes
+          try {
+            const firmantesData: FirmanteDatos[] = (todosFirmantes || []).map(f => ({
+              nombre: f.nombre || "",
+              email: f.email || "",
+              telefono: f.telefono,
+              rol: f.rol || "Firmante",
+              signed_at: f.id === firmante.id ? new Date().toISOString() : f.signed_at,
+              ip_firmante: f.id === firmante.id ? ip : f.ip_firmante,
+              user_agent: f.id === firmante.id ? ua : f.user_agent_firmante,
+              firma_token: f.firma_token,
+              firma_imagen_url: f.firma_imagen_url,
+              dni_frente_url: f.dni_frente_url,
+              dni_dorso_url: f.dni_dorso_url,
+              selfie_url: f.selfie_url,
+            }));
+
+            // Obtener PDF original
+            let pdfOriginalBytes: Uint8Array | null = null;
+            const { data: storageFile } = await supabaseAdmin.storage
+              .from("firma-docs").download(`${doc.id}/documento_original.pdf`);
+            if (storageFile) pdfOriginalBytes = new Uint8Array(await storageFile.arrayBuffer());
+
+            if (!pdfOriginalBytes) {
+              const { PDFDocument } = await import("pdf-lib");
+              pdfOriginalBytes = await (await PDFDocument.create()).save();
+            }
+
+            const pdfFinal = await generarPdfConAuditoria(pdfOriginalBytes, {
+              nombre_documento: nombreDoc,
+              agency_name: agencyName,
+              signed_at: new Date().toISOString(),
+              firma_token: doc.firma_token,
+              firmantes: firmantesData,
+            });
+
+            // Subir PDF final
+            const finalPath = `${doc.id}/documento_firmado_final.pdf`;
+            await supabaseAdmin.storage.from("firma-docs")
+              .upload(finalPath, pdfFinal, { contentType: "application/pdf", upsert: true });
+            const { data: signedUrl } = await supabaseAdmin.storage.from("firma-docs")
+              .createSignedUrl(finalPath, 60 * 60 * 24 * 365 * 5);
+            const pdfUrl = signedUrl?.signedUrl || null;
+
+            await supabaseAdmin.from("firma_documentos")
+              .update({ url_documento_firmado: pdfUrl }).eq("id", doc.id);
+
+            const pdfBase64 = Buffer.from(pdfFinal).toString("base64");
+            const fileName = `${nombreDoc.replace(/[^a-zA-Z0-9]/g,"_")}_firmado.pdf`;
+            const resend = new Resend(process.env.RESEND_API_KEY!);
+
+            // Email a cada firmante con copia
+            for (const f of firmantesData) {
+              if (!f.email) continue;
+              await resend.emails.send({
+                from: EMAIL_FROM,
+                to: f.email,
+                subject: `Tu copia firmada: ${nombreDoc}`,
+                html: emailWrapperFirma(`
+                  <h2 style="font-size:18px;font-weight:800;color:#111;margin:0 0 8px;">Tu documento firmado</h2>
+                  <p style="color:#6b7280;font-size:14px;margin:0 0 16px;line-height:1.6;">
+                    Hola <strong>${f.nombre}</strong>, te enviamos tu copia firmada de 
+                    <strong>"${nombreDoc}"</strong>. La encontras adjunta a este email.
+                  </p>
+                  <p style="color:#9ca3af;font-size:11px;text-align:center;">${agencyName}</p>
+                `, agencyName),
+                attachments: [{ filename: fileName, content: pdfBase64 }],
+              }).catch(e => console.error("Email firmante error:", e));
+            }
+
+            // Email al inmobiliario con resumen y PDF
+            const resumen = firmantesData.map(f =>
+              `<tr><td style="padding:6px 10px;font-size:12px;">${f.nombre}</td><td style="padding:6px 10px;font-size:12px;color:#6b7280;">${f.rol||"Firmante"}</td><td style="padding:6px 10px;font-size:12px;color:#065f46;font-weight:700;">Firmado</td></tr>`
+            ).join("");
+
+            await resend.emails.send({
+              from: EMAIL_FROM,
+              to: resolved.usuarioEmail,
+              subject: `Todos firmaron: ${nombreDoc}`,
+              html: emailWrapperFirma(`
+                <h2 style="font-size:18px;font-weight:800;color:#111;margin:0 0 8px;">Documento completamente firmado</h2>
+                <p style="color:#6b7280;font-size:14px;margin:0 0 20px;line-height:1.6;">
+                  El documento <strong>"${nombreDoc}"</strong> fue firmado por todos los participantes. 
+                  Lo encontras adjunto con la pagina de auditoria completa.
+                </p>
+                <table style="width:100%;border-collapse:collapse;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;margin-bottom:20px;">
+                  <thead><tr style="background:#f8fafc;">
+                    <th style="padding:8px 10px;font-size:11px;color:#6b7280;text-align:left;">Nombre</th>
+                    <th style="padding:8px 10px;font-size:11px;color:#6b7280;text-align:left;">Rol</th>
+                    <th style="padding:8px 10px;font-size:11px;color:#6b7280;text-align:left;">Estado</th>
+                  </tr></thead>
+                  <tbody>${resumen}</tbody>
+                </table>
+                ${pdfUrl ? `<a href="${pdfUrl}" style="display:block;background:#aa0000;color:#fff;text-align:center;padding:12px;border-radius:10px;font-size:14px;font-weight:700;text-decoration:none;">Ver documento firmado</a>` : ""}
+              `, agencyName),
+              attachments: [{ filename: fileName, content: pdfBase64 }],
+            }).catch(e => console.error("Email inmobiliario error:", e));
+
+          } catch(e) {
+            console.error("Error generando PDF final:", e);
+          }
+
+        } else {
+          // Firma parcial — avisar al inmobiliario
+          const resend = new Resend(process.env.RESEND_API_KEY!);
+          const cantPendientes = pendientes.length;
+          await resend.emails.send({
+            from: EMAIL_FROM,
+            to: resolved.usuarioEmail,
+            subject: `${firmante.nombre} firmo: ${nombreDoc} (falta${cantPendientes > 1 ? "n" : ""} ${cantPendientes})`,
+            html: emailWrapperFirma(`
+              <h2 style="font-size:17px;font-weight:800;color:#111;margin:0 0 8px;">Firma parcial registrada</h2>
+              <p style="color:#6b7280;font-size:14px;margin:0 0 16px;line-height:1.6;">
+                <strong>${firmante.nombre}</strong> firmo el documento <strong>"${nombreDoc}"</strong>.<br/>
+                Todavia ${cantPendientes === 1 ? "falta 1 persona" : `faltan ${cantPendientes} personas`} por firmar.
+              </p>
+              <table style="width:100%;border-collapse:collapse;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">
+                ${(todosFirmantes||[]).map(f => `<tr><td style="padding:8px 10px;font-size:13px;">${f.nombre}</td><td style="padding:8px 10px;text-align:right;font-size:12px;font-weight:700;color:${f.id === firmante.id || f.estado === "firmado" ? "#065f46" : "#92400e"};">${f.id === firmante.id || f.estado === "firmado" ? "Firmado" : "Pendiente"}</td></tr>`).join("")}
+              </table>
+            `, agencyName),
+          }).catch(e => console.error("Email parcial error:", e));
         }
 
-        return res.json({ ok: true, todos_firmaron: pendientes.length === 0 });
+        return res.json({ ok: true, todos_firmaron: todosHanFirmado });
+
       } else {
-        // Documento sin firmantes individuales (legacy)
+        // Documento legacy sin firmantes individuales
         const { data: fresh } = await supabaseAdmin
           .from("firma_documentos")
           .select("firma_imagen_url, dni_frente_url, selfie_url")
           .eq("id", doc.id).single();
 
         if (!fresh?.firma_imagen_url) return res.status(400).json({ error: "Falta la firma" });
-        if (!fresh?.dni_frente_url)  return res.status(400).json({ error: "Falta la foto del DNI" });
-        if (!fresh?.selfie_url)      return res.status(400).json({ error: "Falta la selfie" });
-
-        const ip = (req.headers["x-forwarded-for"] as string)?.split(",")[0] || "";
-        const ua = req.headers["user-agent"] || "";
+        if (!fresh?.dni_frente_url)   return res.status(400).json({ error: "Falta la foto del DNI" });
+        if (!fresh?.selfie_url)       return res.status(400).json({ error: "Falta la selfie" });
 
         await supabaseAdmin.from("firma_documentos").update({
           estado: "firmado",

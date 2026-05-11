@@ -193,9 +193,9 @@ export async function generarPdfConAuditoria(
   auditPage.drawText(safe("REGISTRO DE FIRMA ELECTRONICA"), { x: margin, y: pageHeight - 28, size: 14, font: helveticaBold, color: WHITE });
   auditPage.drawText(safe(datos.agency_name), { x: margin, y: pageHeight - 46, size: 9, font: helvetica, color: rgb(1, 0.85, 0.85) });
 
-  // Badge VÁLIDO
-  auditPage.drawRectangle({ x: pageWidth - 110, y: pageHeight - 52, width: 70, height: 22, color: rgb(0, 0.6, 0.3) });
-  auditPage.drawText(safe("VALIDO"), { x: pageWidth - 100, y: pageHeight - 44, size: 9, font: helveticaBold, color: WHITE });
+  // Badge FIRMADO
+  auditPage.drawRectangle({ x: pageWidth - 120, y: pageHeight - 54, width: 80, height: 24, color: rgb(0, 0.6, 0.3) });
+  auditPage.drawText("FIRMADO", { x: pageWidth - 111, y: pageHeight - 46, size: 10, font: helveticaBold, color: WHITE });
 
   y = pageHeight - 90;
 

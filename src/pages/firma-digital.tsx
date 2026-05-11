@@ -575,6 +575,73 @@ function FormularioDatos({
 }
 
 
+// ─── Buscador de documentos ────────────────────────────────────────────────────
+
+function BuscadorDocumentos({ documentos, onVer }: { documentos: Documento[]; onVer: (d: Documento) => void }) {
+  const [query, setQuery] = useState("");
+
+  const normalizar = (s: string) => s.toLowerCase()
+    .replace(/á/g,"a").replace(/é/g,"e").replace(/í/g,"i").replace(/ó/g,"o").replace(/ú/g,"u").replace(/ñ/g,"n");
+
+  const resultados = query.trim().length < 2 ? [] : documentos.filter(doc => {
+    const q = normalizar(query);
+    const nombre = normalizar(doc.datos_json?.nombre_documento || doc.firma_plantillas?.nombre || "");
+    const firmantes = (doc.firma_firmantes || []).map(f => normalizar(f.nombre + " " + f.email)).join(" ");
+    const legacyFirmante = normalizar((doc.firmante_nombre || "") + " " + (doc.firmante_email || ""));
+    return nombre.includes(q) || firmantes.includes(q) || legacyFirmante.includes(q);
+  });
+
+  return (
+    <div style={{ marginBottom: 16 }}>
+      <div style={{ position: "relative" }}>
+        <input
+          value={query}
+          onChange={e => setQuery(e.target.value)}
+          placeholder="Buscar por nombre de documento o firmante..."
+          style={{
+            width: "100%", boxSizing: "border-box",
+            border: "1.5px solid #e5e7eb", borderRadius: 10,
+            padding: "10px 14px 10px 36px", fontSize: 13,
+            outline: "none", fontFamily: "inherit", color: "#111", background: "#fff",
+          }}
+          onFocus={e => e.target.style.borderColor = RED}
+          onBlur={e => e.target.style.borderColor = "#e5e7eb"}
+        />
+        <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", pointerEvents: "none", fontSize: 14 }}>
+          🔍
+        </span>
+        {query && (
+          <button onClick={() => setQuery("")} style={{
+            position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)",
+            background: "none", border: "none", cursor: "pointer", color: "#9ca3af", fontSize: 16, padding: 2
+          }}>✕</button>
+        )}
+      </div>
+
+      {query.trim().length >= 2 && (
+        <div style={{ marginTop: 8 }}>
+          {resultados.length === 0 ? (
+            <div style={{ fontSize: 12, color: "#9ca3af", textAlign: "center", padding: "12px 0" }}>
+              Sin resultados para "{query}"
+            </div>
+          ) : (
+            <div>
+              <div style={{ fontSize: 11, color: "#6b7280", marginBottom: 8 }}>
+                {resultados.length} resultado{resultados.length !== 1 ? "s" : ""}
+              </div>
+              <div style={{ display: "grid", gap: 8 }}>
+                {resultados.map(doc => (
+                  <FilaDocumento key={doc.id} doc={doc} onVer={() => { setQuery(""); onVer(doc); }} />
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Botón para generar PDF firmado si no existe aún ─────────────────────────
 
 function GenerarPdfBtn({ docId, firmaToken, onListo }: { docId: string; firmaToken: string; onListo: () => void }) {
@@ -1299,7 +1366,7 @@ export default function FirmaDigital() {
           {tab === "documentos" && (
             <>
               {/* Stats */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 20 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 16 }}>
                 {[
                   { label: "Pendientes", value: pendientes.length, color: "#92400e", bg: "#fef3c7" },
                   { label: "Firmados", value: firmados.length, color: "#065f46", bg: "#d1fae5" },
@@ -1311,6 +1378,11 @@ export default function FirmaDigital() {
                   </div>
                 ))}
               </div>
+
+              {/* Buscador */}
+              {documentos.length > 3 && (
+                <BuscadorDocumentos documentos={documentos} onVer={d => setDocSel(d)} />
+              )}
 
               {/* Lista */}
               {documentos.length === 0 ? (
