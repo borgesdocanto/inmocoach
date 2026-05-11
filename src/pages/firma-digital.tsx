@@ -826,8 +826,9 @@ function ModalDetalle({
   const todosPendientes = firmantes.every(f => f.estado !== "firmado");
   const nombreDoc = doc.datos_json?.nombre_documento || doc.firma_plantillas?.nombre || "Documento";
 
-  const copiarHash = (firmanteId: string, texto: string) => {
-    navigator.clipboard.writeText(texto).then(() => {
+  const copiarHash = (firmanteId: string, firmaToken: string) => {
+    const url = `https://www.inmocoach.com.ar/firmar/${firmaToken}`;
+    navigator.clipboard.writeText(url).then(() => {
       setCopiadoId(firmanteId);
       setTimeout(() => setCopiadoId(null), 2000);
     });
@@ -939,7 +940,7 @@ function ModalDetalle({
                       </div>
                     </div>
                     <button
-                      onClick={() => copiarHash(f.id, `Firma digital · ${f.nombre} · ${f.email}\nDocumento: ${nombreDoc}\nHash: ${hash}\n${f.signed_at ? "Firmado: " + new Date(f.signed_at).toLocaleString("es-AR") : "Pendiente"}`)}
+                      onClick={() => copiarHash(f.id, f.firma_token)}
                       style={{
                         background: copiadoId === f.id ? "#065f46" : "#e5e7eb",
                         color: copiadoId === f.id ? "#fff" : "#374151",
@@ -947,7 +948,7 @@ function ModalDetalle({
                         fontSize: 10, fontWeight: 700, cursor: "pointer", flexShrink: 0,
                         transition: "all .2s"
                       }}>
-                      {copiadoId === f.id ? "✓ Copiado" : "📋 Copiar"}
+                      {copiadoId === f.id ? "✓ Copiado" : "🔗 Link"}
                     </button>
                   </div>
                 </div>

@@ -143,8 +143,8 @@ function CardFirmante({
   };
 
   const copiarHash = () => {
-    const texto = `Firma digital verificada\nFirmante: ${firmante.nombre}\nEmail: ${firmante.email}\nRol: ${firmante.rol}\nDocumento: ${nombreDoc}\nHash: ${firmante.firma_token}\n${firmante.signed_at ? "Firmado: " + new Date(firmante.signed_at).toLocaleString("es-AR") : "Pendiente"}`;
-    navigator.clipboard.writeText(texto);
+    const url = `https://www.inmocoach.com.ar/firmar/${firmante.firma_token}`;
+    navigator.clipboard.writeText(url);
     setCopiado(true);
     setTimeout(() => setCopiado(false), 2500);
   };
@@ -212,7 +212,7 @@ function CardFirmante({
             fontSize: 12, fontWeight: 600, cursor: "pointer",
             display: "flex", alignItems: "center", gap: 5, transition: "all .2s"
           }}>
-            📋 {copiado ? "Copiado" : "Hash"}
+            🔗 {copiado ? "Copiado" : "Copiar link"}
           </button>
         </div>
       </div>
@@ -502,8 +502,8 @@ export default function DetalleDocumento() {
               </div>
             )}
 
-            {/* Reemplazar PDF (solo pendientes) */}
-            {doc.estado === "pendiente" && (
+            {/* Reemplazar PDF (solo si ninguno firmó todavía) */}
+            {doc.estado === "pendiente" && firmados === 0 && (
               <div style={{ padding: "14px 20px", borderTop: "1px solid #f3f4f6", background: "#fafafa" }}>
                 <div style={{ fontSize: 11, color: "#6b7280", marginBottom: 10 }}>
                   ⚠ ¿Necesitás corregir el documento? Subí el PDF actualizado. Los firmantes recibirán la nueva versión la próxima vez que abran su link.

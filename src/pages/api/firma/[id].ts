@@ -71,6 +71,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Reemplazar PDF
     if (pdf_base64) {
       if (doc.estado === "firmado") return res.status(400).json({ error: "No se puede reemplazar el PDF de un documento ya firmado" });
+
+      // Verificar que ningún firmante haya firmado aún
+      const { count } = await supabaseAdmin
+        .from("firma_firmantes")
+        .select("id", { count: "exact", head: true })
+        .eq("documento_id", id)
+        .eq("estado", "firmado");
+
+      if ((count || 0) > 0) {
+        return res.status(400).json({ error: "No se puede reemplazar el PDF: al menos un firmante ya firmó el documento" });
+      }
       const base64Clean = pdf_base64.replace(/^data:application\/pdf;base64,/, "");
       if (!base64Clean.startsWith("JVBER")) return res.status(400).json({ error: "Archivo inválido" });
       const buffer = Buffer.from(base64Clean, "base64");
