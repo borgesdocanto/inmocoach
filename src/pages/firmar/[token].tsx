@@ -138,6 +138,17 @@ function BienvenidaConPdf({
           🔒 Tus datos se usan únicamente para validar tu identidad en este documento.
         </div>
 
+        {/* Disclaimer legal para el firmante */}
+        <div style={{ background: "#f8fafc", border: "1px solid #e5e7eb", borderRadius: 10, padding: 14, marginBottom: 14, fontSize: 12, color: "#374151", lineHeight: 1.6 }}>
+          <strong style={{ display: "block", marginBottom: 6 }}>⚖️ Al continuar confirmás que:</strong>
+          <ul style={{ margin: 0, paddingLeft: 18, color: "#6b7280" }}>
+            <li>Leíste y comprendés el contenido del documento</li>
+            <li>Tu firma electrónica tiene validez legal (Ley 25.506 - Argentina)</li>
+            <li>Las fotos de tu DNI y selfie quedan registradas como prueba de identidad</li>
+            <li>No podés desconocer la firma una vez completado el proceso</li>
+          </ul>
+        </div>
+
         {pdfUrl && !leido && (
           <div style={{ background: "#fef3c7", border: "1px solid #fcd34d", borderRadius: 10, padding: 10, marginBottom: 12, fontSize: 12, color: "#92400e", textAlign: "center" }}>
             Revisá el documento antes de continuar...
@@ -154,7 +165,7 @@ function BienvenidaConPdf({
             cursor: (pdfUrl && !leido) ? "not-allowed" : "pointer",
             transition: "background .3s"
           }}>
-          {(pdfUrl && !leido) ? "Revisá el documento primero..." : "He leído el documento → Continuar"}
+          {(pdfUrl && !leido) ? "Revisá el documento primero..." : "He leído y acepto → Firmar"}
         </button>
       </div>
     </div>

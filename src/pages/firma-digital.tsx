@@ -797,12 +797,13 @@ function FilaDocumento({ doc, onVer }: { doc: Documento; onVer: () => void }) {
 // ─── Modal detalle documento ───────────────────────────────────────────────────
 
 function ModalDetalle({
-  doc, onClose, onReenviar, onEditar
+  doc, onClose, onReenviar, onEditar, onCancelar
 }: {
   doc: Documento;
   onClose: () => void;
   onReenviar: () => Promise<void>;
   onEditar: (nombre: string, email: string, tel: string) => Promise<void>;
+  onCancelar: () => Promise<void>;
 }) {
   const [modo, setModo] = useState<"ver" | "editar">("ver");
   const [reenviandoId, setReenviandoId] = useState<string | null>(null);
@@ -1009,6 +1010,22 @@ function ModalDetalle({
             <Send size={14} /> {reenviandoId === "all" ? "Enviando..." : "Reenviar email de firma"}
           </button>
         )}
+
+        {/* Cancelar documento (solo pendientes) */}
+        {doc.estado === "pendiente" && (
+          <button onClick={onCancelar} style={{
+            width: "100%", background: "none", border: "1.5px solid #e5e7eb",
+            borderRadius: 10, padding: "10px 0", fontSize: 12, fontWeight: 600,
+            color: "#9ca3af", cursor: "pointer", marginTop: 4,
+            display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+            transition: "all .15s"
+          }}
+            onMouseOver={e => { e.currentTarget.style.borderColor = "#ef4444"; e.currentTarget.style.color = "#ef4444"; }}
+            onMouseOut={e => { e.currentTarget.style.borderColor = "#e5e7eb"; e.currentTarget.style.color = "#9ca3af"; }}
+          >
+            <XCircle size={13} /> Cancelar documento
+          </button>
+        )}
       </div>
     </Modal>
   );
@@ -1187,6 +1204,8 @@ export default function FirmaDigital() {
   const [plantillas, setPlantillas] = useState<Plantilla[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalNuevo, setModalNuevo] = useState(false);
+  const [modalDisclaimer, setModalDisclaimer] = useState(false);
+  const [disclaimerAceptado, setDisclaimerAceptado] = useState(false);
   const [paso, setPaso] = useState<"selector" | "formulario" | "subir-pdf">("selector");
   const [plantillaSel, setPlantillaSel] = useState<Plantilla | null>(null);
   const [enviando, setEnviando] = useState(false);
@@ -1207,7 +1226,13 @@ export default function FirmaDigital() {
     if (status === "authenticated") cargarDatos();
   }, [status, cargarDatos]);
 
-  const abrirNuevo = () => { setModalNuevo(true); setPaso("selector"); setPlantillaSel(null); };
+  const abrirNuevo = () => {
+    if (!disclaimerAceptado) {
+      setModalDisclaimer(true);
+    } else {
+      setModalNuevo(true); setPaso("selector"); setPlantillaSel(null);
+    }
+  };
 
   const handleEnviarPdf = async (payload: { nombre_documento: string; firmantes: Array<{nombre: string; email: string; telefono: string; rol: string}>; pdf_base64: string }) => {
     setEnviando(true);
@@ -1450,8 +1475,88 @@ export default function FirmaDigital() {
             onClose={() => setDocSel(null)}
             onReenviar={() => handleReenviar(docSel)}
             onEditar={(nombre, emailF, tel) => handleEditar(docSel, nombre, emailF, tel)}
+            onCancelar={async () => {
+              if (!confirm("¿Cancelar este documento? Los firmantes no podrán acceder al link. El registro queda guardado como cancelado.")) return;
+              await fetch(`/api/firma/${docSel.id}`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ action: "cancelar" }),
+              });
+              setDocSel(null);
+              await cargarDatos();
+              setExito("Documento cancelado");
+              setTimeout(() => setExito(""), 3000);
+            }}
           />
         )}
+
+        {/* Modal Disclaimer legal */}
+        {modalDisclaimer && (
+          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.65)", zIndex: 1100, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}
+            onClick={() => setModalDisclaimer(false)}>
+            <div onClick={e => e.stopPropagation()} style={{
+              background: "#fff", borderRadius: 16, width: "100%", maxWidth: 520,
+              boxShadow: "0 20px 60px rgba(0,0,0,.3)", overflow: "hidden"
+            }}>
+              <div style={{ background: "#1e293b", padding: "18px 24px" }}>
+                <div style={{ fontSize: 15, fontWeight: 800, color: "#fff", marginBottom: 3 }}>⚖️ Términos de uso — Firma Digital</div>
+                <div style={{ fontSize: 11, color: "#94a3b8" }}>Leé antes de enviar documentos a firmar</div>
+              </div>
+
+              <div style={{ padding: 24, maxHeight: "55vh", overflowY: "auto" }}>
+                {[
+                  {
+                    titulo: "✅ Validez legal",
+                    texto: "Los documentos firmados tienen validez legal según la Ley 25.506 de Firma Digital de la República Argentina. La firma electrónica es vinculante para todas las partes."
+                  },
+                  {
+                    titulo: "👤 Tu responsabilidad como intermediario",
+                    texto: "Sos responsable de verificar la identidad de los firmantes fuera del sistema. InmoCoach captura fotos del DNI y selfie como evidencia del proceso, pero no realiza verificación biométrica oficial. La confirmación de identidad recae en vos."
+                  },
+                  {
+                    titulo: "🛡 En caso de desconocimiento de firma",
+                    texto: "Si un firmante alega no haber firmado, el sistema cuenta con: IP del dispositivo, timestamp exacto, foto del DNI frente y dorso, selfie sosteniendo el DNI, y firma manuscrita digital. Esta evidencia puede usarse en procesos legales. InmoCoach no actúa como perito ni garantiza resultado judicial."
+                  },
+                  {
+                    titulo: "🔒 Datos personales",
+                    texto: "Las imágenes de DNI y selfie se almacenan cifradas y se usan exclusivamente para acreditar la firma de este documento. No se comparten con terceros."
+                  },
+                  {
+                    titulo: "📄 Integridad del documento",
+                    texto: "Una vez firmado por todas las partes, el PDF no puede modificarse. Incluye página de auditoría con hashes SHA-256 que garantizan la integridad del archivo."
+                  },
+                ].map((item, i, arr) => (
+                  <div key={i} style={{ marginBottom: 14, paddingBottom: 14, borderBottom: i < arr.length - 1 ? "1px solid #f3f4f6" : "none" }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: "#111", marginBottom: 4 }}>{item.titulo}</div>
+                    <div style={{ fontSize: 12, color: "#6b7280", lineHeight: 1.65 }}>{item.texto}</div>
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ padding: "16px 24px", borderTop: "1px solid #f3f4f6", display: "grid", gridTemplateColumns: "1fr 2fr", gap: 10 }}>
+                <button onClick={() => setModalDisclaimer(false)} style={{
+                  background: "#f3f4f6", border: "none", borderRadius: 10,
+                  padding: "11px 0", fontSize: 13, fontWeight: 600, color: "#374151", cursor: "pointer"
+                }}>
+                  Cancelar
+                </button>
+                <button onClick={() => {
+                  setDisclaimerAceptado(true);
+                  setModalDisclaimer(false);
+                  setModalNuevo(true);
+                  setPaso("selector");
+                  setPlantillaSel(null);
+                }} style={{
+                  background: RED, color: "#fff", border: "none", borderRadius: 10,
+                  padding: "11px 0", fontSize: 13, fontWeight: 700, cursor: "pointer"
+                }}>
+                  Entendido, continuar →
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
       </AppLayout>
     </>
   );
