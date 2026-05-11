@@ -1,10 +1,8 @@
-// pages/api/firma/generar-pdf-final.ts
-// Se llama cuando el cliente termina de firmar en el portal propio
-// Descarga el PDF original, agrega la página de auditoría y sube a DocuSeal
+// pages/api/firma/generar-pdf-final.ts — Genera PDF con página de auditoría multi-firmante
 
 import { NextApiRequest, NextApiResponse } from "next";
 import { supabaseAdmin } from "../../../lib/supabase";
-import { generarPdfConAuditoria } from "../../../lib/firmaAuditPdf";
+import { generarPdfConAuditoria, FirmanteDatos } from "../../../lib/firmaAuditPdf";
 import { getAgencyName } from "../../../lib/firmaEmail";
 import { Resend } from "resend";
 import { emailWrapperFirma, EMAIL_FROM } from "../../../lib/email";
@@ -16,41 +14,100 @@ const resend = new Resend(process.env.RESEND_API_KEY!);
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") return res.status(405).end();
 
-  const { firma_token } = req.body;
-  if (!firma_token) return res.status(400).json({ error: "Token requerido" });
+  // Acepta firma_token (de firmante o de documento) o documento_id directo
+  const { firma_token, documento_id } = req.body;
 
-  // Obtener documento con todos los datos
+  let docId: string | null = documento_id || null;
+
+  // Resolver docId desde token de firmante
+  if (!docId && firma_token) {
+    // Intentar como token de firmante
+    const { data: firmante } = await supabaseAdmin
+      .from("firma_firmantes")
+      .select("documento_id")
+      .eq("firma_token", firma_token)
+      .single();
+    if (firmante?.documento_id) {
+      docId = firmante.documento_id;
+    } else {
+      // Intentar como token de documento
+      const { data: doc } = await supabaseAdmin
+        .from("firma_documentos")
+        .select("id")
+        .eq("firma_token", firma_token)
+        .single();
+      if (doc) docId = doc.id;
+    }
+  }
+
+  if (!docId) return res.status(400).json({ error: "Token o ID de documento requerido" });
+
+  // Obtener documento completo
   const { data: doc } = await supabaseAdmin
     .from("firma_documentos")
-    .select(`
-      *, firma_plantillas ( nombre, pdf_url )
-    `)
-    .eq("firma_token", firma_token)
-    .eq("estado", "firmado")
+    .select("*, firma_plantillas(nombre, pdf_url)")
+    .eq("id", docId)
     .single();
 
-  if (!doc) return res.status(404).json({ error: "Documento no encontrado o no firmado" });
+  if (!doc) return res.status(404).json({ error: "Documento no encontrado" });
+
+  // Obtener TODOS los firmantes individuales con sus imágenes
+  const { data: firmantesDb } = await supabaseAdmin
+    .from("firma_firmantes")
+    .select("*")
+    .eq("documento_id", docId)
+    .order("orden");
 
   const agencyName = await getAgencyName(doc.usuario_email);
   const plantilla = doc.firma_plantillas as { nombre?: string; pdf_url?: string } | null;
   const nombreDoc = (doc.datos_json as Record<string, string>)?.nombre_documento
-    || plantilla?.nombre
-    || "Documento firmado";
+    || plantilla?.nombre || "Documento firmado";
 
-  // Obtener el PDF original desde Supabase Storage
-  let pdfOriginalBytes: Uint8Array | null = null;
+  // Construir array de firmantes para la auditoría
+  let firmantes: FirmanteDatos[] = [];
 
-  // 1. Intentar desde Storage (si fue subido como PDF libre)
-  const storagePath = `${doc.id}/documento_original.pdf`;
-  const { data: storageFile } = await supabaseAdmin.storage
-    .from("firma-docs")
-    .download(storagePath);
-
-  if (storageFile) {
-    pdfOriginalBytes = new Uint8Array(await storageFile.arrayBuffer());
+  if (firmantesDb && firmantesDb.length > 0) {
+    // Multi-firmante: usar datos de firma_firmantes
+    firmantes = firmantesDb.map(f => ({
+      nombre: f.nombre || "",
+      email: f.email || "",
+      telefono: f.telefono,
+      rol: f.rol || "Firmante",
+      signed_at: f.signed_at,
+      ip_firmante: f.ip_firmante,
+      user_agent: f.user_agent_firmante,
+      firma_token: f.firma_token,
+      firma_imagen_url: f.firma_imagen_url,
+      dni_frente_url: f.dni_frente_url,
+      dni_dorso_url: f.dni_dorso_url,
+      selfie_url: f.selfie_url,
+    }));
+  } else {
+    // Firmante único legacy: usar datos del documento
+    firmantes = [{
+      nombre: doc.firmante_nombre || "",
+      email: doc.firmante_email || "",
+      telefono: doc.firmante_telefono,
+      rol: "Firmante",
+      signed_at: doc.signed_at,
+      ip_firmante: doc.ip_firmante,
+      user_agent: doc.user_agent_firmante,
+      firma_token: doc.firma_token,
+      firma_imagen_url: doc.firma_imagen_url,
+      dni_frente_url: doc.dni_frente_url,
+      dni_dorso_url: doc.dni_dorso_url,
+      selfie_url: doc.selfie_url,
+    }];
   }
 
-  // 2. Si es de plantilla con pdf_url, descargar desde ahí
+  // Obtener PDF original
+  let pdfOriginalBytes: Uint8Array | null = null;
+
+  const { data: storageFile } = await supabaseAdmin.storage
+    .from("firma-docs")
+    .download(`${docId}/documento_original.pdf`);
+  if (storageFile) pdfOriginalBytes = new Uint8Array(await storageFile.arrayBuffer());
+
   if (!pdfOriginalBytes && plantilla?.pdf_url) {
     try {
       const r = await fetch(plantilla.pdf_url);
@@ -58,123 +115,83 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     } catch { /* ignorar */ }
   }
 
-  // Si no hay PDF original, crear uno vacío como base para la auditoría
   if (!pdfOriginalBytes) {
     const { PDFDocument } = await import("pdf-lib");
-    const blankDoc = await PDFDocument.create();
-    pdfOriginalBytes = await blankDoc.save();
+    pdfOriginalBytes = await (await PDFDocument.create()).save();
   }
 
   try {
-    // Generar PDF con página de auditoría
     const pdfFinal = await generarPdfConAuditoria(pdfOriginalBytes, {
       nombre_documento: nombreDoc,
       agency_name: agencyName,
-      firmante_nombre: doc.firmante_nombre || "",
-      firmante_email: doc.firmante_email || "",
-      firmante_telefono: doc.firmante_telefono,
       signed_at: doc.signed_at || new Date().toISOString(),
-      ip_firmante: doc.ip_firmante,
-      user_agent: doc.user_agent_firmante,
       firma_token: doc.firma_token,
       submission_id: doc.docuseal_submission_id,
-      firma_imagen_url: doc.firma_imagen_url,
-      dni_frente_url: doc.dni_frente_url,
-      dni_dorso_url: doc.dni_dorso_url,
-      selfie_url: doc.selfie_url,
+      firmantes,
     });
 
-    // Subir PDF final a Supabase Storage
-    const finalPath = `${doc.id}/documento_firmado_final.pdf`;
-    await supabaseAdmin.storage
-      .from("firma-docs")
-      .upload(finalPath, pdfFinal, {
-        contentType: "application/pdf",
-        upsert: true,
-      });
+    // Subir a Storage
+    const finalPath = `${docId}/documento_firmado_final.pdf`;
+    await supabaseAdmin.storage.from("firma-docs")
+      .upload(finalPath, pdfFinal, { contentType: "application/pdf", upsert: true });
 
-    // Obtener URL firmada con vigencia larga
-    const { data: signedData } = await supabaseAdmin.storage
-      .from("firma-docs")
-      .createSignedUrl(finalPath, 60 * 60 * 24 * 365 * 5); // 5 años
-
+    const { data: signedData } = await supabaseAdmin.storage.from("firma-docs")
+      .createSignedUrl(finalPath, 60 * 60 * 24 * 365 * 5);
     const pdfUrl = signedData?.signedUrl || null;
 
-    // Actualizar URL en Supabase
-    await supabaseAdmin
-      .from("firma_documentos")
+    await supabaseAdmin.from("firma_documentos")
       .update({ url_documento_firmado: pdfUrl })
-      .eq("firma_token", firma_token);
+      .eq("id", docId);
 
-    // Convertir PDF a base64 para adjuntar en emails
     const pdfBase64 = Buffer.from(pdfFinal).toString("base64");
+    const fileName = `${nombreDoc.replace(/[^a-zA-Z0-9]/g, "_")}_firmado.pdf`;
 
-    // Email al FIRMANTE — copia con PDF adjunto
-    if (doc.firmante_email) {
+    // Email a CADA firmante con su copia
+    for (const f of firmantes) {
+      if (!f.email) continue;
       await resend.emails.send({
         from: EMAIL_FROM,
-        to: doc.firmante_email,
+        to: f.email,
         subject: `Tu copia firmada: ${nombreDoc}`,
         html: emailWrapperFirma(`
           <h2 style="font-size:18px;font-weight:800;color:#111;margin:0 0 8px;">
-            ✅ Firmaste el documento correctamente
+            Tu documento firmado
           </h2>
           <p style="color:#6b7280;font-size:14px;margin:0 0 20px;line-height:1.6;">
-            Hola <strong>${doc.firmante_nombre}</strong>, te enviamos tu copia del documento 
-            <strong>"${nombreDoc}"</strong> firmado con <strong>${agencyName}</strong>.<br/>
-            Lo encontrás adjunto a este email.
+            Hola <strong>${f.nombre}</strong>, te enviamos tu copia del documento 
+            <strong>"${nombreDoc}"</strong>. Lo encontras adjunto a este email.
           </p>
-          <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:16px;margin-bottom:20px;">
-            <div style="font-size:13px;font-weight:700;color:#065f46;">📄 ${nombreDoc}</div>
-            <div style="font-size:11px;color:#6b7280;margin-top:4px;">
-              Firmado el ${new Date(doc.signed_at).toLocaleDateString("es-AR")}
-            </div>
-          </div>
-          <p style="color:#9ca3af;font-size:11px;text-align:center;margin:0;">
-            ${agencyName}
-          </p>
+          <p style="color:#9ca3af;font-size:11px;text-align:center;margin:0;">${agencyName}</p>
         `, agencyName),
-        attachments: [
-          {
-            filename: `${nombreDoc.replace(/[^a-zA-Z0-9]/g, "_")}_firmado.pdf`,
-            content: pdfBase64,
-          },
-        ],
+        attachments: [{ filename: fileName, content: pdfBase64 }],
       }).catch(e => console.error("Email firmante error:", e));
     }
 
-    // Email al INMOBILIARIO — aviso con PDF adjunto
+    // Email al INMOBILIARIO
+    const resumenFirmantes = firmantes.map(f =>
+      `${f.nombre} (${f.rol || "Firmante"}) — ${f.signed_at ? "Firmo el " + new Date(f.signed_at).toLocaleDateString("es-AR") : "Pendiente"}`
+    ).join("<br/>");
+
     await resend.emails.send({
       from: EMAIL_FROM,
       to: doc.usuario_email,
-      subject: `✅ ${doc.firmante_nombre} firmó: ${nombreDoc}`,
+      subject: `PDF firmado listo: ${nombreDoc}`,
       html: emailWrapperFirma(`
         <h2 style="font-size:18px;font-weight:800;color:#111;margin:0 0 8px;">
-          ✅ Documento firmado
+          Documento firmado completo
         </h2>
-        <p style="color:#6b7280;font-size:14px;margin:0 0 20px;line-height:1.6;">
-          <strong>${doc.firmante_nombre}</strong> firmó el documento 
-          <strong>"${nombreDoc}"</strong>. Lo encontrás adjunto con la página de auditoría completa.
+        <p style="color:#6b7280;font-size:14px;margin:0 0 16px;line-height:1.6;">
+          El PDF de <strong>"${nombreDoc}"</strong> con la pagina de auditoria esta listo. 
+          Lo encontras adjunto con las fotos de DNI, selfie y firma de todos los firmantes.
         </p>
-        <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:16px;margin-bottom:16px;font-size:13px;">
-          <div style="margin-bottom:6px;"><strong>Firmante:</strong> ${doc.firmante_nombre}</div>
-          <div style="margin-bottom:6px;"><strong>Email:</strong> ${doc.firmante_email}</div>
-          <div style="margin-bottom:6px;"><strong>IP:</strong> ${doc.ip_firmante || "No registrada"}</div>
-          <div><strong>Fecha:</strong> ${new Date(doc.signed_at).toLocaleString("es-AR")}</div>
+        <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:14px;margin-bottom:16px;font-size:13px;line-height:1.7;">
+          ${resumenFirmantes}
         </div>
-        ${pdfUrl ? `<a href="${pdfUrl}" style="display:block;background:#aa0000;color:#fff;text-align:center;padding:12px;border-radius:10px;font-size:14px;font-weight:700;text-decoration:none;margin-bottom:16px;">
-          📄 Ver documento firmado
+        ${pdfUrl ? `<a href="${pdfUrl}" style="display:block;background:#aa0000;color:#fff;text-align:center;padding:12px;border-radius:10px;font-size:14px;font-weight:700;text-decoration:none;">
+          Ver documento firmado
         </a>` : ""}
-        <p style="color:#9ca3af;font-size:11px;text-align:center;margin:0;">
-          ${agencyName}
-        </p>
       `, agencyName),
-      attachments: [
-        {
-          filename: `${nombreDoc.replace(/[^a-zA-Z0-9]/g, "_")}_firmado.pdf`,
-          content: pdfBase64,
-        },
-      ],
+      attachments: [{ filename: fileName, content: pdfBase64 }],
     }).catch(e => console.error("Email inmobiliario error:", e));
 
     return res.json({ ok: true, pdf_url: pdfUrl });

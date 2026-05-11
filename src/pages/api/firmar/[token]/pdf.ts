@@ -1,4 +1,4 @@
-// pages/api/firmar/[token]/pdf.ts — Devuelve URL firmada del PDF original (público, por token)
+// pages/api/firmar/[token]/pdf.ts — PDF original por token de firmante O de documento
 
 import { NextApiRequest, NextApiResponse } from "next";
 import { supabaseAdmin } from "../../../../lib/supabase";
@@ -8,31 +8,50 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const { token } = req.query as { token: string };
 
-  // Verificar que el token existe y el doc no está vencido
-  const { data: doc } = await supabaseAdmin
-    .from("firma_documentos")
-    .select("id, estado, expires_at, plantilla_id, firma_plantillas(pdf_url)")
+  // 1. Buscar por token de FIRMANTE individual (caso nuevo)
+  const { data: firmante } = await supabaseAdmin
+    .from("firma_firmantes")
+    .select("documento_id")
     .eq("firma_token", token)
     .single();
 
-  if (!doc) return res.status(404).json({ error: "Documento no encontrado" });
-  if (doc.estado === "vencido") return res.status(410).json({ error: "Link vencido" });
+  let docId: string | null = null;
 
-  // 1. Buscar PDF en Storage (documentos subidos libremente)
-  const storagePath = `${doc.id}/documento_original.pdf`;
+  if (firmante?.documento_id) {
+    docId = firmante.documento_id;
+  } else {
+    // 2. Fallback: buscar por token de DOCUMENTO (legacy)
+    const { data: doc } = await supabaseAdmin
+      .from("firma_documentos")
+      .select("id, estado, expires_at, plantilla_id, firma_plantillas(pdf_url)")
+      .eq("firma_token", token)
+      .single();
+
+    if (doc) docId = doc.id;
+  }
+
+  if (!docId) return res.json({ pdf_url: null });
+
+  // Obtener datos del documento
+  const { data: doc } = await supabaseAdmin
+    .from("firma_documentos")
+    .select("id, estado, expires_at, plantilla_id, firma_plantillas(pdf_url)")
+    .eq("id", docId)
+    .single();
+
+  if (!doc || doc.estado === "vencido") return res.json({ pdf_url: null });
+
+  // Buscar PDF en Storage (documentos subidos libremente)
+  const storagePath = `${docId}/documento_original.pdf`;
   const { data: signed } = await supabaseAdmin.storage
     .from("firma-docs")
-    .createSignedUrl(storagePath, 60 * 60 * 2); // 2 horas
+    .createSignedUrl(storagePath, 60 * 60 * 2);
 
-  if (signed?.signedUrl) {
-    return res.json({ pdf_url: signed.signedUrl });
-  }
+  if (signed?.signedUrl) return res.json({ pdf_url: signed.signedUrl });
 
-  // 2. Buscar PDF en plantilla
+  // Fallback: PDF de la plantilla
   const plantilla = doc.firma_plantillas as unknown as { pdf_url?: string } | null;
-  if (plantilla?.pdf_url) {
-    return res.json({ pdf_url: plantilla.pdf_url });
-  }
+  if (plantilla?.pdf_url) return res.json({ pdf_url: plantilla.pdf_url });
 
   return res.json({ pdf_url: null });
 }
