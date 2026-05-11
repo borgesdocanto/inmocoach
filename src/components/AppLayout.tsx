@@ -109,7 +109,7 @@ export default function AppLayout({ children, topbarExtra, greeting }: AppLayout
     { label: "Racha y rango", icon: "✦", href: "/racha-rango", active: path === "/racha-rango" },
     { label: "Cartera Tokko", icon: "🏠", href: "/cartera", active: path === "/cartera" },
     { label: "Posición equipo", icon: "◎", href: "/posicion", active: path === "/posicion" },
-    { label: "Firma Digital", icon: "✍", href: "/firma-digital", active: path === "/firma-digital", badge: firmaAlerta > 0 ? firmaAlerta : undefined },
+    { label: "Firma Electrónica", icon: "✍", href: "/firma-digital", active: path === "/firma-digital", badge: firmaAlerta > 0 ? firmaAlerta : undefined },
     ...(isOwner ? [{ label: "Plantillas de Firma", icon: "📋", href: "/firma-plantillas", active: path === "/firma-plantillas" } as NavItem] : []),
     ...(isOwner ? [
       {
