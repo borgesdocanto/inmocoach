@@ -1214,6 +1214,8 @@ export default function FirmaDigital() {
   const [loading, setLoading] = useState(true);
   const [esBroker, setEsBroker] = useState(false);
   const [verEquipo, setVerEquipo] = useState(false);
+  const [filtroAgente, setFiltroAgente] = useState<string>("mis"); // "mis" | "todos" | email
+  const [agentesEquipo, setAgentesEquipo] = useState<Array<{email: string; name: string}>>([]);
   const [modalNuevo, setModalNuevo] = useState(false);
   const [modalDisclaimer, setModalDisclaimer] = useState(false);
   const [disclaimerAceptado, setDisclaimerAceptado] = useState(false);
@@ -1223,30 +1225,49 @@ export default function FirmaDigital() {
   const [docSel, setDocSel] = useState<Documento | null>(null);
   const [exito, setExito] = useState("");
 
-  const cargarDatos = useCallback(async (equipoActivo = false) => {
-    const url = equipoActivo ? "/api/firma/documentos?verEquipo=1" : "/api/firma/documentos";
+  const cargarDatos = useCallback(async (filtro = "mis") => {
+    const url = filtro === "mis" ? "/api/firma/documentos" : "/api/firma/documentos?verEquipo=1";
     const [docsRes, plantRes, subRes] = await Promise.all([
       fetch(url),
       fetch("/api/firma/plantillas"),
       fetch("/api/subscription"),
     ]);
-    if (docsRes.ok) setDocumentos(await docsRes.json());
+
+    let docs = docsRes.ok ? await docsRes.json() : [];
+
+    // Filtrar por agente específico si corresponde
+    if (filtro !== "mis" && filtro !== "todos") {
+      docs = docs.filter((d: Documento) => d.usuario_email === filtro);
+    }
+
+    setDocumentos(docs);
     if (plantRes.ok) setPlantillas(await plantRes.json());
+
     if (subRes.ok) {
       const sub = await subRes.json();
       const role = sub.subscription?.teamRole;
-      setEsBroker(role === "owner" || role === "team_leader");
+      const isBroker = role === "owner" || role === "team_leader";
+      setEsBroker(isBroker);
+
+      if (isBroker && sub.subscription?.teamId) {
+        // Cargar agentes del equipo
+        const teamRes = await fetch("/api/teams/members");
+        if (teamRes.ok) {
+          const members = await teamRes.json();
+          setAgentesEquipo(members.map((m: {email: string; name: string}) => ({ email: m.email, name: m.name })));
+        }
+      }
     }
     setLoading(false);
   }, []);
 
   useEffect(() => {
     if (status === "authenticated") {
-      cargarDatos(verEquipo);
+      cargarDatos(filtroAgente);
       const visto = localStorage.getItem("firma_onboarding_visto");
       if (!visto) setMostrarOnboarding(true);
     }
-  }, [status, cargarDatos, verEquipo]);
+  }, [status, cargarDatos, filtroAgente]);
 
   const cerrarOnboarding = (noMostrarMas: boolean) => {
     setMostrarOnboarding(false);
@@ -1357,65 +1378,76 @@ export default function FirmaDigital() {
 
   return (
     <>
-      <Head><title>Firma Digital</title></Head>
+      <Head><title>Firma Electrónica</title></Head>
       <AppLayout>
-        <div style={{ maxWidth: 600, margin: "0 auto", padding: "0 16px 40px" }}>
+        <div style={{ maxWidth: 620, margin: "0 auto", padding: "0 16px 48px" }}>
 
           {/* Header */}
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 22 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <div style={{ width: 38, height: 38, borderRadius: 10, background: RED, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <FileSignature size={19} color="#fff" />
+          <div style={{ marginBottom: 24 }}>
+            {/* Título + acciones */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <div style={{ width: 40, height: 40, borderRadius: 12, background: RED, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <FileSignature size={20} color="#fff" />
+                </div>
+                <div>
+                  <div style={{ fontSize: 18, fontWeight: 800, color: "#111", lineHeight: 1.2 }}>
+                    Firma Electrónica
+                  </div>
+                  <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 2 }}>
+                    {documentos.length} documento{documentos.length !== 1 ? "s" : ""}
+                    {firmados.length > 0 && ` · ${firmados.length} firmado${firmados.length !== 1 ? "s" : ""}`}
+                    {filtroAgente === "todos" && <span style={{ color: "#0ea5e9" }}> · Todo el equipo</span>}
+                    {filtroAgente !== "mis" && filtroAgente !== "todos" && (
+                      <span style={{ color: "#0ea5e9" }}> · {agentesEquipo.find(a => a.email === filtroAgente)?.name || filtroAgente}</span>
+                    )}
+                  </div>
+                </div>
               </div>
-              <div>
-                <div style={{ fontSize: 17, fontWeight: 700, color: "#111", display: "flex", alignItems: "center", gap: 8 }}>
-                  Firma Digital
-                  {pendientesAlerta > 0 && (
-                    <span style={{ background: "#ef4444", color: "#fff", fontSize: 10, fontWeight: 700, borderRadius: 999, padding: "2px 7px" }}>
-                      {pendientesAlerta}
-                    </span>
-                  )}
-                </div>
-                <div style={{ fontSize: 11, color: "#9ca3af" }}>
-                  {documentos.length} doc{documentos.length !== 1 ? "s" : ""} · {firmados.length} firmado{firmados.length !== 1 ? "s" : ""}
-                  {verEquipo && <span style={{ color: "#0ea5e9", marginLeft: 6 }}>· Todo el equipo</span>}
-                </div>
+
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <button onClick={abrirOnboarding} title="Tutorial" style={{
+                  background: "none", border: "1.5px solid #e5e7eb", color: "#9ca3af",
+                  borderRadius: 10, padding: "8px 10px", fontSize: 16,
+                  cursor: "pointer", lineHeight: 1
+                }}>
+                  💡
+                </button>
+                <button onClick={abrirNuevo} style={{
+                  background: RED, color: "#fff", border: "none", borderRadius: 10,
+                  padding: "9px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer",
+                  display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap"
+                }}>
+                  <Plus size={14} /> Nuevo
+                </button>
               </div>
             </div>
 
-            {/* Toggle equipo — solo para brokers */}
-            {esBroker && (
-              <button
-                onClick={() => setVerEquipo(v => !v)}
-                style={{
-                  background: verEquipo ? "#eff6ff" : "none",
-                  border: `1.5px solid ${verEquipo ? "#bfdbfe" : "#e5e7eb"}`,
-                  color: verEquipo ? "#1d4ed8" : "#6b7280",
-                  borderRadius: 10, padding: "7px 12px", fontSize: 11, fontWeight: 700,
-                  cursor: "pointer", display: "flex", alignItems: "center", gap: 5,
-                  transition: "all .15s"
-                }}>
-                👥 {verEquipo ? "Mi equipo" : "Mi equipo"}
-              </button>
-            )}
-            <div style={{ display: "flex", gap: 8 }}>
-              <button onClick={abrirOnboarding} style={{
-                background: "none", border: "1.5px solid #e5e7eb", color: "#6b7280",
-                borderRadius: 10, padding: "9px 12px", fontSize: 12, fontWeight: 600,
-                cursor: "pointer", display: "flex", alignItems: "center", gap: 5
-              }}
-                title="Ver tutorial"
-              >
-                💡 Tutorial
-              </button>
-              <button onClick={abrirNuevo} style={{
-                background: RED, color: "#fff", border: "none", borderRadius: 10,
-                padding: "9px 16px", fontSize: 12, fontWeight: 700, cursor: "pointer",
-                display: "flex", alignItems: "center", gap: 6
-              }}>
-                <Plus size={14} /> Nuevo documento
-              </button>
-            </div>
+            {/* Filtro de vista — solo para brokers, reemplaza las stats */}
+            {esBroker ? (
+              <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                <span style={{ fontSize: 11, fontWeight: 600, color: "#9ca3af", marginRight: 2 }}>Ver:</span>
+                <select
+                  value={filtroAgente}
+                  onChange={e => setFiltroAgente(e.target.value)}
+                  style={{
+                    border: "1.5px solid #e5e7eb", borderRadius: 8, padding: "6px 12px",
+                    fontSize: 12, fontWeight: 600, color: "#374151", background: "#fff",
+                    cursor: "pointer", outline: "none", minWidth: 180
+                  }}
+                >
+                  <option value="mis">📄 Mis documentos</option>
+                  <option value="todos">👥 Toda mi empresa</option>
+                  {agentesEquipo.length > 0 && (
+                    <optgroup label="Por agente">
+                      {agentesEquipo.map(a => (
+                        <option key={a.email} value={a.email}>{a.name}</option>
+                      ))}
+                    </optgroup>
+                  )}
+                </select>
+              </div>
+            ) : null}
           </div>
 
           {/* Éxito */}
@@ -1447,20 +1479,6 @@ export default function FirmaDigital() {
           {/* Tab: Documentos */}
           {tab === "documentos" && (
             <>
-              {/* Stats */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 16 }}>
-                {[
-                  { label: "Pendientes", value: pendientes.length, color: "#92400e", bg: "#fef3c7" },
-                  { label: "Firmados", value: firmados.length, color: "#065f46", bg: "#d1fae5" },
-                  { label: "Total", value: documentos.length, color: "#374151", bg: "#f3f4f6" },
-                ].map(s => (
-                  <div key={s.label} style={{ background: s.bg, borderRadius: 10, padding: "12px 10px", textAlign: "center" }}>
-                    <div style={{ fontSize: 22, fontWeight: 800, color: s.color }}>{s.value}</div>
-                    <div style={{ fontSize: 10, fontWeight: 600, color: s.color, marginTop: 2 }}>{s.label}</div>
-                  </div>
-                ))}
-              </div>
-
               {/* Buscador */}
               {documentos.length > 3 && (
                 <BuscadorDocumentos documentos={documentos} onVer={d => router.push(`/firma-digital/${d.id}`)} />
