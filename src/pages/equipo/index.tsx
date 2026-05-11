@@ -179,7 +179,18 @@ export default function BrokerDashboard() {
         const d = await res.json();
         if (d.errors?.length) setSyncErrors(d.errors);
       }
-      await loadAnalytics();
+      // Recargar analytics, portfolio (uninvited puede haber cambiado) e invitaciones pendientes
+      await Promise.all([
+        loadAnalytics(),
+        fetch("/api/analytics/team-portfolio")
+          .then(r => r.ok ? r.json() : null)
+          .then(d => { if (d) setPortfolio(d); })
+          .catch(() => {}),
+        fetch("/api/teams/invite")
+          .then(r => r.ok ? r.json() : null)
+          .then(d => { if (d?.pending) setPendingInvitations(d.pending); })
+          .catch(() => {}),
+      ]);
     } catch {}
     setSyncing(false);
   };

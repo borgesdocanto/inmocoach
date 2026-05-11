@@ -11,6 +11,47 @@ import { startOfWeek, format } from "date-fns";
 
 export const config = { maxDuration: 60 };
 
+// Sincroniza agentes y propiedades de Tokko para un equipo dado
+async function syncTokkoTeam(teamId: string, apiKey: string): Promise<{ agents: number; errors: string[] }> {
+  const result = { agents: 0, errors: [] as string[] };
+  try {
+    const fr = await fetch(`https://www.tokkobroker.com/api/v1/user/?key=${apiKey}&format=json&limit=200`);
+    if (!fr.ok) throw new Error(`Tokko users ${fr.status}`);
+    const ud: any = await fr.json();
+    const users: any[] = ud.objects || [];
+    if (users.length > 0) {
+      const rows = users.map((u: any) => ({
+        tokko_id: u.id,
+        team_id: teamId,
+        name: u.name,
+        email: u.email?.toLowerCase() || null,
+        phone: u.phone || u.cellphone || null,
+        picture: u.picture || null,
+        position: u.position || null,
+        branch_id: u.branch?.id || u.office?.id || null,
+        branch_name: u.branch?.name || u.office?.name || null,
+        synced_at: new Date().toISOString(),
+      }));
+      await supabaseAdmin.from("tokko_agents").upsert(rows, { onConflict: "tokko_id" });
+
+      // Eliminar agentes que ya no están en Tokko
+      const activeIds = users.map((u: any) => u.id);
+      if (activeIds.length > 0) {
+        await supabaseAdmin
+          .from("tokko_agents")
+          .delete()
+          .eq("team_id", teamId)
+          .not("tokko_id", "in", `(${activeIds.join(",")})`);
+      }
+
+      result.agents = users.length;
+    }
+  } catch (e: any) {
+    result.errors.push(`tokko_agents: ${e.message}`);
+  }
+  return result;
+}
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") return res.status(405).end();
 
@@ -26,13 +67,28 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!requester?.team_id || !["owner", "team_leader"].includes(requester.team_role))
     return res.status(403).json({ error: "Sin acceso" });
 
+  // 1. Sincronizar agentes de Tokko (para detectar altas y bajas)
+  const { data: team } = await supabaseAdmin
+    .from("teams")
+    .select("tokko_api_key")
+    .eq("id", requester.team_id)
+    .single();
+
+  let tokkoResult = { agents: 0, errors: [] as string[] };
+  if (team?.tokko_api_key) {
+    tokkoResult = await syncTokkoTeam(requester.team_id, team.tokko_api_key);
+  }
+
+  // 2. Sincronizar calendarios de los miembros activos del equipo
   const { data: members } = await supabaseAdmin
     .from("subscriptions")
     .select("email, team_id, streak_best")
     .eq("team_id", requester.team_id)
     .not("google_access_token", "is", null);
 
-  if (!members?.length) return res.status(200).json({ ok: true, synced: 0 });
+  if (!members?.length) {
+    return res.status(200).json({ ok: true, synced: 0, tokko: tokkoResult });
+  }
 
   const weekStart = format(startOfWeek(new Date(), { weekStartsOn: 1 }), "yyyy-MM-dd");
 
@@ -66,5 +122,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const synced = memberResults.filter(r => r.status === "synced").length;
   const errors = memberResults.filter(r => r.status === "error" || r.status === "no_token");
-  return res.status(200).json({ ok: true, synced, total: members.length, errors, results: memberResults });
+  return res.status(200).json({ ok: true, synced, total: members.length, errors, results: memberResults, tokko: tokkoResult });
 }
