@@ -4,6 +4,7 @@ import { authOptions } from "../../../lib/auth";
 import { supabaseAdmin } from "../../../lib/supabase";
 import { getStoredEvents, computePeriodStats, getQuarter, getSemester, getYear } from "../../../lib/calendarSync";
 import { getGoals } from "../../../lib/appConfig";
+import { getEffectiveEmail } from "../../../lib/impersonation";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "GET") return res.status(405).end();
@@ -15,7 +16,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const { data: reqSub } = await supabaseAdmin
     .from("subscriptions")
     .select("team_id, team_role, name")
-    .eq("email", session.user.email)
+    .eq("email", getEffectiveEmail(req, session) ?? session.user.email)
     .single();
 
   if (!reqSub?.team_id || !["owner", "team_leader"].includes(reqSub.team_role)) {
