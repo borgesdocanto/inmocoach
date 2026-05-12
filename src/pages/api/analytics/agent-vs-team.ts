@@ -41,12 +41,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   const allStats = await Promise.all(members.map(m => getAgentSummary(m.email, weekOffset)));
-  const activeStats = allStats.filter(s => s.iac > 0 || s.weekTotal > 0);
-
-  if (activeStats.length <= 1) {
-    return res.status(200).json({ agentIac: agentStats.iac, teamAvgIac: null, diff: null, rank: null, teamTotal: members.length });
-  }
-
   const teamAvgIac = Math.round(allStats.reduce((s, a) => s + a.iac, 0) / allStats.length);
   const diff = agentStats.iac - teamAvgIac;
 

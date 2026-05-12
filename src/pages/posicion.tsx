@@ -45,7 +45,7 @@ export default function PosicionPage() {
   );
 
   const { agentIac, teamAvgIac, diff, rank, teamTotal, weeklyHistory, weeklyGoal } = vsTeam;
-  const hasTeam = teamAvgIac !== null;
+  const hasTeam = teamAvgIac !== null || (vsTeam.teamTotal !== null && vsTeam.teamTotal >= 1);
 
   const chartData = (weeklyHistory ?? []).map((w: any) => ({
     label: (() => { const d = new Date(w.week_start + "T12:00:00"); return `${d.getDate()}/${d.getMonth() + 1}`; })(),
@@ -57,7 +57,9 @@ export default function PosicionPage() {
     ? Math.round(chartData.slice(-4).reduce((s: number, w: any) => s + w.iac, 0) / 4)
     : agentIac;
 
+  const isSolo = vsTeam.teamTotal === 1;
   const diffMsg = !hasTeam ? null
+    : isSolo ? "Sos el único miembro activo de tu equipo"
     : rank === 1 ? "🏆 Sos el mejor del equipo esta semana"
     : diff > 10 ? `🔥 Estás ${diff}pts sobre el promedio`
     : diff > 0 ? `💪 Sobre el promedio del equipo`
@@ -92,21 +94,21 @@ export default function PosicionPage() {
           <>
             {/* Banner vs equipo */}
             <div style={{ background: "#111827", borderRadius: 14, padding: "20px", marginBottom: 16 }}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 20, marginBottom: 16 }}>
+              <div style={{ display: "grid", gridTemplateColumns: isSolo ? "1fr" : "1fr 1fr 1fr", gap: 20, marginBottom: 16 }}>
                 <div>
-                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 6 }}>Tu IAC</div>
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 6 }}>Tu IAC esta semana</div>
                   <div style={{ fontSize: 48, fontWeight: 500, fontFamily: "Georgia, serif", color: iacColor(agentIac), lineHeight: 1 }}>{agentIac}%</div>
                 </div>
-                <div>
+                {!isSolo && <div>
                   <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 6 }}>Promedio equipo</div>
                   <div style={{ fontSize: 48, fontWeight: 500, fontFamily: "Georgia, serif", color: "#fff", lineHeight: 1 }}>{teamAvgIac}%</div>
-                </div>
-                <div>
+                </div>}
+                {!isSolo && <div>
                   <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 6 }}>Diferencia</div>
                   <div style={{ fontSize: 48, fontWeight: 500, fontFamily: "Georgia, serif", lineHeight: 1, color: diff > 0 ? "#4ade80" : diff < 0 ? "#f87171" : "#9ca3af" }}>
                     {diff > 0 ? "+" : ""}{diff}%
                   </div>
-                </div>
+                </div>}
               </div>
               <div style={{ fontSize: 13, color: diff > 0 ? "#86efac" : diff < 0 ? "#fca5a5" : "#9ca3af", marginBottom: 12 }}>
                 {diffMsg} · Posición {rank} de {teamTotal}
