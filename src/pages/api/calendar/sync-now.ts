@@ -47,7 +47,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   // Obtener access token
-  const accessToken = await getValidAccessToken(session.user.email); // token Google del admin real, no impersonado
+  const accessToken = await getValidAccessToken(email); // CRÍTICO: token del usuario que se sincroniza, nunca del admin
   if (!accessToken) {
     return res.status(200).json({ synced: false, reason: "no_token" });
   }

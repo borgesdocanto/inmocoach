@@ -5,6 +5,7 @@ import { getOrCreateTeam, inviteAgent, getPendingInvitations, getTeamMembers, ge
 import { supabaseAdmin } from "../../../lib/supabase";
 import { Resend } from "resend";
 import { EMAIL_FROM, emailWrapper } from "../../../lib/email";
+import { getEffectiveEmail } from "../../../lib/impersonation";
 
 const resend = new Resend(process.env.RESEND_API_KEY!);
 
@@ -12,10 +13,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const session = await getServerSession(req, res, authOptions);
   if (!session?.user?.email) return res.status(401).json({ error: "No autenticado" });
 
+  // Para lecturas usamos el email efectivo (soporta impersonación)
+  // Para escrituras (POST) siempre usamos el email real de sesión
+  const effectiveEmail = getEffectiveEmail(req, session) ?? session.user.email;
+
   const { data: sub } = await supabaseAdmin
     .from("subscriptions")
     .select("plan, team_role, team_id")
-    .eq("email", session.user.email)
+    .eq("email", effectiveEmail)
     .single();
 
   // Freemium también puede usar teams — solo owner y team_leader
@@ -26,8 +31,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   if (req.method === "GET") {
     const [{ members, requesterRole }, pending] = await Promise.all([
-      getTeamMembers(session.user.email),
-      getPendingInvitations(session.user.email),
+      getTeamMembers(effectiveEmail),
+      getPendingInvitations(effectiveEmail),
     ]);
     return res.status(200).json({ members, pending, requesterRole, brokerPlan: sub.plan });
   }
