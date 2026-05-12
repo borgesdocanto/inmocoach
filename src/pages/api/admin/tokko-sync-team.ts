@@ -62,7 +62,7 @@ async function syncTeamTokko(teamId: string, apiKey: string) {
           synced_at: now.toISOString(),
         };
       });
-      await supabaseAdmin.from("tokko_properties").upsert(rows, { onConflict: "tokko_id,team_id" });
+      await supabaseAdmin.from("tokko_properties").upsert(rows, { onConflict: "tokko_id" });
     }
   }
 
@@ -78,7 +78,7 @@ async function syncTeamTokko(teamId: string, apiKey: string) {
       branch_name: u.branch?.name || u.office?.name || null,
       synced_at: new Date().toISOString(),
     }));
-    await supabaseAdmin.from("tokko_agents").upsert(rows, { onConflict: "tokko_id,team_id" });
+    await supabaseAdmin.from("tokko_agents").upsert(rows, { onConflict: "tokko_id" });
   }
 
   return { properties: properties.length, agents: users.length };
