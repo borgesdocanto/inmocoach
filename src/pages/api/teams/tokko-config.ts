@@ -133,12 +133,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         .eq("id", teamId);
     }
 
-    // Sync de propiedades en background (fire & forget)
-    fetch(`${process.env.NEXTAUTH_URL}/api/cron/tokko-sync`, {
-      method: "POST",
-      headers: { "x-cron-secret": process.env.CRON_SECRET!, "Content-Type": "application/json" },
-      body: JSON.stringify({ targetTeamId: teamId }),
-    }).catch(() => {});
+    // Sync sincrónico — DEBE completar antes de responder (Vercel mata background work)
+    try {
+      await fetch(`${process.env.NEXTAUTH_URL}/api/admin/tokko-sync-team`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Cookie": req.headers.cookie || "" },
+        body: JSON.stringify({ teamId }),
+      });
+    } catch { /* no crítico, el cron nocturno lo completa */ }
 
     return res.status(200).json({ ok: true, message: "Conectado con Tokko — sincronizando..." });
   }

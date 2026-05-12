@@ -23,6 +23,8 @@ export default function TokkoSetup() {
   const [disconnecting, setDisconnecting] = useState(false);
   const [testResult, setTestResult] = useState<{ ok: boolean; properties?: number; agents?: number } | null>(null);
   const [testing, setTesting] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [syncResult, setSyncResult] = useState<{ ok: boolean; properties?: number; agents?: number; error?: string } | null>(null);
 
   useEffect(() => {
     if (status === "unauthenticated") router.replace("/login");
@@ -74,6 +76,24 @@ export default function TokkoSetup() {
     setHasKey(false); setKeyPreview(null); setTestResult(null);
     setApiKey(""); setSaved(false); setTokkoSummary(null);
     setDisconnecting(false);
+  };
+
+  const handleSync = async () => {
+    setSyncing(true); setSyncResult(null);
+    try {
+      const r = await fetch("/api/admin/tokko-sync-team", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ teamId: "__own__" }),
+      });
+      const d = await r.json();
+      if (d.ok) {
+        setSyncResult({ ok: true, properties: d.properties, agents: d.agents });
+      } else {
+        setSyncResult({ ok: false, error: d.error || "Error al sincronizar" });
+      }
+    } catch { setSyncResult({ ok: false, error: "Error de conexión" }); }
+    setSyncing(false);
   };
 
   const handleTest = async () => {
@@ -187,6 +207,15 @@ export default function TokkoSetup() {
                   style={{ fontSize: 12, color: "#374151", background: "#f9fafb", border: "0.5px solid #e5e7eb", borderRadius: 8, padding: "7px 14px", cursor: "pointer" }}>
                   {testing ? "Probando..." : "Probar conexión"}
                 </button>
+                <button onClick={handleSync} disabled={syncing}
+                  style={{ fontSize: 12, color: syncing ? "#9ca3af" : "#fff", background: syncing ? "#e5e7eb" : "#0ea5e9", border: "none", borderRadius: 8, padding: "7px 14px", cursor: syncing ? "default" : "pointer", fontWeight: 500 }}>
+                  {syncing ? "Sincronizando..." : "↻ Sync Tokko"}
+                </button>
+                {syncResult && (
+                  <span style={{ fontSize: 11, color: syncResult.ok ? "#16a34a" : "#dc2626", fontWeight: 500 }}>
+                    {syncResult.ok ? `✓ ${syncResult.properties} propiedades · ${syncResult.agents} agentes` : `✗ ${syncResult.error}`}
+                  </span>
+                )}
                 <button onClick={() => router.push("/cartera")}
                   style={{ fontSize: 12, color: "#374151", background: "#f9fafb", border: "0.5px solid #e5e7eb", borderRadius: 8, padding: "7px 14px", cursor: "pointer" }}>
                   Ver cartera →

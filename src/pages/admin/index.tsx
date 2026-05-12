@@ -26,7 +26,7 @@ const PLAN_LABEL: Record<string, string> = {
 interface AdminStats {
   totals: { users: number; paid: number; free: number; withCalendar: number; newLast7: number; newLast30: number; conversionRate: number };
   byPlan: { free: number; individual: number; teams: number };
-  teams: { id: string; name: string; agency_name?: string; owner_email: string; ownerName: string; memberCount: number; created_at: string; status: string }[];
+  teams: { id: string; name: string; agency_name?: string; owner_email: string; ownerName: string; memberCount: number; created_at: string; status: string; has_tokko: boolean }[];
   recentPayments: { amount: number; created_at: string; status: string }[];
 }
 
@@ -101,6 +101,8 @@ export default function AdminPanel() {
   const [suspendConfirm, setSuspendConfirm] = useState(false);
   const [suspendLoading, setSuspendLoading] = useState(false);
   const [suspendMsg, setSuspendMsg] = useState("");
+  const [tokkoSyncing, setTokkoSyncing] = useState(false);
+  const [tokkoSyncMsg, setTokkoSyncMsg] = useState("");
 
   useEffect(() => { loadStats(); }, []);
   useEffect(() => { if (tab === "users" || tab === "teams") loadUsers(); }, [tab, planFilter, search]);
@@ -183,6 +185,25 @@ export default function AdminPanel() {
         .catch(console.error);
     }
   }, [tab]);
+
+  const triggerTokkoSync = async (teamId: string) => {
+    setTokkoSyncing(true); setTokkoSyncMsg("");
+    try {
+      const r = await fetch("/api/admin/tokko-sync-team", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ teamId }),
+      });
+      const d = await r.json();
+      if (d.ok) {
+        setTokkoSyncMsg(`✓ ${d.properties} propiedades · ${d.agents} agentes`);
+      } else {
+        setTokkoSyncMsg(`✗ ${d.error || "Error"}`);
+      }
+    } catch { setTokkoSyncMsg("✗ Error de conexión"); }
+    setTokkoSyncing(false);
+    setTimeout(() => setTokkoSyncMsg(""), 5000);
+  };
 
   const loadStats = async () => {
     setLoadingStats(true);
@@ -735,7 +756,25 @@ export default function AdminPanel() {
                         <span className="font-semibold text-gray-600">{selectedTeam.memberCount} miembro{selectedTeam.memberCount !== 1 ? "s" : ""}</span>
                       </div>
                     </div>
-                    <div className="flex gap-2 shrink-0 items-center">
+                    <div className="flex gap-2 shrink-0 items-center flex-wrap justify-end">
+                      {/* Sync Tokko */}
+                      {selectedTeam.has_tokko && (
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => { setTokkoSyncMsg(""); triggerTokkoSync(selectedTeam.id); }}
+                            disabled={tokkoSyncing}
+                            className="text-xs font-bold px-3 py-1.5 rounded-lg border transition-colors flex items-center gap-1"
+                            style={{ borderColor: "#bae6fd", color: "#0369a1", background: "#f0f9ff", opacity: tokkoSyncing ? 0.6 : 1 }}>
+                            {tokkoSyncing ? <Loader2 size={10} className="animate-spin" /> : "↻"}
+                            {tokkoSyncing ? "Sincronizando..." : "Sync Tokko"}
+                          </button>
+                          {tokkoSyncMsg && (
+                            <span className={`text-xs font-bold ${tokkoSyncMsg.startsWith("✓") ? "text-green-600" : "text-red-500"}`}>
+                              {tokkoSyncMsg}
+                            </span>
+                          )}
+                        </div>
+                      )}
                       {/* Suspend / Reactivate team */}
                       {(() => {
                         const isSuspended = selectedTeam.status === "paused" || selectedTeam.status === "cancelled";
