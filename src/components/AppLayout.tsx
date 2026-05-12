@@ -32,6 +32,7 @@ export default function AppLayout({ children, topbarExtra, greeting }: AppLayout
   const [isOwner, setIsOwner] = useState(false);
   const [agencyLogo, setAgencyLogo] = useState<string | null>(null);
   const [agencyName, setAgencyName] = useState<string | null>(null);
+  const [agencyName, setAgencyName] = useState<string | null>(null);
   const [unseenCoach, setUnseenCoach] = useState(0);
   const [firmaAlerta, setFirmaAlerta] = useState(0);
   const [impersonating, setImpersonating] = useState<string | null>(null);
@@ -75,6 +76,7 @@ export default function AppLayout({ children, topbarExtra, greeting }: AppLayout
         .then(r => r.ok ? r.json() : null)
         .then(d => {
           if (d?.logo) setAgencyLogo(d.logo);
+          if (d?.agencyName) setAgencyName(d.agencyName);
           if (d?.agencyName) setAgencyName(d.agencyName);
         })
         .catch(() => {});
@@ -205,9 +207,13 @@ export default function AppLayout({ children, topbarExtra, greeting }: AppLayout
       <div style={{ padding: "6px 16px 16px", borderBottom: "0.5px solid #f3f4f6", display: "flex", alignItems: "center", justifyContent: "center" }}>
         {agencyLogo
           ? <img src={agencyLogo} alt="" style={{ maxHeight: 56, maxWidth: 170, objectFit: "contain" }} />
-          : <div style={{ width: 52, height: 52, background: RED, borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, fontWeight: 700, color: "#fff" }}>
-              G
-            </div>
+          : agencyName
+            ? <div style={{ padding: "6px 10px", background: RED, borderRadius: 10, fontSize: 13, fontWeight: 700, color: "#fff", textAlign: "center", maxWidth: 170, lineHeight: 1.3, wordBreak: "break-word" }}>
+                {agencyName}
+              </div>
+            : <div style={{ width: 52, height: 52, background: RED, borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, fontWeight: 700, color: "#fff" }}>
+                G
+              </div>
         }
       </div>
 

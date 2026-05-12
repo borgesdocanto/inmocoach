@@ -25,7 +25,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const { data: team } = await supabaseAdmin
     .from("teams")
-    .select("tokko_api_key")
+    .select("tokko_api_key, agency_name, name")
     .eq("id", sub.team_id)
     .single();
 
@@ -63,12 +63,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
   }
 
-  if (!branchId) return res.status(200).json({ logo: null });
+  const agencyName = team?.agency_name || team?.name || null;
+  if (!branchId) return res.status(200).json({ logo: null, agencyName });
 
   const cacheKey = `${sub.team_id}:${branchId}`;
   const cached = cache[cacheKey];
   if (cached && Date.now() - cached.ts < TTL) {
-    return res.status(200).json({ logo: cached.logo });
+    return res.status(200).json({ logo: cached.logo, agencyName });
   }
 
   // 3. Fetch branches from Tokko and find matching one
@@ -84,10 +85,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       );
       const logo = branch?.logo || branch?.logo_url || branch?.picture || null;
       cache[cacheKey] = { logo, ts: Date.now() };
-      return res.status(200).json({ logo });
+      return res.status(200).json({ logo, agencyName });
     }
   } catch { /* silencioso */ }
 
   cache[cacheKey] = { logo: null, ts: Date.now() };
-  return res.status(200).json({ logo: null });
+  return res.status(200).json({ logo: null, agencyName });
 }
