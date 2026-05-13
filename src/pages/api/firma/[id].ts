@@ -17,12 +17,51 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!email) return res.status(401).json({ error: "No autenticado" });
   const { id } = req.query as { id: string };
 
-  const { data: doc } = await supabaseAdmin
+  // Buscar el documento — puede ser propio o de un miembro del equipo (para brokers)
+  let doc = null;
+  
+  // Primero intentar como propio
+  const { data: docPropio } = await supabaseAdmin
     .from("firma_documentos")
     .select(`*, firma_plantillas(nombre, pdf_url)`)
     .eq("id", id)
     .eq("usuario_email", email)
     .single();
+
+  if (docPropio) {
+    doc = docPropio;
+  } else {
+    // Verificar si el usuario es broker/team_leader y el doc es de su equipo
+    const { data: callerSub } = await supabaseAdmin
+      .from("subscriptions")
+      .select("team_id, team_role")
+      .eq("email", email)
+      .single();
+
+    const esBroker = callerSub?.team_role === "owner" || callerSub?.team_role === "team_leader";
+
+    if (esBroker && callerSub?.team_id) {
+      // Buscar el documento sin filtro de email
+      const { data: docEquipo } = await supabaseAdmin
+        .from("firma_documentos")
+        .select(`*, firma_plantillas(nombre, pdf_url)`)
+        .eq("id", id)
+        .single();
+
+      if (docEquipo) {
+        // Verificar que el dueño del doc pertenece al mismo equipo
+        const { data: ownerSub } = await supabaseAdmin
+          .from("subscriptions")
+          .select("team_id")
+          .eq("email", docEquipo.usuario_email)
+          .single();
+
+        if (ownerSub?.team_id === callerSub.team_id) {
+          doc = docEquipo;
+        }
+      }
+    }
+  }
 
   if (!doc) return res.status(404).json({ error: "Documento no encontrado" });
 
