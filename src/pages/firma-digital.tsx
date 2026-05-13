@@ -740,7 +740,7 @@ function FilaDocumento({ doc, onVer }: { doc: Documento; onVer: () => void }) {
                   color: f.estado === "firmado" ? "#065f46" : "#6b7280",
                   display: "inline-flex", alignItems: "center", gap: 3
                 }}>
-                  {f.estado === "firmado" ? "✅" : "⏳"} {f.nombre.split(" ")[0]}
+                  {f.estado === "firmado" ? "✅" : "⏳"} {f.nombre}
                   {f.rol !== "Firmante" ? ` (${f.rol})` : ""}
                 </span>
               ))}
@@ -785,6 +785,18 @@ function FilaDocumento({ doc, onVer }: { doc: Documento; onVer: () => void }) {
               </div>
             );
           })()}
+
+          {/* Alert de verificación — solo para firmados */}
+          {completado && (
+            <div style={{
+              marginTop: 8, padding: "7px 10px", borderRadius: 8,
+              background: "#fffbeb", border: "1px solid #fcd34d",
+              display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: "#92400e"
+            }}>
+              <span style={{ fontSize: 13 }}>⚠️</span>
+              <span><strong>Verificá</strong> las fotos del DNI y selfie del firmante antes de proceder</span>
+            </div>
+          )}
 
           {/* Barra de progreso si hay múltiples firmantes */}
           {total > 1 && (
