@@ -669,9 +669,6 @@ export default function CarteraPage() {
                           {r.branch && (
                             <span style={{ fontSize: 11, color: "#9ca3af" }}>· {r.branch}</span>
                           )}
-                          {r.agentName && !agentEmail && (
-                            <span style={{ fontSize: 11, color: "#0ea5e9", fontWeight: 500 }}>· {r.agentName}</span>
-                          )}
                           {r.referenceCode && (
                             <span style={{ fontSize: 11, color: "#d1d5db" }}>· {r.referenceCode}</span>
                           )}
