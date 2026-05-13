@@ -759,6 +759,33 @@ function FilaDocumento({ doc, onVer }: { doc: Documento; onVer: () => void }) {
             {completado && doc.signed_at ? ` · ✅ Completado ${formatFecha(doc.signed_at)}` : ` · Vence ${formatFecha(doc.expires_at)}`}
           </div>
 
+          {/* Barra de tiempo restante — solo para pendientes/parciales */}
+          {!completado && doc.estado !== "cancelado" && doc.estado !== "vencido" && (() => {
+            const total = 30 * 24 * 60 * 60 * 1000;
+            const transcurrido = Date.now() - new Date(doc.created_at).getTime();
+            const pct = Math.max(0, Math.min(100, 100 - (transcurrido / total * 100)));
+            const diasRestantes = Math.max(0, Math.ceil((new Date(doc.expires_at).getTime() - Date.now()) / (24 * 60 * 60 * 1000)));
+            const color = pct > 50 ? "#10b981" : pct > 20 ? "#f59e0b" : "#ef4444";
+            return (
+              <div style={{ marginTop: 6 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 3 }}>
+                  <span style={{ fontSize: 9, color: "#9ca3af", textTransform: "uppercase", letterSpacing: .3 }}>
+                    Expira en {diasRestantes} día{diasRestantes !== 1 ? "s" : ""}
+                  </span>
+                  <span style={{ fontSize: 9, color }}>
+                    {Math.round(pct)}%
+                  </span>
+                </div>
+                <div style={{ height: 3, background: "#f3f4f6", borderRadius: 2, overflow: "hidden" }}>
+                  <div style={{
+                    height: "100%", width: `${pct}%`, background: color,
+                    borderRadius: 2, transition: "width .3s"
+                  }} />
+                </div>
+              </div>
+            );
+          })()}
+
           {/* Barra de progreso si hay múltiples firmantes */}
           {total > 1 && (
             <div style={{ marginTop: 6 }}>

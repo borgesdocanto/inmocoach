@@ -35,6 +35,10 @@
     {
       "path": "/api/cron/team-email",
       "schedule": "30 12 * * 1"
+    },
+    {
+      "path": "/api/cron/firma-cleanup",
+      "schedule": "0 5 * * *"
     }
   ]
 }
