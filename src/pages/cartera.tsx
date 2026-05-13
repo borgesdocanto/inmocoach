@@ -361,8 +361,6 @@ export default function CarteraPage() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | "incomplete" | "stale">("all");
   const [selectedPropId, setSelectedPropId] = useState<string | null>(null);
-  const [reservas, setReservas] = useState<any[]>([]);
-  const [reservasLoading, setReservasLoading] = useState(false);
 
   // When broker views agent's portfolio from /equipo
   const agentEmail = router.query.agentEmail as string | undefined;
@@ -381,18 +379,6 @@ export default function CarteraPage() {
       .then(r => r.ok ? r.json() : null)
       .then(d => { setData(d); setLoading(false); })
       .catch(() => setLoading(false));
-  }, [status, agentEmail]);
-
-  useEffect(() => {
-    if (status !== "authenticated") return;
-    setReservasLoading(true);
-    const url = agentEmail
-      ? `/api/tokko-reservas?email=${encodeURIComponent(agentEmail)}`
-      : "/api/tokko-reservas";
-    fetch(url, { cache: "no-store" })
-      .then(r => r.ok ? r.json() : null)
-      .then(d => { setReservas(d?.reservas || []); setReservasLoading(false); })
-      .catch(() => setReservasLoading(false));
   }, [status, agentEmail]);
 
   const greeting = (() => {
@@ -624,100 +610,6 @@ export default function CarteraPage() {
             {filtered.length} propiedades · datos en tiempo real desde Tokko
           </div>
         )}
-
-        {/* ── Reservas activas ───────────────────────────────────────────── */}
-        <div style={{ marginTop: 40 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
-            <div style={{ fontSize: 18, fontWeight: 600, color: "#111827", fontFamily: "Georgia, serif" }}>
-              Reservas activas
-            </div>
-            {!reservasLoading && (
-              <div style={{ background: reservas.length > 0 ? "#fef3c7" : "#f3f4f6", color: reservas.length > 0 ? "#92400e" : "#6b7280", borderRadius: 20, padding: "2px 10px", fontSize: 12, fontWeight: 500 }}>
-                {reservas.length}
-              </div>
-            )}
-          </div>
-
-          {reservasLoading ? (
-            <div style={{ fontSize: 13, color: "#9ca3af" }}>Cargando reservas...</div>
-          ) : reservas.length === 0 ? (
-            <div style={{ background: "#f9fafb", borderRadius: 12, padding: "24px", textAlign: "center" }}>
-              <div style={{ fontSize: 24, marginBottom: 8 }}>✅</div>
-              <div style={{ fontSize: 14, color: "#6b7280" }}>Sin reservas activas en este momento</div>
-            </div>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {reservas.map((r: any) => {
-                const opTypeColor = r.operationType === "Venta" ? "#1d4ed8" : "#7c3aed";
-                const opTypeBg = r.operationType === "Venta" ? "#eff6ff" : "#f5f3ff";
-                return (
-                  <div key={r.id} style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 14, padding: "16px 18px", display: "flex", flexDirection: "column", gap: 8 }}>
-                    <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 15, fontWeight: 600, color: "#111827", marginBottom: 2 }}>
-                          {r.address}
-                        </div>
-                        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
-                          {r.operationType && (
-                            <span style={{ background: opTypeBg, color: opTypeColor, fontSize: 11, fontWeight: 600, borderRadius: 6, padding: "2px 8px" }}>
-                              {r.operationType}
-                            </span>
-                          )}
-                          {r.propertyType && (
-                            <span style={{ fontSize: 11, color: "#6b7280" }}>{r.propertyType}</span>
-                          )}
-                          {r.branch && (
-                            <span style={{ fontSize: 11, color: "#9ca3af" }}>· {r.branch}</span>
-                          )}
-                          {r.referenceCode && (
-                            <span style={{ fontSize: 11, color: "#d1d5db" }}>· {r.referenceCode}</span>
-                          )}
-                        </div>
-                      </div>
-                      <div style={{ textAlign: "right", flexShrink: 0 }}>
-                        {r.listPrice ? (
-                          <div style={{ fontSize: 15, fontWeight: 600, color: "#111827" }}>
-                            {r.listPrice.currency === "USD" ? "USD " : "$"}{r.listPrice.amount.toLocaleString("es-AR")}
-                          </div>
-                        ) : r.amount ? (
-                          <div style={{ fontSize: 15, fontWeight: 600, color: "#111827" }}>
-                            {r.currency === "USD" ? "USD " : "$"}{r.amount.toLocaleString("es-AR")}
-                          </div>
-                        ) : null}
-                        <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 2 }}>
-                          desde {new Date(r.createdAt).toLocaleDateString("es-AR", { day: "numeric", month: "short" })}
-                        </div>
-                      </div>
-                    </div>
-
-                    {(r.ownerName || r.contact?.name) && (
-                      <div style={{ display: "flex", gap: 16, flexWrap: "wrap", borderTop: "1px solid #f3f4f6", paddingTop: 8 }}>
-                        {r.ownerName && (
-                          <div style={{ fontSize: 12, color: "#6b7280" }}>
-                            <span style={{ color: "#9ca3af" }}>Propietario: </span>{r.ownerName}
-                          </div>
-                        )}
-                        {r.contact?.name && (
-                          <div style={{ fontSize: 12, color: "#6b7280" }}>
-                            <span style={{ color: "#9ca3af" }}>Comprador: </span>{r.contact.name}
-                            {r.contact.phone && <span style={{ color: "#9ca3af" }}> · {r.contact.phone}</span>}
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {r.publicUrl && (
-                      <a href={r.publicUrl} target="_blank" rel="noopener noreferrer"
-                        style={{ fontSize: 12, color: "#0ea5e9", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 4, width: "fit-content" }}>
-                        Ver ficha en Tokko →
-                      </a>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
       </div>
 
       {/* Property modal */}
