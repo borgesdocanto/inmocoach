@@ -130,6 +130,11 @@ function CardFirmante({
 }) {
   const [reenviando, setReenviando] = useState(false);
   const [copiado, setCopiado] = useState(false);
+  const [editando, setEditando] = useState(false);
+  const [nuevoNombre, setNuevoNombre] = useState(firmante.nombre);
+  const [nuevoEmail, setNuevoEmail] = useState(firmante.email);
+  const [guardando, setGuardando] = useState(false);
+  const [msgLocal, setMsgLocal] = useState("");
 
   const handleReenviar = async () => {
     setReenviando(true);
@@ -139,10 +144,49 @@ function CardFirmante({
       body: JSON.stringify({ firmante_id: firmante.id, documento_id: docId }),
     });
     setReenviando(false);
+    setMsgLocal("✅ Email reenviado");
+    setTimeout(() => setMsgLocal(""), 3000);
     onReenviar();
   };
 
-  const copiarHash = () => {
+  const handleGuardarYReenviar = async () => {
+    if (!nuevoNombre.trim() || !nuevoEmail.trim()) { alert("Nombre y email son obligatorios"); return; }
+    setGuardando(true);
+
+    // 1. Actualizar en Supabase
+    const res = await fetch(`/api/firma/editar-firmante`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        firmante_id: firmante.id,
+        documento_id: docId,
+        nombre: nuevoNombre.trim(),
+        email: nuevoEmail.trim(),
+      }),
+    });
+
+    if (!res.ok) {
+      const j = await res.json();
+      alert(j.error || "Error al guardar");
+      setGuardando(false);
+      return;
+    }
+
+    // 2. Reenviar email al nuevo email
+    await fetch("/api/firma/reenviar-firmante", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ firmante_id: firmante.id, documento_id: docId }),
+    });
+
+    setEditando(false);
+    setGuardando(false);
+    setMsgLocal("✅ Datos actualizados y email reenviado");
+    setTimeout(() => setMsgLocal(""), 4000);
+    onReenviar(); // recargar
+  };
+
+  const copiarLink = () => {
     const url = `https://www.inmocoach.com.ar/firmar/${firmante.firma_token}`;
     navigator.clipboard.writeText(url);
     setCopiado(true);
@@ -150,6 +194,11 @@ function CardFirmante({
   };
 
   const firmado = firmante.estado === "firmado";
+  const inputStyle: React.CSSProperties = {
+    border: "1.5px solid #e5e7eb", borderRadius: 8, padding: "7px 11px",
+    fontSize: 13, outline: "none", fontFamily: "inherit", color: "#111",
+    background: "#fff", width: "100%", boxSizing: "border-box"
+  };
 
   return (
     <div style={{
@@ -197,6 +246,17 @@ function CardFirmante({
 
         <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
           {!firmado && (
+            <button onClick={() => setEditando(e => !e)} style={{
+              background: editando ? "#f3f4f6" : "none",
+              border: "1.5px solid #e5e7eb", color: "#374151",
+              borderRadius: 8, padding: "7px 10px",
+              fontSize: 12, fontWeight: 600, cursor: "pointer",
+              display: "flex", alignItems: "center", gap: 4
+            }}>
+              ✏️
+            </button>
+          )}
+          {!firmado && (
             <button onClick={handleReenviar} disabled={reenviando} style={{
               background: reenviando ? "#9ca3af" : RED, color: "#fff",
               border: "none", borderRadius: 8, padding: "7px 12px",
@@ -206,16 +266,58 @@ function CardFirmante({
               <Send size={12} /> {reenviando ? "..." : "Reenviar"}
             </button>
           )}
-          <button onClick={copiarHash} style={{
+          <button onClick={copiarLink} style={{
             background: copiado ? "#065f46" : "#f3f4f6", color: copiado ? "#fff" : "#374151",
             border: "none", borderRadius: 8, padding: "7px 12px",
             fontSize: 12, fontWeight: 600, cursor: "pointer",
             display: "flex", alignItems: "center", gap: 5, transition: "all .2s"
           }}>
-            🔗 {copiado ? "Copiado" : "Copiar link"}
+            🔗 {copiado ? "Copiado" : "Link"}
           </button>
         </div>
       </div>
+
+      {/* Mensaje local */}
+      {msgLocal && (
+        <div style={{ padding: "8px 20px", background: "#d1fae5", color: "#065f46", fontSize: 12, fontWeight: 600 }}>
+          {msgLocal}
+        </div>
+      )}
+
+      {/* Formulario de edición inline — solo para pendientes */}
+      {!firmado && editando && (
+        <div style={{ padding: "14px 20px", borderTop: "1px solid #fde68a", background: "#fffbeb" }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "#92400e", marginBottom: 12 }}>
+            ✏️ Corregir datos del firmante
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
+            <div>
+              <label style={{ fontSize: 10, fontWeight: 600, color: "#6b7280", display: "block", marginBottom: 3 }}>Nombre y apellido</label>
+              <input value={nuevoNombre} onChange={e => setNuevoNombre(e.target.value)} style={inputStyle} />
+            </div>
+            <div>
+              <label style={{ fontSize: 10, fontWeight: 600, color: "#6b7280", display: "block", marginBottom: 3 }}>Email</label>
+              <input type="email" value={nuevoEmail} onChange={e => setNuevoEmail(e.target.value)} style={inputStyle} />
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={() => setEditando(false)} style={{
+              background: "#f3f4f6", border: "none", borderRadius: 8,
+              padding: "8px 14px", fontSize: 12, fontWeight: 600, color: "#374151", cursor: "pointer"
+            }}>
+              Cancelar
+            </button>
+            <button onClick={handleGuardarYReenviar} disabled={guardando} style={{
+              background: guardando ? "#9ca3af" : RED, color: "#fff",
+              border: "none", borderRadius: 8, padding: "8px 16px",
+              fontSize: 12, fontWeight: 700, cursor: guardando ? "not-allowed" : "pointer",
+              display: "flex", alignItems: "center", gap: 5
+            }}>
+              <Send size={12} /> {guardando ? "Guardando..." : "Guardar y reenviar email"}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Tracking info */}
       {firmado && (firmante.ip_firmante || firmante.user_agent_firmante) && (
