@@ -108,7 +108,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   try {
     const activeOps = await fetchActiveOps(team.tokko_api_key);
 
-    const filtered = activeOps.filter((op: any) => {
+    // Solo reservas creadas en los últimos 4 meses
+  const fourMonthsAgo = new Date();
+  fourMonthsAgo.setMonth(fourMonthsAgo.getMonth() - 4);
+
+  const filtered = activeOps.filter((op: any) => {
+      const createdAt = new Date(op.created_at);
+      if (createdAt < fourMonthsAgo) return false;
       // Broker/team_leader sin filtro → todas
       if (isBroker && !filterEmail) return true;
       // Con filtro explícito → filtrar por agente
