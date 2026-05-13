@@ -10,14 +10,17 @@ export const config = { maxDuration: 60 };
 const cache = new Map<string, { data: any[]; ts: number }>();
 const CACHE_TTL = 3 * 60 * 1000; // 3 minutos
 
-async function fetchSignedOps(apiKey: string): Promise<any[]> {
-  const cacheKey = "reservas_" + apiKey.slice(-8);
+async function fetchActiveOps(apiKey: string): Promise<any[]> {
+  const cacheKey = "reservas_active_" + apiKey.slice(-8);
   const cached = cache.get(cacheKey);
   if (cached && Date.now() - cached.ts < CACHE_TTL) return cached.data;
 
+  // Intentar filtrar active=true directo en Tokko
+  // Si Tokko soporta el parámetro, trae solo las activas (pocas)
+  // Si no lo soporta, igual filtramos en memoria y cortamos a 500 registros
   let allOps: any[] = [];
   let nextUrl: string | null =
-    `https://www.tokkobroker.com/api/v1/signed_operations/?key=${apiKey}&format=json&limit=100`;
+    `https://www.tokkobroker.com/api/v1/signed_operations/?key=${apiKey}&format=json&limit=100&active=true`;
 
   while (nextUrl) {
     const r: Response = await fetch(nextUrl);
@@ -27,21 +30,22 @@ async function fetchSignedOps(apiKey: string): Promise<any[]> {
     nextUrl = d.meta?.next
       ? `https://www.tokkobroker.com${d.meta.next}`
       : null;
+    if (allOps.length >= 500) break;
   }
 
-  cache.set(cacheKey, { data: allOps, ts: Date.now() });
-  return allOps;
+  // Filtrar en memoria por si Tokko ignoró el parámetro
+  const activeOps = allOps.filter((op: any) => op.active === true);
+
+  cache.set(cacheKey, { data: activeOps, ts: Date.now() });
+  return activeOps;
 }
 
 function getAgentEmails(op: any): string[] {
   const emails: string[] = [];
-  // Producer de la propiedad
   if (op.property?.producer?.email) emails.push(op.property.producer.email);
-  // Agentes relacionados
   for (const ar of op.agents_related || []) {
     if (ar.agent?.email) emails.push(ar.agent.email);
   }
-  // Owner agent (quien captó al propietario)
   for (const owner of op.owners || []) {
     if (owner.agent?.email) emails.push(owner.agent.email);
   }
@@ -77,12 +81,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!team?.tokko_api_key) return res.status(200).json({ reservas: [], connected: false });
 
   try {
-    const allOps = await fetchSignedOps(team.tokko_api_key);
+    const activeOps = await fetchActiveOps(team.tokko_api_key);
 
-    // Filtrar reservas activas del agente target
-    const reservas = allOps
+    const reservas = activeOps
       .filter((op: any) => {
-        if (!op.active) return false;
         const agentEmails = getAgentEmails(op);
         return agentEmails.includes(targetEmail);
       })
@@ -95,7 +97,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return {
           id: op.id,
           createdAt: op.created_at,
-          finishedAt: op.finished_at,
           operationType: opType,
           amount: op.operation_amount,
           currency: op.operation_amount_currency,
