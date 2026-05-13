@@ -1215,7 +1215,12 @@ export default function FirmaDigital() {
   const [loading, setLoading] = useState(true);
   const [esBroker, setEsBroker] = useState(false);
   const [verEquipo, setVerEquipo] = useState(false);
-  const [filtroAgente, setFiltroAgente] = useState<string>("mis"); // "mis" | "todos" | email
+  const [filtroAgente, setFiltroAgente] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("firma_filtro_agente") || "mis";
+    }
+    return "mis";
+  });
   const [agentesEquipo, setAgentesEquipo] = useState<Array<{email: string; name: string}>>([]);
   const [modalNuevo, setModalNuevo] = useState(false);
   const [modalDisclaimer, setModalDisclaimer] = useState(false);
@@ -1435,7 +1440,10 @@ export default function FirmaDigital() {
                 <span style={{ fontSize: 11, fontWeight: 600, color: "#9ca3af", marginRight: 2 }}>Ver:</span>
                 <select
                   value={filtroAgente}
-                  onChange={e => setFiltroAgente(e.target.value)}
+                  onChange={e => {
+                    setFiltroAgente(e.target.value);
+                    localStorage.setItem("firma_filtro_agente", e.target.value);
+                  }}
                   style={{
                     border: "1.5px solid #e5e7eb", borderRadius: 8, padding: "6px 12px",
                     fontSize: 12, fontWeight: 600, color: "#374151", background: "#fff",
