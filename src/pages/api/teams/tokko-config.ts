@@ -90,14 +90,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Verificar que la API key no esté ya en uso por ningún equipo
     const { data: existingTeam } = await supabaseAdmin
       .from("teams")
-      .select("id")
+      .select("id, owner_email")
       .eq("tokko_api_key", apiKey)
       .maybeSingle();
 
     if (existingTeam) {
+      // Buscar el nombre del owner para mostrarlo en el mensaje
+      const { data: ownerSub } = await supabaseAdmin
+        .from("subscriptions")
+        .select("name")
+        .eq("email", existingTeam.owner_email)
+        .single();
+
+      const ownerName = ownerSub?.name || existingTeam.owner_email;
+
       return res.status(200).json({
         ok: false,
-        error: "Esta API key de Tokko ya está conectada a otra cuenta de InmoCoach. Si creés que es un error, contactanos.",
+        error: `Esta API key de Tokko ya está vinculada a la cuenta de ${ownerName}. Contactá con esa persona para coordinar el acceso.`,
       });
     }
 
