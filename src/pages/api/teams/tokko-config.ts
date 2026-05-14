@@ -87,6 +87,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(200).json({ ok: false, error: "API key inválida — verificá en Tokko → Mi empresa → Permisos" });
     }
 
+    // Verificar que la API key no esté ya en uso por otro equipo
+    const { data: existingTeam } = await supabaseAdmin
+      .from("teams")
+      .select("id, name, owner_email")
+      .eq("tokko_api_key", apiKey)
+      .neq("id", sub.team_id ?? "00000000-0000-0000-0000-000000000000")
+      .maybeSingle();
+
+    if (existingTeam) {
+      return res.status(200).json({
+        ok: false,
+        error: "Esta API key de Tokko ya está conectada a otra cuenta de InmoCoach. Si creés que es un error, contactanos.",
+      });
+    }
+
     let teamId = sub.team_id;
 
     // Si el usuario aún no tiene equipo, crearlo ahora
