@@ -115,20 +115,8 @@ export default function CuentaPage() {
   const [roleLoading, setRoleLoading] = useState<string | null>(null);
   const [resendLoading, setResendLoading] = useState<string | null>(null);
 
-  // Mi cumpleaños
-  const [bdDay, setBdDay] = useState("");
-  const [bdMonth, setBdMonth] = useState("");
-  const [bdYear, setBdYear] = useState("");
-  const [bdSaving, setBdSaving] = useState(false);
-  const [bdMsg, setBdMsg] = useState("");
-  // Mi aniversario
-  const [anDay, setAnDay] = useState("");
-  const [anMonth, setAnMonth] = useState("");
-  const [anYear, setAnYear] = useState("");
-  const [anSaving, setAnSaving] = useState(false);
-  const [anMsg, setAnMsg] = useState("");
-  // Mapa de cumpleaños/aniversarios del equipo (para broker y team leader)
-  const [memberDates, setMemberDates] = useState<Record<string, { birthday: string|null; work_anniversary: string|null }>>({});
+  // Mapa de cumpleaños/aniversarios del equipo
+  const [memberDates, setMemberDates] = useState<Record<string, { birthday: string|null; work_anniversary: string|null }>>({})
   const [memberSaving, setMemberSaving] = useState<string|null>(null);
   // Modal de fechas de un miembro
   const [dateModal, setDateModal] = useState<{ email: string; name: string } | null>(null);
@@ -136,13 +124,7 @@ export default function CuentaPage() {
   const [dmAnniversary, setDmAnniversary] = useState(""); // "YYYY-MM-DD" o 
   const [dmSaving, setDmSaving] = useState(false); const [dmMsg, setDmMsg] = useState("");
   // Templates de mails
-  const [tmplModal, setTmplModal] = useState(false);
-  const [tmplBdAgent, setTmplBdAgent] = useState("");
-  const [tmplBdTeam, setTmplBdTeam] = useState("");
-  const [tmplAnAgent, setTmplAnAgent] = useState("");
-  const [tmplAnTeam, setTmplAnTeam] = useState("");
-  const [tmplLoading, setTmplLoading] = useState(false);
-  const [tmplSaving, setTmplSaving] = useState(false);
+
   const [resendMsg, setResendMsg] = useState<string | null>(null);
   const [teamMembers, setTeamMembers] = useState<any[]>([]);
   const [showTeamLeaders, setShowTeamLeaders] = useState(true);
@@ -221,23 +203,6 @@ export default function CuentaPage() {
     };
   }
 
-  const saveMyBirthday = async () => {
-    if (!bdDay || !bdMonth) { setBdMsg("Completá el día y el mes."); return; }
-    setBdSaving(true);
-    setBdMsg("");
-    const year = bdYear && bdYear.length === 4 ? bdYear : "1900";
-    const birthday = `${year}-${bdMonth.padStart(2,"0")}-${bdDay.padStart(2,"0")}`;
-    try {
-      const res = await fetch("/api/teams/birthday", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ agentEmail: session?.user?.email, birthday }),
-      });
-      if (res.ok) setBdMsg("✓ Cumpleaños guardado");
-      else setBdMsg("Error al guardar");
-    } catch { setBdMsg("Error al guardar"); }
-    setBdSaving(false);
-  };
 
   const openDateModal = (email: string, name: string) => {
     const dates = memberDates[email] || { birthday: null, work_anniversary: null };
@@ -274,21 +239,6 @@ export default function CuentaPage() {
     setDmSaving(false);
   };
 
-  const saveMyAnniversary = async () => {
-    if (!anDay || !anMonth) { setAnMsg("Completá el día y el mes."); return; }
-    setAnSaving(true); setAnMsg("");
-    const work_anniversary = buildDate(anDay, anMonth, anYear);
-    try {
-      const res = await fetch("/api/teams/birthday", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ agentEmail: session?.user?.email, work_anniversary }),
-      });
-      if (res.ok) setAnMsg("✓ Aniversario guardado");
-      else setAnMsg("Error al guardar");
-    } catch { setAnMsg("Error al guardar"); }
-    setAnSaving(false);
-  };
 
   const saveMemberDate = async (email: string, field: "birthday" | "work_anniversary", value: string | null) => {
     setMemberSaving(email + field);
@@ -306,38 +256,7 @@ export default function CuentaPage() {
     setMemberSaving(null);
   };
 
-  const loadTemplates = async () => {
-    setTmplLoading(true);
-    try {
-      const res = await fetch("/api/teams/birthday-templates");
-      if (res.ok) {
-        const d = await res.json();
-        setTmplBdAgent(d.birthdayMsgAgent || "");
-        setTmplBdTeam(d.birthdayMsgTeam || "");
-        setTmplAnAgent(d.anniversaryMsgAgent || "");
-        setTmplAnTeam(d.anniversaryMsgTeam || "");
-      }
-    } catch {}
-    setTmplLoading(false);
-  };
 
-  const saveTemplates = async () => {
-    setTmplSaving(true);
-    try {
-      const res = await fetch("/api/teams/birthday-templates", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          birthdayMsgAgent: tmplBdAgent,
-          birthdayMsgTeam: tmplBdTeam,
-          anniversaryMsgAgent: tmplAnAgent,
-          anniversaryMsgTeam: tmplAnTeam,
-        }),
-      });
-      if (res.ok) setTmplModal(false);
-    } catch {}
-    setTmplSaving(false);
-  };
 
   const handleCancel = async () => {
     if (cancelConfirm.toLowerCase() !== "cancelar") return;
@@ -504,41 +423,6 @@ export default function CuentaPage() {
           <div style={{ background: "#EAF3DE", border: "0.5px solid #86efac", borderRadius: 12, padding: "12px 16px", marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}>
             <CheckCircle size={15} style={{ color: "#16a34a", flexShrink: 0 }} />
             <span style={{ fontSize: 13, color: "#166534" }}>{success}</span>
-          </div>
-        )}
-
-        {/* ── MODAL TEMPLATES ── */}
-        {tmplModal && (
-          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 9000, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
-            <div style={{ background: "#fff", borderRadius: 16, padding: 24, width: "100%", maxWidth: 520, boxShadow: "0 20px 60px rgba(0,0,0,0.15)", maxHeight: "90vh", overflowY: "auto" }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
-                <div style={{ fontSize: 14, fontWeight: 600, color: "#111827" }}>✉️ Mensajes automáticos</div>
-                <button onClick={() => setTmplModal(false)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 18, color: "#9ca3af" }}>×</button>
-              </div>
-              {tmplLoading ? (
-                <div style={{ textAlign: "center", padding: 32, color: "#9ca3af" }}>Cargando...</div>
-              ) : (
-                <>
-                  <div style={{ fontSize: 11, color: "#9ca3af", marginBottom: 16 }}>Variables disponibles: {"{nombre}"}, {"{inmobiliaria}"}, {"{años}"}, {"{plural}"}</div>
-                  {[
-                    { label: "🎂 Cumpleaños — mail al festejado", val: tmplBdAgent, set: setTmplBdAgent },
-                    { label: "🎂 Cumpleaños — mail al equipo (día anterior)", val: tmplBdTeam, set: setTmplBdTeam },
-                    { label: "🏡 Aniversario — mail al festejado", val: tmplAnAgent, set: setTmplAnAgent },
-                    { label: "🏡 Aniversario — mail al equipo (día anterior)", val: tmplAnTeam, set: setTmplAnTeam },
-                  ].map(({ label, val, set }) => (
-                    <div key={label} style={{ marginBottom: 16 }}>
-                      <label style={{ fontSize: 12, fontWeight: 600, color: "#374151", display: "block", marginBottom: 4 }}>{label}</label>
-                      <textarea value={val} onChange={e => set(e.target.value)} rows={4}
-                        style={{ width: "100%", border: "1px solid #e5e7eb", borderRadius: 8, padding: "8px 12px", fontSize: 12, color: "#374151", outline: "none", resize: "vertical", boxSizing: "border-box", lineHeight: 1.6 }} />
-                    </div>
-                  ))}
-                  <button onClick={saveTemplates} disabled={tmplSaving}
-                    style={{ width: "100%", background: "#111827", color: "#fff", border: "none", borderRadius: 8, padding: "10px 0", fontSize: 13, fontWeight: 600, cursor: tmplSaving ? "default" : "pointer", opacity: tmplSaving ? 0.7 : 1 }}>
-                    {tmplSaving ? "Guardando..." : "Guardar todos los mensajes"}
-                  </button>
-                </>
-              )}
-            </div>
           </div>
         )}
 
