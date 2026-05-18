@@ -162,20 +162,6 @@ export default function CuentaPage() {
     // Cargar cumpleaños y aniversarios del equipo
     fetch("/api/teams/birthday").then(r => r.ok ? r.json() : null).then(d => {
       if (!d?.members) return;
-      const me = d.members.find((m: any) => m.email === session?.user?.email);
-      if (me?.birthday) {
-        const b = new Date(me.birthday + "T12:00:00");
-        setBdDay(String(b.getDate()).padStart(2, "0"));
-        setBdMonth(String(b.getMonth() + 1).padStart(2, "0"));
-        setBdYear(b.getFullYear() === 1900 ? "" : String(b.getFullYear()));
-      }
-      if (me?.work_anniversary) {
-        const a = new Date(me.work_anniversary + "T12:00:00");
-        setAnDay(String(a.getDate()).padStart(2, "0"));
-        setAnMonth(String(a.getMonth() + 1).padStart(2, "0"));
-        setAnYear(a.getFullYear() === 1900 ? "" : String(a.getFullYear()));
-      }
-      // Mapa para la tabla del equipo
       const map: Record<string, { birthday: string|null; work_anniversary: string|null }> = {};
       for (const m of d.members) {
         map[m.email] = { birthday: m.birthday || null, work_anniversary: m.work_anniversary || null };
