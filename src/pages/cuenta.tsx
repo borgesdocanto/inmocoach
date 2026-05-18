@@ -86,41 +86,6 @@ function formatDate(iso: string | null): string {
   return new Date(iso).toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" });
 }
 
-// Sub-componente stateful para editar fechas de miembros del equipo
-function MemberDateRow({ label, day: initDay, month: initMonth, year: initYear, months, saving, onSave }: {
-  label: string; day: string; month: string; year: string;
-  months: string[]; saving: boolean;
-  onSave: (d: string, m: string, y: string) => void;
-}) {
-  const [d, setD] = useState(initDay);
-  const [m, setM] = useState(initMonth);
-  const [y, setY] = useState(initYear);
-  // Sincronizar si cambia el padre (ej: recarga)
-  // (ignoramos para no re-renderizar innecesariamente)
-  return (
-    <div style={{ display: "flex", gap: 6, alignItems: "flex-end", marginBottom: 8, flexWrap: "wrap" }}>
-      <div style={{ fontSize: 11, color: "#6b7280", width: 120, flexShrink: 0, paddingBottom: 8 }}>{label}</div>
-      <select value={d} onChange={e => setD(e.target.value)}
-        style={{ flex: "0 0 52px", border: "1px solid #e5e7eb", borderRadius: 6, padding: "6px 6px", fontSize: 12, color: d ? "#111827" : "#9ca3af", outline: "none", background: "#fff" }}>
-        <option value="">Día</option>
-        {Array.from({ length: 31 }, (_, i) => i + 1).map(n => (
-          <option key={n} value={String(n).padStart(2, "0")}>{n}</option>
-        ))}
-      </select>
-      <select value={m} onChange={e => setM(e.target.value)}
-        style={{ flex: "1 1 90px", border: "1px solid #e5e7eb", borderRadius: 6, padding: "6px 6px", fontSize: 12, color: m ? "#111827" : "#9ca3af", outline: "none", background: "#fff" }}>
-        <option value="">Mes</option>
-        {months.map((mn, i) => <option key={i} value={String(i + 1).padStart(2, "0")}>{mn}</option>)}
-      </select>
-      <input type="number" placeholder="Año" value={y} onChange={e => setY(e.target.value)} min={1900} max={2035}
-        style={{ flex: "0 0 68px", border: "1px solid #e5e7eb", borderRadius: 6, padding: "6px 8px", fontSize: 12, color: "#111827", outline: "none", boxSizing: "border-box" }} />
-      <button onClick={() => onSave(d, m, y)} disabled={saving || !d || !m}
-        style={{ flex: "0 0 60px", background: saving ? "#e5e7eb" : "#111827", color: saving ? "#9ca3af" : "#fff", border: "none", borderRadius: 6, padding: "6px 0", fontSize: 11, cursor: saving || !d || !m ? "default" : "pointer" }}>
-        {saving ? "..." : "Guardar"}
-      </button>
-    </div>
-  );
-}
 
 export default function CuentaPage() {
   const router = useRouter();
@@ -165,6 +130,11 @@ export default function CuentaPage() {
   // Mapa de cumpleaños/aniversarios del equipo (para broker y team leader)
   const [memberDates, setMemberDates] = useState<Record<string, { birthday: string|null; work_anniversary: string|null }>>({});
   const [memberSaving, setMemberSaving] = useState<string|null>(null);
+  // Modal de fechas de un miembro
+  const [dateModal, setDateModal] = useState<{ email: string; name: string } | null>(null);
+  const [dmBdDay, setDmBdDay] = useState(""); const [dmBdMonth, setDmBdMonth] = useState(""); const [dmBdYear, setDmBdYear] = useState("");
+  const [dmAnDay, setDmAnDay] = useState(""); const [dmAnMonth, setDmAnMonth] = useState(""); const [dmAnYear, setDmAnYear] = useState("");
+  const [dmSaving, setDmSaving] = useState(false); const [dmMsg, setDmMsg] = useState("");
   // Templates de mails
   const [tmplModal, setTmplModal] = useState(false);
   const [tmplBdAgent, setTmplBdAgent] = useState("");
@@ -267,6 +237,34 @@ export default function CuentaPage() {
       else setBdMsg("Error al guardar");
     } catch { setBdMsg("Error al guardar"); }
     setBdSaving(false);
+  };
+
+  const openDateModal = (email: string, name: string) => {
+    const dates = memberDates[email] || { birthday: null, work_anniversary: null };
+    const bd = parseDateFields(dates.birthday);
+    const an = parseDateFields(dates.work_anniversary);
+    setDmBdDay(bd.day); setDmBdMonth(bd.month); setDmBdYear(bd.year);
+    setDmAnDay(an.day); setDmAnMonth(an.month); setDmAnYear(an.year);
+    setDmMsg("");
+    setDateModal({ email, name });
+  };
+
+  const saveDateModal = async () => {
+    if (!dateModal) return;
+    setDmSaving(true); setDmMsg("");
+    const birthday = buildDate(dmBdDay, dmBdMonth, dmBdYear);
+    const work_anniversary = buildDate(dmAnDay, dmAnMonth, dmAnYear);
+    try {
+      await fetch("/api/teams/birthday", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ agentEmail: dateModal.email, birthday, work_anniversary }),
+      });
+      setMemberDates(prev => ({ ...prev, [dateModal.email]: { birthday, work_anniversary } }));
+      setDmMsg("✓ Guardado");
+      setTimeout(() => setDateModal(null), 800);
+    } catch { setDmMsg("Error al guardar"); }
+    setDmSaving(false);
   };
 
   const saveMyAnniversary = async () => {
@@ -603,44 +601,6 @@ export default function CuentaPage() {
             </div>
           </div>
 
-          {/* Tabla del equipo — solo broker y team leader */}
-          {(data.isOwner || data.teamRole === "team_leader") && teamMembers.length > 0 && (
-            <div style={{ padding: "14px 20px" }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: "#374151", marginBottom: 12 }}>Fechas del equipo</div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                {teamMembers.map((member: any) => {
-                  const dates = memberDates[member.email] || { birthday: null, work_anniversary: null };
-                  const bd = parseDateFields(dates.birthday);
-                  const an = parseDateFields(dates.work_anniversary);
-                  const key = member.email;
-                  return (
-                    <div key={key} style={{ background: "#f9fafb", borderRadius: 10, padding: "12px 14px" }}>
-                      <div style={{ fontSize: 12, fontWeight: 600, color: "#111827", marginBottom: 10 }}>
-                        {member.name || member.email}
-                        <span style={{ fontSize: 11, fontWeight: 400, color: "#9ca3af", marginLeft: 6 }}>{member.email}</span>
-                      </div>
-                      {/* Cumpleaños del miembro */}
-                      <MemberDateRow
-                        label="🎂 Cumpleaños"
-                        day={bd.day} month={bd.month} year={bd.year}
-                        months={MONTHS}
-                        saving={memberSaving === key + "birthday"}
-                        onSave={(d, m, y) => saveMemberDate(key, "birthday", buildDate(d, m, y))}
-                      />
-                      {/* Aniversario del miembro */}
-                      <MemberDateRow
-                        label="🏡 Aniversario"
-                        day={an.day} month={an.month} year={an.year}
-                        months={MONTHS}
-                        saving={memberSaving === key + "work_anniversary"}
-                        onSave={(d, m, y) => saveMemberDate(key, "work_anniversary", buildDate(d, m, y))}
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
         </div>
 
         {/* ── MODAL TEMPLATES ── */}
@@ -835,7 +795,16 @@ export default function CuentaPage() {
                         {a.name && <div style={{ fontSize: 11, color: "#9ca3af", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.email}</div>}
                       </div>
                       {role === "owner" ? (
-                        <span style={{ fontSize: 11, fontWeight: 500, background: "#fef2f2", color: RED, borderRadius: 6, padding: "2px 8px", flexShrink: 0 }}>Broker</span>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+                          <span style={{ fontSize: 11, fontWeight: 500, background: "#fef2f2", color: RED, borderRadius: 6, padding: "2px 8px" }}>Broker</span>
+                          {(data.isOwner || data.teamRole === "team_leader") && (
+                            <button onClick={() => openDateModal(a.email, a.name || a.email)}
+                              title={memberDates[a.email]?.birthday || memberDates[a.email]?.work_anniversary ? "Editar fechas" : "Agregar cumpleaños / aniversario"}
+                              style={{ fontSize: 14, background: "none", border: "none", cursor: "pointer", opacity: memberDates[a.email]?.birthday || memberDates[a.email]?.work_anniversary ? 1 : 0.35, padding: "0 2px" }}>
+                              🎂
+                            </button>
+                          )}
+                        </div>
                       ) : (
                         <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
                           {roleLoading === a.email ? <Loader2 size={12} style={{ color: "#9ca3af" }} className="animate-spin" /> : (
@@ -845,6 +814,11 @@ export default function CuentaPage() {
                               <option value="team_leader">Team Leader</option>
                             </select>
                           )}
+                          <button onClick={() => openDateModal(a.email, a.name || a.email)}
+                            title={memberDates[a.email]?.birthday || memberDates[a.email]?.work_anniversary ? "Editar fechas" : "Agregar cumpleaños / aniversario"}
+                            style={{ fontSize: 14, background: "none", border: "none", cursor: "pointer", opacity: memberDates[a.email]?.birthday || memberDates[a.email]?.work_anniversary ? 1 : 0.35, padding: "0 2px" }}>
+                            🎂
+                          </button>
                           <button onClick={() => removeAgent(a.email, a.name || a.email)} disabled={!!removeLoading}
                             style={{ fontSize: 11, color: "#9ca3af", background: "none", border: "none", cursor: "pointer" }}>
                             {removeLoading === a.email ? "..." : "Remover"}
@@ -962,6 +936,64 @@ export default function CuentaPage() {
                 {removeLoading === removeModal.email ? "Removiendo..." : "Sí, remover"}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+      {/* ── MODAL FECHAS MIEMBRO ── */}
+      {dateModal && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 9000, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+          <div style={{ background: "#fff", borderRadius: 16, padding: 24, width: "100%", maxWidth: 360, boxShadow: "0 20px 60px rgba(0,0,0,0.15)" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: "#111827" }}>Fechas de {dateModal.name.split(" ")[0]}</div>
+                <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 2 }}>Cumpleaños y aniversario</div>
+              </div>
+              <button onClick={() => setDateModal(null)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 20, color: "#9ca3af", lineHeight: 1 }}>×</button>
+            </div>
+
+            {/* Cumpleaños */}
+            <div style={{ marginBottom: 18 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: "#374151", marginBottom: 8 }}>🎂 Cumpleaños</div>
+              <div style={{ display: "flex", gap: 6 }}>
+                <select value={dmBdDay} onChange={e => setDmBdDay(e.target.value)}
+                  style={{ flex: "0 0 58px", border: "1px solid #e5e7eb", borderRadius: 8, padding: "8px 6px", fontSize: 13, color: dmBdDay ? "#111827" : "#9ca3af", outline: "none", background: "#fff" }}>
+                  <option value="">Día</option>
+                  {Array.from({ length: 31 }, (_, i) => i + 1).map(d => <option key={d} value={String(d).padStart(2,"0")}>{d}</option>)}
+                </select>
+                <select value={dmBdMonth} onChange={e => setDmBdMonth(e.target.value)}
+                  style={{ flex: 1, border: "1px solid #e5e7eb", borderRadius: 8, padding: "8px 6px", fontSize: 13, color: dmBdMonth ? "#111827" : "#9ca3af", outline: "none", background: "#fff" }}>
+                  <option value="">Mes</option>
+                  {MONTHS.map((m, i) => <option key={i} value={String(i+1).padStart(2,"0")}>{m}</option>)}
+                </select>
+                <input type="number" placeholder="Año" value={dmBdYear} onChange={e => setDmBdYear(e.target.value)} min={1920} max={2010}
+                  style={{ flex: "0 0 70px", border: "1px solid #e5e7eb", borderRadius: 8, padding: "8px 8px", fontSize: 13, outline: "none", boxSizing: "border-box" }} />
+              </div>
+            </div>
+
+            {/* Aniversario */}
+            <div style={{ marginBottom: 24 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: "#374151", marginBottom: 8 }}>🏡 Aniversario en la empresa</div>
+              <div style={{ display: "flex", gap: 6 }}>
+                <select value={dmAnDay} onChange={e => setDmAnDay(e.target.value)}
+                  style={{ flex: "0 0 58px", border: "1px solid #e5e7eb", borderRadius: 8, padding: "8px 6px", fontSize: 13, color: dmAnDay ? "#111827" : "#9ca3af", outline: "none", background: "#fff" }}>
+                  <option value="">Día</option>
+                  {Array.from({ length: 31 }, (_, i) => i + 1).map(d => <option key={d} value={String(d).padStart(2,"0")}>{d}</option>)}
+                </select>
+                <select value={dmAnMonth} onChange={e => setDmAnMonth(e.target.value)}
+                  style={{ flex: 1, border: "1px solid #e5e7eb", borderRadius: 8, padding: "8px 6px", fontSize: 13, color: dmAnMonth ? "#111827" : "#9ca3af", outline: "none", background: "#fff" }}>
+                  <option value="">Mes</option>
+                  {MONTHS.map((m, i) => <option key={i} value={String(i+1).padStart(2,"0")}>{m}</option>)}
+                </select>
+                <input type="number" placeholder="Año" value={dmAnYear} onChange={e => setDmAnYear(e.target.value)} min={1990} max={2035}
+                  style={{ flex: "0 0 70px", border: "1px solid #e5e7eb", borderRadius: 8, padding: "8px 8px", fontSize: 13, outline: "none", boxSizing: "border-box" }} />
+              </div>
+            </div>
+
+            {dmMsg && <div style={{ fontSize: 12, marginBottom: 12, color: dmMsg.startsWith("✓") ? "#16a34a" : "#dc2626" }}>{dmMsg}</div>}
+            <button onClick={saveDateModal} disabled={dmSaving}
+              style={{ width: "100%", background: "#111827", color: "#fff", border: "none", borderRadius: 8, padding: "10px 0", fontSize: 13, fontWeight: 600, cursor: dmSaving ? "default" : "pointer", opacity: dmSaving ? 0.7 : 1 }}>
+              {dmSaving ? "Guardando..." : "Guardar"}
+            </button>
           </div>
         </div>
       )}
