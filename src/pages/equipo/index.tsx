@@ -111,7 +111,8 @@ export default function BrokerDashboard() {
 
   // Cumpleaños
   const [birthdayModal, setBirthdayModal] = useState<{ email: string; name: string; current: string | null } | null>(null);
-  const [birthdayInput, setBirthdayInput] = useState("");
+  const [bdDay, setBdDay] = useState("");
+  const [bdMonth, setBdMonth] = useState("");
   const [birthdayLoading, setBirthdayLoading] = useState(false);
   const [birthdayMap, setBirthdayMap] = useState<Record<string, string | null>>({});
   // Templates de cumpleaños
@@ -227,20 +228,29 @@ export default function BrokerDashboard() {
 
   const openBirthdayModal = (email: string, name: string) => {
     setBirthdayModal({ email, name, current: birthdayMap[email] || null });
-    setBirthdayInput(birthdayMap[email] ? birthdayMap[email]!.slice(0, 10) : "");
+    const existing = birthdayMap[email];
+    if (existing) {
+      const d = new Date(existing + "T12:00:00");
+      setBdDay(String(d.getDate()).padStart(2, "0"));
+      setBdMonth(String(d.getMonth() + 1).padStart(2, "0"));
+    } else {
+      setBdDay("");
+      setBdMonth("");
+    }
   };
 
   const saveBirthday = async () => {
     if (!birthdayModal) return;
     setBirthdayLoading(true);
     try {
+      const birthday = bdDay && bdMonth ? `1900-${bdMonth.padStart(2,"0")}-${bdDay.padStart(2,"0")}` : null;
       const res = await fetch("/api/teams/birthday", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ agentEmail: birthdayModal.email, birthday: birthdayInput || null }),
+        body: JSON.stringify({ agentEmail: birthdayModal.email, birthday }),
       });
       if (res.ok) {
-        setBirthdayMap(prev => ({ ...prev, [birthdayModal.email]: birthdayInput || null }));
+        setBirthdayMap(prev => ({ ...prev, [birthdayModal.email]: birthday }));
         setBirthdayModal(null);
       }
     } catch {}
@@ -739,22 +749,42 @@ export default function BrokerDashboard() {
             </div>
             <div style={{ marginBottom: 20 }}>
               <label style={{ fontSize: 12, fontWeight: 500, color: "#374151", display: "block", marginBottom: 6 }}>
-                Fecha de nacimiento
+                Día y mes de nacimiento
               </label>
-              <input
-                type="date"
-                value={birthdayInput}
-                onChange={e => setBirthdayInput(e.target.value)}
-                style={{ width: "100%", border: "1px solid #e5e7eb", borderRadius: 8, padding: "9px 12px", fontSize: 14, color: "#111827", outline: "none", boxSizing: "border-box" }}
-              />
+              <div style={{ display: "flex", gap: 8 }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 11, color: "#9ca3af", marginBottom: 4 }}>Día</div>
+                  <select
+                    value={bdDay}
+                    onChange={e => setBdDay(e.target.value)}
+                    style={{ width: "100%", border: "1px solid #e5e7eb", borderRadius: 8, padding: "9px 10px", fontSize: 14, color: bdDay ? "#111827" : "#9ca3af", outline: "none", background: "#fff" }}>
+                    <option value="">--</option>
+                    {Array.from({ length: 31 }, (_, i) => i + 1).map(d => (
+                      <option key={d} value={String(d).padStart(2, "0")}>{d}</option>
+                    ))}
+                  </select>
+                </div>
+                <div style={{ flex: 2 }}>
+                  <div style={{ fontSize: 11, color: "#9ca3af", marginBottom: 4 }}>Mes</div>
+                  <select
+                    value={bdMonth}
+                    onChange={e => setBdMonth(e.target.value)}
+                    style={{ width: "100%", border: "1px solid #e5e7eb", borderRadius: 8, padding: "9px 10px", fontSize: 14, color: bdMonth ? "#111827" : "#9ca3af", outline: "none", background: "#fff" }}>
+                    <option value="">--</option>
+                    {["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"].map((m, i) => (
+                      <option key={i} value={String(i + 1).padStart(2, "0")}>{m}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
               <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 6 }}>
-                Solo usamos el día y mes para el recordatorio anual.
+                No hace falta el año — solo usamos el día y mes.
               </div>
             </div>
             <div style={{ display: "flex", gap: 8 }}>
               {birthdayModal.current && (
                 <button
-                  onClick={() => { setBirthdayInput(""); }}
+                  onClick={() => { setBdDay(""); setBdMonth(""); }}
                   style={{ flex: 1, background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: 8, padding: "9px 0", fontSize: 13, color: "#6b7280", cursor: "pointer" }}>
                   Borrar fecha
                 </button>
