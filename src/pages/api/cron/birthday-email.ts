@@ -2,7 +2,7 @@ import { NextApiRequest, NextApiResponse } from "next";
 import { supabaseAdmin } from "../../../lib/supabase";
 import { Resend } from "resend";
 import { EMAIL_FROM, EMAIL_FOOTER } from "../../../lib/email";
-import { DEFAULT_MSG_AGENT, DEFAULT_MSG_TEAM } from "../birthday-templates";
+import { DEFAULT_MSG_AGENT, DEFAULT_MSG_TEAM } from "../teams/birthday-templates";
 
 // Este cron corre todos los días a las 12:00 UTC (09:00 Argentina)
 // Vercel cron: "0 12 * * *"
