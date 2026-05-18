@@ -132,8 +132,8 @@ export default function CuentaPage() {
   const [memberSaving, setMemberSaving] = useState<string|null>(null);
   // Modal de fechas de un miembro
   const [dateModal, setDateModal] = useState<{ email: string; name: string } | null>(null);
-  const [dmBdDay, setDmBdDay] = useState(""); const [dmBdMonth, setDmBdMonth] = useState(""); const [dmBdYear, setDmBdYear] = useState("");
-  const [dmAnDay, setDmAnDay] = useState(""); const [dmAnMonth, setDmAnMonth] = useState(""); const [dmAnYear, setDmAnYear] = useState("");
+  const [dmBirthday, setDmBirthday] = useState("");   // "YYYY-MM-DD" o ""
+  const [dmAnniversary, setDmAnniversary] = useState(""); // "YYYY-MM-DD" o 
   const [dmSaving, setDmSaving] = useState(false); const [dmMsg, setDmMsg] = useState("");
   // Templates de mails
   const [tmplModal, setTmplModal] = useState(false);
@@ -241,10 +241,17 @@ export default function CuentaPage() {
 
   const openDateModal = (email: string, name: string) => {
     const dates = memberDates[email] || { birthday: null, work_anniversary: null };
-    const bd = parseDateFields(dates.birthday);
-    const an = parseDateFields(dates.work_anniversary);
-    setDmBdDay(bd.day); setDmBdMonth(bd.month); setDmBdYear(bd.year);
-    setDmAnDay(an.day); setDmAnMonth(an.month); setDmAnYear(an.year);
+    // Convertir a "YYYY-MM-DD" para input type="date" — si el año es 1900 usamos año actual como placeholder
+    const toDateInput = (d: string | null) => {
+      if (!d) return "";
+      const parsed = new Date(d + "T12:00:00");
+      const y = parsed.getFullYear() === 1900 ? new Date().getFullYear() : parsed.getFullYear();
+      const m = String(parsed.getMonth() + 1).padStart(2, "0");
+      const day = String(parsed.getDate()).padStart(2, "0");
+      return `${y}-${m}-${day}`;
+    };
+    setDmBirthday(toDateInput(dates.birthday));
+    setDmAnniversary(toDateInput(dates.work_anniversary));
     setDmMsg("");
     setDateModal({ email, name });
   };
@@ -252,8 +259,8 @@ export default function CuentaPage() {
   const saveDateModal = async () => {
     if (!dateModal) return;
     setDmSaving(true); setDmMsg("");
-    const birthday = buildDate(dmBdDay, dmBdMonth, dmBdYear);
-    const work_anniversary = buildDate(dmAnDay, dmAnMonth, dmAnYear);
+    const birthday = dmBirthday || null;
+    const work_anniversary = dmAnniversary || null;
     try {
       await fetch("/api/teams/birthday", {
         method: "PUT",
@@ -865,51 +872,43 @@ export default function CuentaPage() {
       {/* ── MODAL FECHAS MIEMBRO ── */}
       {dateModal && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 9000, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
-          <div style={{ background: "#fff", borderRadius: 16, padding: 24, width: "100%", maxWidth: 360, boxShadow: "0 20px 60px rgba(0,0,0,0.15)" }}>
+          <div style={{ background: "#fff", borderRadius: 16, padding: 24, width: "100%", maxWidth: 340, boxShadow: "0 20px 60px rgba(0,0,0,0.15)" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
               <div>
                 <div style={{ fontSize: 14, fontWeight: 600, color: "#111827" }}>Fechas de {dateModal.name.split(" ")[0]}</div>
-                <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 2 }}>Cumpleaños y aniversario</div>
+                <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 2 }}>Cumpleaños y aniversario en la empresa</div>
               </div>
               <button onClick={() => setDateModal(null)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 20, color: "#9ca3af", lineHeight: 1 }}>×</button>
             </div>
 
-            {/* Cumpleaños */}
-            <div style={{ marginBottom: 18 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: "#374151", marginBottom: 8 }}>🎂 Cumpleaños</div>
-              <div style={{ display: "flex", gap: 6 }}>
-                <select value={dmBdDay} onChange={e => setDmBdDay(e.target.value)}
-                  style={{ flex: "0 0 58px", border: "1px solid #e5e7eb", borderRadius: 8, padding: "8px 6px", fontSize: 13, color: dmBdDay ? "#111827" : "#9ca3af", outline: "none", background: "#fff" }}>
-                  <option value="">Día</option>
-                  {Array.from({ length: 31 }, (_, i) => i + 1).map(d => <option key={d} value={String(d).padStart(2,"0")}>{d}</option>)}
-                </select>
-                <select value={dmBdMonth} onChange={e => setDmBdMonth(e.target.value)}
-                  style={{ flex: 1, border: "1px solid #e5e7eb", borderRadius: 8, padding: "8px 6px", fontSize: 13, color: dmBdMonth ? "#111827" : "#9ca3af", outline: "none", background: "#fff" }}>
-                  <option value="">Mes</option>
-                  {MONTHS.map((m, i) => <option key={i} value={String(i+1).padStart(2,"0")}>{m}</option>)}
-                </select>
-                <input type="number" placeholder="Año" value={dmBdYear} onChange={e => setDmBdYear(e.target.value)} min={1920} max={2010}
-                  style={{ flex: "0 0 70px", border: "1px solid #e5e7eb", borderRadius: 8, padding: "8px 8px", fontSize: 13, outline: "none", boxSizing: "border-box" }} />
-              </div>
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ fontSize: 12, fontWeight: 600, color: "#374151", display: "block", marginBottom: 6 }}>🎂 Cumpleaños</label>
+              <input
+                type="date"
+                value={dmBirthday}
+                onChange={e => setDmBirthday(e.target.value)}
+                style={{ width: "100%", border: "1px solid #e5e7eb", borderRadius: 8, padding: "9px 12px", fontSize: 14, color: "#111827", outline: "none", boxSizing: "border-box", background: "#fff" }}
+              />
+              {dmBirthday && (
+                <button onClick={() => setDmBirthday("")} style={{ fontSize: 11, color: "#9ca3af", background: "none", border: "none", cursor: "pointer", marginTop: 4, padding: 0 }}>
+                  Borrar fecha
+                </button>
+              )}
             </div>
 
-            {/* Aniversario */}
             <div style={{ marginBottom: 24 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: "#374151", marginBottom: 8 }}>🏡 Aniversario en la empresa</div>
-              <div style={{ display: "flex", gap: 6 }}>
-                <select value={dmAnDay} onChange={e => setDmAnDay(e.target.value)}
-                  style={{ flex: "0 0 58px", border: "1px solid #e5e7eb", borderRadius: 8, padding: "8px 6px", fontSize: 13, color: dmAnDay ? "#111827" : "#9ca3af", outline: "none", background: "#fff" }}>
-                  <option value="">Día</option>
-                  {Array.from({ length: 31 }, (_, i) => i + 1).map(d => <option key={d} value={String(d).padStart(2,"0")}>{d}</option>)}
-                </select>
-                <select value={dmAnMonth} onChange={e => setDmAnMonth(e.target.value)}
-                  style={{ flex: 1, border: "1px solid #e5e7eb", borderRadius: 8, padding: "8px 6px", fontSize: 13, color: dmAnMonth ? "#111827" : "#9ca3af", outline: "none", background: "#fff" }}>
-                  <option value="">Mes</option>
-                  {MONTHS.map((m, i) => <option key={i} value={String(i+1).padStart(2,"0")}>{m}</option>)}
-                </select>
-                <input type="number" placeholder="Año" value={dmAnYear} onChange={e => setDmAnYear(e.target.value)} min={1990} max={2035}
-                  style={{ flex: "0 0 70px", border: "1px solid #e5e7eb", borderRadius: 8, padding: "8px 8px", fontSize: 13, outline: "none", boxSizing: "border-box" }} />
-              </div>
+              <label style={{ fontSize: 12, fontWeight: 600, color: "#374151", display: "block", marginBottom: 6 }}>🏡 Aniversario en la empresa</label>
+              <input
+                type="date"
+                value={dmAnniversary}
+                onChange={e => setDmAnniversary(e.target.value)}
+                style={{ width: "100%", border: "1px solid #e5e7eb", borderRadius: 8, padding: "9px 12px", fontSize: 14, color: "#111827", outline: "none", boxSizing: "border-box", background: "#fff" }}
+              />
+              {dmAnniversary && (
+                <button onClick={() => setDmAnniversary("")} style={{ fontSize: 11, color: "#9ca3af", background: "none", border: "none", cursor: "pointer", marginTop: 4, padding: 0 }}>
+                  Borrar fecha
+                </button>
+              )}
             </div>
 
             {dmMsg && <div style={{ fontSize: 12, marginBottom: 12, color: dmMsg.startsWith("✓") ? "#16a34a" : "#dc2626" }}>{dmMsg}</div>}
