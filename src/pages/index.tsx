@@ -676,8 +676,8 @@ export default function HomePage() {
   const { status: pushStatus, subscribe: subscribePush } = usePushNotifications();
 
   // Cumpleaños próximos
-  interface UpcomingBirthday { email: string; name: string; birthday: string; daysUntil: number; isToday: boolean; }
-  const [upcomingBirthdays, setUpcomingBirthdays] = useState<UpcomingBirthday[]>([]);
+  interface UpcomingEvent { email: string; name: string; date: string; daysUntil: number; isToday: boolean; type: "birthday" | "anniversary"; years?: number; }
+  const [upcomingEvents, setUpcomingEvents] = useState<UpcomingEvent[]>([]);
 
   useEffect(() => {
     if (status === "unauthenticated") router.replace("/home");
@@ -788,7 +788,7 @@ export default function HomePage() {
       // Cargar cumpleaños próximos
       fetch("/api/dashboard/birthdays")
         .then(r => r.ok ? r.json() : null)
-        .then(d => { if (d?.birthdays) setUpcomingBirthdays(d.birthdays); })
+        .then(d => { if (d?.events) setUpcomingEvents(d.events); })
         .catch(() => {});
     }
   }, [status]);
@@ -1042,6 +1042,42 @@ export default function HomePage() {
         </div>
 
         {/* Cards */}
+        {/* ── WIDGET CUMPLEAÑOS Y ANIVERSARIOS ── */}
+        {upcomingEvents.length > 0 && (
+          <div style={{ background: "#fff", border: "0.5px solid #fed7aa", borderRadius: 14, overflow: "hidden", marginBottom: 12 }}>
+            <div style={{ padding: "11px 16px", borderBottom: "0.5px solid #fff7ed", display: "flex", alignItems: "center", gap: 8, background: "#FFF7ED" }}>
+              <span style={{ fontSize: 14 }}>🎉</span>
+              <span style={{ fontSize: 11, fontWeight: 600, color: "#ea580c", textTransform: "uppercase", letterSpacing: "0.06em" }}>Tu equipo celebra</span>
+              <span style={{ marginLeft: "auto", fontSize: 11, fontWeight: 700, background: "#fff", color: "#ea580c", borderRadius: 10, padding: "1px 7px" }}>{upcomingEvents.length}</span>
+            </div>
+            {upcomingEvents.map((ev, i) => (
+              <div key={ev.email + ev.type} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 16px", borderBottom: i < upcomingEvents.length - 1 ? "0.5px solid #fff7ed" : "none" }}>
+                <div style={{ width: 32, height: 32, borderRadius: "50%", background: ev.isToday ? "#FFF7ED" : "#f9fafb", border: ev.isToday ? "1.5px solid #f97316" : "1px solid #e5e7eb", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, flexShrink: 0 }}>
+                  {ev.isToday ? (ev.type === "birthday" ? "🎂" : "🏡") : (ev.name || ev.email)[0].toUpperCase()}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 500, color: "#111827", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ev.name}</div>
+                  <div style={{ fontSize: 11, color: ev.isToday ? "#ea580c" : "#9ca3af", marginTop: 1, fontWeight: ev.isToday ? 600 : 400 }}>
+                    {ev.type === "birthday"
+                      ? ev.isToday ? "¡Hoy cumple años! 🎉" : "cumpleaños"
+                      : ev.isToday
+                        ? `¡${ev.years ? ev.years + (ev.years === 1 ? " año" : " años") : ""} en la empresa hoy! 🏡`
+                        : `aniversario en la empresa${ev.years ? " · " + ev.years + (ev.years === 1 ? " año" : " años") : ""}`}
+                  </div>
+                </div>
+                <div style={{ textAlign: "right", flexShrink: 0 }}>
+                  <div style={{ fontSize: 12, fontWeight: ev.isToday ? 600 : 400, color: ev.isToday ? "#ea580c" : "#9ca3af" }}>
+                    {ev.isToday ? "hoy" : ev.daysUntil === 1 ? "mañana" : "en " + ev.daysUntil + "d"}
+                  </div>
+                  <div style={{ fontSize: 10, color: "#d1d5db" }}>
+                    {(() => { const d = new Date(ev.date + "T12:00:00"); return d.toLocaleDateString("es-AR", { day: "numeric", month: "short" }); })()}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
         {data && (
           <>
             <div className="ic-cards-grid" style={{ gap: 12, marginBottom: 12 }}>
@@ -1190,35 +1226,6 @@ export default function HomePage() {
               </div>
             </div>
           </>
-        )}
-
-        {/* Widget Cumpleaños próximos */}
-        {upcomingBirthdays.length > 0 && (
-          <div style={{ background: "#fff", border: "0.5px solid #fed7aa", borderRadius: 14, overflow: "hidden", marginBottom: 4 }}>
-            <div style={{ padding: "12px 16px", borderBottom: "0.5px solid #fff7ed", display: "flex", alignItems: "center", gap: 8, background: "#FFF7ED" }}>
-              <span style={{ fontSize: 15 }}>🎂</span>
-              <span style={{ fontSize: 11, fontWeight: 600, color: "#ea580c", textTransform: "uppercase", letterSpacing: "0.06em" }}>Cumpleaños próximos</span>
-              <span style={{ marginLeft: "auto", fontSize: 11, fontWeight: 700, background: "#fff", color: "#ea580c", borderRadius: 10, padding: "1px 7px" }}>{upcomingBirthdays.length}</span>
-            </div>
-            {upcomingBirthdays.map((b, i) => (
-              <div key={b.email} style={{ display: "flex", alignItems: "center", gap: 12, padding: "11px 16px", borderBottom: i < upcomingBirthdays.length - 1 ? "0.5px solid #fff7ed" : "none" }}>
-                <div style={{ width: 36, height: 36, borderRadius: "50%", background: b.isToday ? "#FFF7ED" : "#f9fafb", border: `1.5px solid ${b.isToday ? "#f97316" : "#e5e7eb"}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 600, color: b.isToday ? "#ea580c" : "#9ca3af", flexShrink: 0 }}>
-                  {b.isToday ? "🎂" : (b.name || b.email)[0].toUpperCase()}
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 500, color: "#111827", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{b.name}</div>
-                  <div style={{ fontSize: 11, color: b.isToday ? "#ea580c" : "#9ca3af", marginTop: 1, fontWeight: b.isToday ? 600 : 400 }}>
-                    {b.isToday ? "¡Hoy es su cumpleaños! 🎉" : `en ${b.daysUntil} día${b.daysUntil !== 1 ? "s" : ""}`}
-                  </div>
-                </div>
-                <div style={{ textAlign: "right", flexShrink: 0 }}>
-                  <div style={{ fontSize: 11, color: "#d1d5db" }}>
-                    {(() => { const d = new Date(b.birthday + "T12:00:00"); return d.toLocaleDateString("es-AR", { day: "numeric", month: "short" }); })()}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
         )}
 
         {!data && !loading && !error && <EmptyDashboard userName={session?.user?.name ?? ""} onSync={sync} syncing={syncing} />}

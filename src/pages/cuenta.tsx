@@ -519,7 +519,7 @@ export default function CuentaPage() {
                 <div style={{ fontSize: 11, color: "#9ca3af" }}>Tu equipo lo verá en el dashboard 15 días antes</div>
               </div>
             </div>
-            {(data.isOwner || data.userRole === "team_leader") && (
+            {(data.isOwner || data.teamRole === "team_leader") && (
               <button onClick={() => { setTmplModal(true); loadTemplates(); }}
                 style={{ display: "flex", alignItems: "center", gap: 5, background: "#f9fafb", border: "0.5px solid #e5e7eb", borderRadius: 7, padding: "5px 10px", fontSize: 11, color: "#6b7280", cursor: "pointer" }}>
                 ✉️ <span>Editar mails</span>
@@ -604,7 +604,7 @@ export default function CuentaPage() {
           </div>
 
           {/* Tabla del equipo — solo broker y team leader */}
-          {(data.isOwner || data.userRole === "team_leader") && teamMembers.length > 0 && (
+          {(data.isOwner || data.teamRole === "team_leader") && teamMembers.length > 0 && (
             <div style={{ padding: "14px 20px" }}>
               <div style={{ fontSize: 12, fontWeight: 600, color: "#374151", marginBottom: 12 }}>Fechas del equipo</div>
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
