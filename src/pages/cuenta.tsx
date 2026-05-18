@@ -507,27 +507,6 @@ export default function CuentaPage() {
           </div>
         )}
 
-        {/* ── CUMPLEAÑOS Y ANIVERSARIOS ── */}
-        <div style={{ background: "#fff", border: "0.5px solid #e5e7eb", borderRadius: 14, overflow: "hidden", marginBottom: 16 }}>
-          {/* Header */}
-          <div style={{ padding: "14px 20px", borderBottom: "0.5px solid #f3f4f6", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ fontSize: 18 }}>🎂</span>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: "#111827" }}>Cumpleaños y aniversarios</div>
-                <div style={{ fontSize: 11, color: "#9ca3af" }}>Tu equipo lo verá en el dashboard 15 días antes</div>
-              </div>
-            </div>
-            {(data.isOwner || data.teamRole === "team_leader") && (
-              <button onClick={() => { setTmplModal(true); loadTemplates(); }}
-                style={{ display: "flex", alignItems: "center", gap: 5, background: "#f9fafb", border: "0.5px solid #e5e7eb", borderRadius: 7, padding: "5px 10px", fontSize: 11, color: "#6b7280", cursor: "pointer" }}>
-                ✉️ <span>Editar mails</span>
-              </button>
-            )}
-          </div>
-
-        </div>
-
         {/* ── MODAL TEMPLATES ── */}
         {tmplModal && (
           <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 9000, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
