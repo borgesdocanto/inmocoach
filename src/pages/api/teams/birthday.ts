@@ -31,12 +31,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.json({ members: members || [] });
   }
 
-  // PUT — actualizar cumpleaños de un agente
+  // PUT — actualizar cumpleaños de un agente (o del propio usuario)
   if (req.method === "PUT") {
-    if (!canManage) return res.status(403).json({ error: "Sin permisos" });
-
     const { agentEmail, birthday } = req.body;
     if (!agentEmail) return res.status(400).json({ error: "Falta agentEmail" });
+
+    const isSelf = agentEmail === effectiveEmail;
+
+    // Solo puede editar a otros si es owner o team_leader; siempre puede editarse a sí mismo
+    if (!isSelf && !canManage) return res.status(403).json({ error: "Sin permisos" });
 
     // Verificar que el agente pertenece al mismo equipo
     const { data: agent } = await supabaseAdmin

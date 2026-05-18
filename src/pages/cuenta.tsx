@@ -113,6 +113,13 @@ export default function CuentaPage() {
   const [reinviteLoading, setReinviteLoading] = useState<string | null>(null);
   const [roleLoading, setRoleLoading] = useState<string | null>(null);
   const [resendLoading, setResendLoading] = useState<string | null>(null);
+
+  // Mi cumpleaños
+  const [bdDay, setBdDay] = useState("");
+  const [bdMonth, setBdMonth] = useState("");
+  const [bdYear, setBdYear] = useState("");
+  const [bdSaving, setBdSaving] = useState(false);
+  const [bdMsg, setBdMsg] = useState("");
   const [resendMsg, setResendMsg] = useState<string | null>(null);
   const [teamMembers, setTeamMembers] = useState<any[]>([]);
   const [showTeamLeaders, setShowTeamLeaders] = useState(true);
@@ -147,8 +154,39 @@ export default function CuentaPage() {
     fetch("/api/teams/tokko-agents").then(r => r.ok ? r.json() : null).then(d => {
       if (d?.agents) setTokkoAgents(d.agents);
     });
+    // Cargar mi cumpleaños
+    fetch("/api/teams/birthday").then(r => r.ok ? r.json() : null).then(d => {
+      if (d?.members) {
+        const me = d.members.find((m: any) => m.email === session?.user?.email);
+        if (me?.birthday) {
+          const bdate = new Date(me.birthday + "T12:00:00");
+          setBdDay(String(bdate.getDate()).padStart(2, "0"));
+          setBdMonth(String(bdate.getMonth() + 1).padStart(2, "0"));
+          const y = bdate.getFullYear();
+          setBdYear(y === 1900 ? "" : String(y));
+        }
+      }
+    });
   }, [status]);
 
+
+  const saveMyBirthday = async () => {
+    if (!bdDay || !bdMonth) { setBdMsg("Completá el día y el mes."); return; }
+    setBdSaving(true);
+    setBdMsg("");
+    const year = bdYear && bdYear.length === 4 ? bdYear : "1900";
+    const birthday = `${year}-${bdMonth.padStart(2,"0")}-${bdDay.padStart(2,"0")}`;
+    try {
+      const res = await fetch("/api/teams/birthday", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ agentEmail: session?.user?.email, birthday }),
+      });
+      if (res.ok) setBdMsg("✓ Cumpleaños guardado");
+      else setBdMsg("Error al guardar");
+    } catch { setBdMsg("Error al guardar"); }
+    setBdSaving(false);
+  };
 
   const handleCancel = async () => {
     if (cancelConfirm.toLowerCase() !== "cancelar") return;
@@ -323,6 +361,59 @@ export default function CuentaPage() {
             <span style={{ fontSize: 13, color: "#166534" }}>{success}</span>
           </div>
         )}
+
+        {/* ── MI CUMPLEAÑOS ── */}
+        <div style={{ background: "#fff", border: "0.5px solid #e5e7eb", borderRadius: 14, padding: "18px 20px", marginBottom: 16 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
+            <span style={{ fontSize: 18 }}>🎂</span>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: "#111827" }}>Mi cumpleaños</div>
+              <div style={{ fontSize: 11, color: "#9ca3af" }}>Tu equipo lo verá en el dashboard 15 días antes</div>
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <div style={{ flex: "1 1 60px", minWidth: 60 }}>
+              <div style={{ fontSize: 11, color: "#9ca3af", marginBottom: 4 }}>Día</div>
+              <select value={bdDay} onChange={e => setBdDay(e.target.value)}
+                style={{ width: "100%", border: "1px solid #e5e7eb", borderRadius: 8, padding: "8px 10px", fontSize: 14, color: bdDay ? "#111827" : "#9ca3af", outline: "none", background: "#fff" }}>
+                <option value="">--</option>
+                {Array.from({ length: 31 }, (_, i) => i + 1).map(d => (
+                  <option key={d} value={String(d).padStart(2, "0")}>{d}</option>
+                ))}
+              </select>
+            </div>
+            <div style={{ flex: "2 1 120px", minWidth: 120 }}>
+              <div style={{ fontSize: 11, color: "#9ca3af", marginBottom: 4 }}>Mes</div>
+              <select value={bdMonth} onChange={e => setBdMonth(e.target.value)}
+                style={{ width: "100%", border: "1px solid #e5e7eb", borderRadius: 8, padding: "8px 10px", fontSize: 14, color: bdMonth ? "#111827" : "#9ca3af", outline: "none", background: "#fff" }}>
+                <option value="">--</option>
+                {["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"].map((m, i) => (
+                  <option key={i} value={String(i + 1).padStart(2, "0")}>{m}</option>
+                ))}
+              </select>
+            </div>
+            <div style={{ flex: "1 1 80px", minWidth: 80 }}>
+              <div style={{ fontSize: 11, color: "#9ca3af", marginBottom: 4 }}>Año <span style={{ color: "#d1d5db" }}>(opcional)</span></div>
+              <input
+                type="number"
+                placeholder="1990"
+                value={bdYear}
+                onChange={e => setBdYear(e.target.value)}
+                min={1920} max={2010}
+                style={{ width: "100%", border: "1px solid #e5e7eb", borderRadius: 8, padding: "8px 10px", fontSize: 14, color: "#111827", outline: "none", boxSizing: "border-box" }}
+              />
+            </div>
+            <div style={{ flex: "1 1 80px", minWidth: 80, display: "flex", alignItems: "flex-end" }}>
+              <button onClick={saveMyBirthday} disabled={bdSaving}
+                style={{ width: "100%", background: "#111827", color: "#fff", border: "none", borderRadius: 8, padding: "8px 0", fontSize: 13, fontWeight: 500, cursor: bdSaving ? "default" : "pointer", opacity: bdSaving ? 0.7 : 1 }}>
+                {bdSaving ? "..." : "Guardar"}
+              </button>
+            </div>
+          </div>
+          {bdMsg && (
+            <div style={{ fontSize: 12, marginTop: 8, color: bdMsg.startsWith("✓") ? "#16a34a" : "#dc2626" }}>{bdMsg}</div>
+          )}
+        </div>
 
         {/* ── PLAN FULL WIDTH ── */}
         <div style={{ background: "#111827", borderRadius: 14, padding: "20px 24px", marginBottom: 16 }}>
