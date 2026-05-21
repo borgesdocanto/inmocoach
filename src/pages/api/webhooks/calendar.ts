@@ -71,7 +71,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const weekGreen = events.filter(e => e.isGreen && e.start.slice(0, 10) >= weekStart);
     const weekIac = Math.min(100, Math.round((weekGreen.length / weeklyGoal) * 100));
 
-    const streakData = await computeAndSaveStreak(email, dailySummaries).catch(() => null);
+    const streakData = await computeAndSaveStreak(email, dailySummaries, sub.team_id).catch(() => null);
     await saveWeeklyStatsAndRank(
       email, weekStart, weekIac, weekGreen.length,
       (streakData as any)?.best ?? sub.streak_best ?? 0

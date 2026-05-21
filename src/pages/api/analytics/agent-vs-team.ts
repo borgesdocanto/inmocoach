@@ -15,15 +15,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const weekOffset = parseInt((req.query.weekOffset as string) || "0");
 
-  // Datos del agente
-  const agentStats = await getAgentSummary(email, weekOffset);
-
   // Ver si tiene equipo
   const { data: sub } = await supabaseAdmin
     .from("subscriptions")
     .select("team_id, team_role")
     .eq("email", email)
     .single();
+
+  // Datos del agente con config de su tenant
+  const agentStats = await getAgentSummary(email, weekOffset, sub?.team_id);
 
   if (!sub?.team_id) {
     return res.status(200).json({ agentIac: agentStats.iac, teamAvgIac: null, diff: null, rank: null, teamTotal: null });
@@ -40,7 +40,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(200).json({ agentIac: agentStats.iac, teamAvgIac: null, diff: null, rank: null, teamTotal: null });
   }
 
-  const allStats = await Promise.all(members.map(m => getAgentSummary(m.email, weekOffset)));
+  const allStats = await Promise.all(members.map(m => getAgentSummary(m.email, weekOffset, sub.team_id)));
   const teamAvgIac = Math.round(allStats.reduce((s, a) => s + a.iac, 0) / allStats.length);
   const diff = agentStats.iac - teamAvgIac;
 

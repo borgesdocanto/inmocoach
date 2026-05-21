@@ -44,9 +44,9 @@ export interface PeriodKey {
 }
 
 // ── Analytics de un agente para el dashboard del broker ──────────────────────
-export async function getAgentSummary(email: string, weekOffset = 0): Promise<Omit<AgentSummary, "name" | "avatar" | "teamRole">> {
+export async function getAgentSummary(email: string, weekOffset = 0, teamId?: string | null): Promise<Omit<AgentSummary, "name" | "avatar" | "teamRole">> {
   const now = new Date();
-  const { weeklyGoal, productiveDayMin } = await getGoals();
+  const { weeklyGoal, productiveDayMin } = await getGoals(teamId);
 
   // Semana de referencia (lunes)
   const weekStart = new Date(now);

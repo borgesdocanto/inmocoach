@@ -132,7 +132,7 @@ async function processUser(sub: any): Promise<"sent" | "failed" | "skipped"> {
       }, {})
     ).map(([date, greenCount]) => ({ date, greenCount }));
 
-    const streakData = await computeAndSaveStreak(sub.email, dailySummaries);
+    const streakData = await computeAndSaveStreak(sub.email, dailySummaries, sub.teamId);
 
     const weekStart = getMonday();
     const rank = await saveWeeklyStatsAndRank(sub.email, weekStart, Math.round((stats.greenTotal / weeklyGoal) * 100), stats.greenTotal, streakData.best);

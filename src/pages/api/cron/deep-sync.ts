@@ -63,7 +63,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           if (e.isGreen) byDay[e.start.slice(0, 10)] = (byDay[e.start.slice(0, 10)] || 0) + 1;
         }
         const dailySummaries = Object.entries(byDay).map(([date, greenCount]) => ({ date, greenCount }));
-        const streakData = await computeAndSaveStreak(user.email, dailySummaries);
+        const streakData = await computeAndSaveStreak(user.email, dailySummaries, user.team_id);
         // Weekly stats semana actual
         const weekStart = format(startOfWeek(new Date(), { weekStartsOn: 1 }), "yyyy-MM-dd");
         const weekGreen = events.filter(e => e.isGreen && e.start.slice(0, 10) >= weekStart);

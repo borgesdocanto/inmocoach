@@ -299,7 +299,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       onboardingDone: sub?.onboarding_done ?? false,
       ...await (async () => {
         try {
-          const streakData = await computeAndSaveStreak(session.user?.email!, dailySummaries);
+          const streakData = await computeAndSaveStreak(session.user?.email!, dailySummaries, sub?.team_id);
           // Semana actual: lunes a hoy — usar hora Argentina (UTC-3) para no desfasar el lunes
           const nowAr = new Date(Date.now() - 3 * 60 * 60 * 1000);
           const monday = new Date(nowAr);

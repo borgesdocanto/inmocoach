@@ -30,10 +30,11 @@ export interface StreakData {
 
 export async function computeAndSaveStreak(
   email: string,
-  _dailySummaries: Array<{ date: string; greenCount: number }>
+  _dailySummaries: Array<{ date: string; greenCount: number }>,
+  teamId?: string | null
 ): Promise<StreakData> {
 
-  const config = await getAppConfig();
+  const config = await getAppConfig(teamId);
   const MIN_GREENS = parseInt(config["streak_min_greens"] ?? "1");
 
   const from = new Date();

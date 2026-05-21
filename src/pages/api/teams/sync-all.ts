@@ -101,7 +101,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (e.isGreen) byDay[e.start.slice(0, 10)] = (byDay[e.start.slice(0, 10)] || 0) + 1;
     }
     const dailySummaries = Object.entries(byDay).map(([date, greenCount]) => ({ date, greenCount }));
-    const streakData = await computeAndSaveStreak(member.email, dailySummaries).catch(() => null);
+    const streakData = await computeAndSaveStreak(member.email, dailySummaries, member.team_id).catch(() => null);
     const weekGreen = events.filter(e => e.isGreen && e.start.slice(0, 10) >= weekStart);
     const { weeklyGoal } = await getGoals(requester.team_id);
     const weekIac = Math.min(100, Math.round((weekGreen.length / weeklyGoal) * 100));

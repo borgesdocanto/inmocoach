@@ -35,7 +35,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const agents = await Promise.all(
     members.map(async m => {
-      const stats = await getAgentSummary(m.email, weekOffset);
+      const stats = await getAgentSummary(m.email, weekOffset, sub.team_id);
       return { ...stats, name: m.name, avatar: m.avatar, teamRole: m.team_role };
     })
   );

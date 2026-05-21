@@ -83,7 +83,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           byDay[day] = (byDay[day] || 0) + 1;
         });
         const summaries = Object.entries(byDay).map(([date, greenCount]) => ({ date, greenCount }));
-        const streakData = await computeAndSaveStreak(email, summaries);
+        const streakData = await computeAndSaveStreak(email, summaries, subData?.team_id);
 
         // Lunes de la semana actual en hora Argentina
         const nowAr = new Date(Date.now() - 3 * 60 * 60 * 1000);

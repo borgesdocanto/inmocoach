@@ -29,7 +29,7 @@ async function syncUser(user: { email: string; team_id: string | null; streak_be
       if (e.isGreen) byDay[e.start.slice(0, 10)] = (byDay[e.start.slice(0, 10)] || 0) + 1;
     }
     const dailySummaries = Object.entries(byDay).map(([date, greenCount]) => ({ date, greenCount }));
-    const streakData = await computeAndSaveStreak(user.email, dailySummaries);
+    const streakData = await computeAndSaveStreak(user.email, dailySummaries, user.team_id);
 
     // Weekly stats de la semana actual
     const weekStart = getMonday();
