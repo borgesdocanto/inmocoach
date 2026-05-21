@@ -80,11 +80,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   // ── Calcular métricas ─────────────────────────────────────────────────────
-  const { weeklyGoal, productiveDayMin } = await getGoals();
+  const { weeklyGoal, productiveDayMin } = await getGoals(sub.teamId);
 
   // Cargar prompt configurable desde DB
   const { data: promptRow } = await supabaseAdmin
-    .from("app_config").select("value").eq("key", "coach_prompt").single();
+    .from("app_config").select("value, team_id")
+      .eq("key", "coach_prompt")
+      .or(`team_id.eq.${sub.teamId},team_id.is.null`)
+      .order("team_id", { ascending: false, nullsFirst: false })
+      .limit(1)
+      .single();
   const coachSystemPrompt = promptRow?.value ?? DEFAULT_COACH_PROMPT;
   const periodSummaries = (dailySummaries as any[]).filter(d => d.date >= start && d.date <= end);
   const allEvents = periodSummaries.flatMap((d: any) => d.events || []);

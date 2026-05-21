@@ -66,7 +66,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
     const dailySummaries = Object.entries(byDay).map(([date, greenCount]) => ({ date, greenCount }));
 
-    const { weeklyGoal } = await getGoals();
+    const { weeklyGoal } = await getGoals(sub.team_id);
     const weekStart = format(startOfWeek(new Date(), { weekStartsOn: 1 }), "yyyy-MM-dd");
     const weekGreen = events.filter(e => e.isGreen && e.start.slice(0, 10) >= weekStart);
     const weekIac = Math.min(100, Math.round((weekGreen.length / weeklyGoal) * 100));

@@ -268,10 +268,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const isManual = req.headers["x-cron-secret"] === process.env.CRON_SECRET;
   if (!isVercel && !isManual) return res.status(401).json({ error: "No autorizado" });
 
-  const cfg = await getAppConfig();
-  const minGreens = parseInt(cfg["midweek_min_greens"] ?? "5");
-  const weeklyGoal = parseInt(cfg["weekly_goal"] ?? "15");
-  const prompt = cfg["midweek_prompt"] ?? DEFAULT_MIDWEEK_PROMPT;
+  // Config global como fallback — cada usuario usa la de su tenant
+  const globalCfg = await getAppConfig(null);
 
   // Calcular lunes de esta semana en AR (UTC-3)
   const now = new Date();
@@ -305,12 +303,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const filteredUsers = targetEmail ? validUsers.filter(u => u.email === targetEmail) : validUsers;
 
   // Filtrar los que no llegaron al mínimo lun–mié
+  // ISOLATION: cada usuario usa config de su propio tenant
   const eligible: {
     email: string; name: string; greenCount: number;
+    teamId: string | null;
+    minGreens: number; weeklyGoal: number; prompt: string;
     tokkoTotal?: number; tokkoNeedAction?: number;
     tokkoTop3?: { title: string; address: string; issues: string[]; editUrl: string }[];
   }[] = [];
+
   for (const user of filteredUsers) {
+    // Config del tenant del usuario (override > global)
+    const tenantCfg = await getAppConfig(user.team_id);
+    const userMinGreens = parseInt(tenantCfg["midweek_min_greens"] ?? globalCfg["midweek_min_greens"] ?? "5");
+    const userWeeklyGoal = parseInt(tenantCfg["weekly_goal"] ?? globalCfg["weekly_goal"] ?? "15");
+    const userPrompt = tenantCfg["midweek_prompt"] ?? globalCfg["midweek_prompt"] ?? DEFAULT_MIDWEEK_PROMPT;
+
     const { count } = await supabaseAdmin
       .from("calendar_events")
       .select("*", { count: "exact", head: true })
@@ -319,7 +327,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .gte("start_at", `${mondayStr}T03:00:00Z`)
       .lte("start_at", `${todayAR}T23:59:59Z`);
 
-    if ((count ?? 0) < minGreens) {
+    if ((count ?? 0) < userMinGreens) {
       // Fetch Tokko data for this user
       let tokkoTotal: number | undefined;
       let tokkoNeedAction: number | undefined;
@@ -329,12 +337,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         if (tokkoStats) {
           tokkoTotal = tokkoStats.total;
           tokkoNeedAction = tokkoStats.incomplete + tokkoStats.stale;
-          // Get top 3 most important to fix — fetch raw props for detail
-          const { data: teamSub } = await supabaseAdmin.from("subscriptions").select("team_id").eq("email", user.email).single();
-          if (teamSub?.team_id) {
-            const { data: team } = await supabaseAdmin.from("teams").select("tokko_api_key").eq("id", teamSub.team_id).single();
+          // Get top 3 most important to fix — solo datos del propio tenant
+          if (user.team_id) {
+            const { data: team } = await supabaseAdmin.from("teams").select("tokko_api_key").eq("id", user.team_id).single();
             if (team?.tokko_api_key) {
-              const { data: tokkoAgent } = await supabaseAdmin.from("tokko_agents").select("tokko_id").eq("team_id", teamSub.team_id).eq("email", user.email).maybeSingle();
+              const { data: tokkoAgent } = await supabaseAdmin.from("tokko_agents").select("tokko_id").eq("team_id", user.team_id).eq("email", user.email).maybeSingle();
               const r = await fetch(`https://www.tokkobroker.com/api/v1/property/?key=${team.tokko_api_key}&format=json&lang=es_ar&limit=200`);
               if (r.ok) {
                 const d = await r.json();
@@ -344,7 +351,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
                   ? allProps.filter((p: any) => p.producer?.id === tokkoAgent.tokko_id && (p.status === 2 || p.status === "2"))
                   : allProps.filter((p: any) => p.status === 2 || p.status === "2");
 
-                // Score: more issues = higher priority
                 const scored = agentProps.map((p: any) => {
                   const issues: string[] = [];
                   const photos = (p.photos || []).filter((ph: any) => !ph.is_blueprint);
@@ -373,6 +379,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         email: user.email,
         name: user.name || user.email.split("@")[0],
         greenCount: count ?? 0,
+        teamId: user.team_id,
+        minGreens: userMinGreens,
+        weeklyGoal: userWeeklyGoal,
+        prompt: userPrompt,
         tokkoTotal, tokkoNeedAction, tokkoTop3,
       });
     }
@@ -380,8 +390,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   if (!eligible.length) return res.status(200).json({ ok: true, sent: 0, reason: "Todos llegaron al mínimo" });
 
-  // Generar UN solo texto con IA (mismo para todos)
-  const advice = await generateMidweekAdvice(prompt);
+  // Generar advice por tenant (cache para no llamar IA N veces por el mismo prompt)
+  const adviceCache: Record<string, string> = {};
+  async function getAdviceForPrompt(prompt: string): Promise<string> {
+    if (!adviceCache[prompt]) {
+      adviceCache[prompt] = await generateMidweekAdvice(prompt);
+    }
+    return adviceCache[prompt];
+  }
 
   // Enviar con pausa para respetar rate limit de Resend
   let sent = 0;
@@ -389,12 +405,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   for (let i = 0; i < eligible.length; i++) {
     const user = eligible[i];
     const firstName = (user.name || "").split(" ")[0] || "Agente";
+    const advice = await getAdviceForPrompt(user.prompt);
     try {
       const { error } = await resend.emails.send({
         from: "InmoCoach <coach@inmocoach.com.ar>",
         to: user.email,
-        subject: `A mitad de semana · ${user.greenCount} de ${minGreens} eventos verdes`,
-        html: buildHtml({ firstName, greenCount: user.greenCount, minGreens, weeklyGoal, advice, tokkoTotal: user.tokkoTotal, tokkoNeedAction: user.tokkoNeedAction, tokkoTop3: user.tokkoTop3 }),
+        subject: `A mitad de semana · ${user.greenCount} de ${user.minGreens} eventos verdes`,
+        html: buildHtml({ firstName, greenCount: user.greenCount, minGreens: user.minGreens, weeklyGoal: user.weeklyGoal, advice, tokkoTotal: user.tokkoTotal, tokkoNeedAction: user.tokkoNeedAction, tokkoTop3: user.tokkoTop3 }),
       });
       if (error) { failed++; console.error(`❌ ${user.email}:`, error); }
       else { sent++; console.log(`✅ ${user.email} (${user.greenCount} verdes)`); }

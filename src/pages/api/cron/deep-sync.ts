@@ -67,7 +67,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         // Weekly stats semana actual
         const weekStart = format(startOfWeek(new Date(), { weekStartsOn: 1 }), "yyyy-MM-dd");
         const weekGreen = events.filter(e => e.isGreen && e.start.slice(0, 10) >= weekStart);
-        const { weeklyGoal } = await getGoals();
+        const { weeklyGoal } = await getGoals(user.team_id);
         const weekIac = Math.min(100, Math.round((weekGreen.length / weeklyGoal) * 100));
         await saveWeeklyStatsAndRank(user.email, weekStart, weekIac, weekGreen.length, (streakData as any)?.best ?? 0);
         results.synced++;

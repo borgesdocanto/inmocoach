@@ -18,15 +18,32 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const { firmante_id, documento_id } = req.body;
 
-  // Verificar que el documento pertenece al usuario
+  // Verificar que el documento pertenece al usuario O a su equipo (broker/TL puede reenviar)
   const { data: doc } = await supabaseAdmin
     .from("firma_documentos")
-    .select("id, usuario_email, datos_json, firma_plantillas(nombre)")
+    .select("id, usuario_email, team_id, datos_json, firma_plantillas(nombre)")
     .eq("id", documento_id)
-    .eq("usuario_email", email)
     .single();
 
   if (!doc) return res.status(404).json({ error: "Documento no encontrado" });
+
+  // Obtener team_id del caller para validar aislamiento entre tenants
+  const { data: callerSub } = await supabaseAdmin
+    .from("subscriptions")
+    .select("team_id, team_role")
+    .eq("email", email)
+    .single();
+
+  const callerTeamId = callerSub?.team_id ?? null;
+  const isOwnerOrTL = callerSub?.team_role === "owner" || callerSub?.team_role === "team_leader";
+
+  // El caller puede acceder si: es el dueño del doc, o es broker/TL del mismo equipo
+  const isSameUser = doc.usuario_email === email;
+  const isSameTeam = doc.team_id && callerTeamId && doc.team_id === callerTeamId && isOwnerOrTL;
+
+  if (!isSameUser && !isSameTeam) {
+    return res.status(403).json({ error: "No tenés permiso para reenviar este documento" });
+  }
 
   // Obtener el firmante
   const { data: firmante } = await supabaseAdmin

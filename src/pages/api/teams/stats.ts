@@ -50,7 +50,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   const { from, to, days } = getRange(period);
-  const { weeklyGoal } = await getGoals();
+  const { weeklyGoal } = await getGoals(reqSub.team_id);
 
   // Calcular stats de cada miembro en paralelo
   const memberStats = await Promise.all(

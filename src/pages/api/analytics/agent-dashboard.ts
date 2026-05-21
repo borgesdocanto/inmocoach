@@ -51,7 +51,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const lastSyncedAt = events.length > 0 ? events[events.length - 1].start : null;
   const hasData = events.length > 0;
 
-  const { weeklyGoal, productiveDayMin } = await getGoals();
+  const { weeklyGoal, productiveDayMin } = await getGoals(requester.team_id);
   const productivityGoal = productiveDayMin;
   const byDay: Record<string, typeof events> = {};
   events.forEach(ev => {

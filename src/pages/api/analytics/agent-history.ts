@@ -50,7 +50,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     .select("slug, label, icon, min_iac_up, min_iac_keep, sort_order")
     .order("sort_order");
 
-  const { weeklyGoal } = await getGoals();
+  const { weeklyGoal } = await getGoals(requester.team_id);
 
   // Calcular tendencia: promedio últimas 4 semanas vs 4 anteriores
   const weeks = weeklyStats || [];

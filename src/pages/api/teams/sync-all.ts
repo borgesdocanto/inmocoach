@@ -103,7 +103,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const dailySummaries = Object.entries(byDay).map(([date, greenCount]) => ({ date, greenCount }));
     const streakData = await computeAndSaveStreak(member.email, dailySummaries).catch(() => null);
     const weekGreen = events.filter(e => e.isGreen && e.start.slice(0, 10) >= weekStart);
-    const { weeklyGoal } = await getGoals();
+    const { weeklyGoal } = await getGoals(requester.team_id);
     const weekIac = Math.min(100, Math.round((weekGreen.length / weeklyGoal) * 100));
     await saveWeeklyStatsAndRank(member.email, weekStart, weekIac, weekGreen.length, (streakData as any)?.best ?? member.streak_best ?? 0);
     return { email: member.email, status: "synced", events: events.length };

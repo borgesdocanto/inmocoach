@@ -37,7 +37,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     .eq("email", email)
     .single();
 
-  const { weeklyGoal, productiveDayMin } = await getGoals();
+  const { weeklyGoal, productiveDayMin } = await getGoals(sub?.teamId);
   const productivityGoal = productiveDayMin;
 
   const byDay: Record<string, typeof events> = {};

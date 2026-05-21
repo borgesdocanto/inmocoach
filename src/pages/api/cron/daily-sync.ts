@@ -34,7 +34,7 @@ async function syncUser(user: { email: string; team_id: string | null; streak_be
     // Weekly stats de la semana actual
     const weekStart = getMonday();
     const weekGreen = events.filter(e => e.isGreen && e.start.slice(0, 10) >= weekStart);
-    const { weeklyGoal } = await getGoals();
+    const { weeklyGoal } = await getGoals(user.team_id);
     const weekIac = Math.min(100, Math.round((weekGreen.length / weeklyGoal) * 100));
     await saveWeeklyStatsAndRank(user.email, weekStart, weekIac, weekGreen.length, (streakData as any)?.best ?? user.streak_best ?? 0);
 

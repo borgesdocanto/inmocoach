@@ -31,7 +31,7 @@ function getLastWeekRange() {
   return { from, to, weekDates };
 }
 
-async function getAgentWeekStats(email: string, from: Date, to: Date, weeklyGoal: number) {
+async function getAgentWeekStats(email: string, from: Date, to: Date, weeklyGoal: number, teamId: string) {
   try {
     const events = await getStoredEvents(email, from, to);
     const greenEvents = events.filter(e => e.isGreen);
@@ -43,7 +43,7 @@ async function getAgentWeekStats(email: string, from: Date, to: Date, weeklyGoal
       byDay[day] = (byDay[day] || 0) + 1;
     });
 
-    const { productiveDayMin } = await getGoals();
+    const { productiveDayMin } = await getGoals(teamId);
     const allDays = new Set(events.map(e => e.start.slice(0, 10)));
     const productiveDays = Object.values(byDay).filter(c => c >= productiveDayMin).length;
     const totalDays = allDays.size;
@@ -73,7 +73,7 @@ async function processTeamOwner(ownerEmail: string, teamId: string) {
       return "skipped";
     }
 
-    const { weeklyGoal } = await getGoals();
+    const { weeklyGoal } = await getGoals(teamId);
     const { from, to, weekDates } = getLastWeekRange();
 
     // Obtener todos los miembros del equipo
@@ -87,7 +87,7 @@ async function processTeamOwner(ownerEmail: string, teamId: string) {
     // Construir datos de cada agente
     const agentRows = await Promise.all(members.map(async (m) => {
       const isSelf = m.email === ownerEmail;
-      const weekStats = await getAgentWeekStats(m.email, from, to, weeklyGoal);
+      const weekStats = await getAgentWeekStats(m.email, from, to, weeklyGoal, teamId);
       const tokkoStats = await getAgentTokkoStats(m.email).catch(() => null);
       return {
         name: m.name || m.email.split("@")[0],

@@ -12,13 +12,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(401).json({ error: "No autorizado" });
   }
 
-  const cfg = await getAppConfig();
-  const MIN_GREENS = parseInt(cfg["streak_min_greens"] ?? "1");
+  const globalCfg = await getAppConfig(null);
 
   // Obtener todos los usuarios activos con racha > 0
   const { data: users } = await supabaseAdmin
     .from("subscriptions")
-    .select("email, streak_current, streak_shields")
+    .select("email, streak_current, streak_shields, team_id")
     .eq("status", "active")
     .gt("streak_current", 0);
 
@@ -31,6 +30,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   let alerted = 0;
   for (const user of users) {
+    // Config del tenant del usuario (override > global)
+    const cfg = await getAppConfig(user.team_id);
+    const MIN_GREENS = parseInt(cfg["streak_min_greens"] ?? globalCfg["streak_min_greens"] ?? "1");
+
     // Ver si tiene al menos MIN_GREENS eventos verdes hoy
     const { count } = await supabaseAdmin
       .from("calendar_events")

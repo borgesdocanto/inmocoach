@@ -56,7 +56,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const events = await fetchCalendarEvents(accessToken, 30);
 
     // 2. Stats de la semana
-    const { weeklyGoal, productiveDayMin } = await getGoals();
+    const { weeklyGoal, productiveDayMin } = await getGoals(null); // admin test: usa config global
     const stats = computeWeekStats(events, productiveDayMin);
 
     // 3. Coach advice

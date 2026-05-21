@@ -240,7 +240,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       byDay[day].push(ev);
     });
 
-    const { weeklyGoal, productiveDayMin } = await getGoals();
+    const { weeklyGoal, productiveDayMin } = await getGoals(sub?.team_id);
     const productivityGoal = productiveDayMin;
 
     const dailySummaries: DailySummary[] = Object.entries(byDay)

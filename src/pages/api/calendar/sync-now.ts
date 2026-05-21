@@ -66,7 +66,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     // Actualizar streak y rank con los nuevos datos
     try {
-      const { weeklyGoal } = await getGoals();
+      const { weeklyGoal } = await getGoals(subData?.team_id);
       const { data: events } = await supabaseAdmin
         .from("calendar_events")
         .select("start_at, is_productive")

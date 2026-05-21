@@ -33,10 +33,16 @@ async function generateCoachAdvice(
   name: string,
   streak: number,
   weeklyGoal: number,
-  userEmail: string
+  userEmail: string,
+  teamId?: string | null
 ): Promise<CoachSections> {
   const { data: promptRow } = await supabaseAdmin
-    .from("app_config").select("value").eq("key", "coach_prompt").single();
+    .from("app_config").select("value, team_id")
+      .eq("key", "coach_prompt")
+      .or(`team_id.eq.${teamId ?? ""},team_id.is.null`)
+      .order("team_id", { ascending: false, nullsFirst: false })
+      .limit(1)
+      .single();
   const coachSystemPrompt = promptRow?.value ?? DEFAULT_COACH_PROMPT;
 
   const firstName = name.split(" ")[0] || "";
@@ -115,7 +121,7 @@ async function processUser(sub: any): Promise<"sent" | "failed" | "skipped"> {
 
     const { data: subData } = await supabaseAdmin.from("subscriptions").select("created_at, plan").eq("email", sub.email).single();
     const events = await fetchCalendarEvents(accessToken, 90);
-    const { weeklyGoal, productiveDayMin } = await getGoals();
+    const { weeklyGoal, productiveDayMin } = await getGoals(sub.teamId);
     // El mail del lunes reporta la semana ANTERIOR (lun-dom pasados)
     const lastSunday = subDays(startOfWeek(new Date(), { weekStartsOn: 1 }), 1);
     const stats = computeWeekStats(events, productiveDayMin, lastSunday);
@@ -135,7 +141,7 @@ async function processUser(sub: any): Promise<"sent" | "failed" | "skipped"> {
     const activeWeeks = weekHistory?.length ?? 0;
     const iacAvg = activeWeeks > 0 ? Math.round(weekHistory!.reduce((s: number, w: any) => s + w.iac, 0) / activeWeeks) : 0;
 
-    const coachSections = await generateCoachAdvice(stats, sub.name || sub.email, streakData.current, weeklyGoal, sub.email);
+    const coachSections = await generateCoachAdvice(stats, sub.name || sub.email, streakData.current, weeklyGoal, sub.email, sub.teamId);
 
     const createdAt = new Date(subData?.created_at ?? Date.now());
     const daysUsed = (Date.now() - createdAt.getTime()) / (1000 * 60 * 60 * 24);
