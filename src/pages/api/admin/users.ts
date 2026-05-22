@@ -26,7 +26,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const users = (data || []).map(u => {
       const created = new Date(u.created_at);
       const daysSince = Math.floor((now.getTime() - created.getTime()) / 86400000);
-      const freemiumExpired = u.plan === "free" && daysSince > FREEMIUM_DAYS;
+      // Respetar trial_ends_at si está seteado
+      const trialEnd = u.trial_ends_at ? new Date(u.trial_ends_at) : null;
+      const freemiumExpired = u.plan === "free" && (
+        trialEnd ? now > trialEnd : daysSince > FREEMIUM_DAYS
+      );
+      const freemiumDaysLeft = u.plan === "free"
+        ? trialEnd
+          ? Math.max(0, Math.ceil((trialEnd.getTime() - now.getTime()) / 86400000))
+          : Math.max(0, FREEMIUM_DAYS - daysSince)
+        : null;
       return {
         email: u.email,
         name: u.name,
@@ -37,9 +46,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         teamRole: u.team_role,
         hasCalendar: !!u.google_access_token,
         createdAt: u.created_at,
+        trialEndsAt: u.trial_ends_at || null,
         daysSince,
         freemiumExpired,
-        freemiumDaysLeft: u.plan === "free" ? Math.max(0, FREEMIUM_DAYS - daysSince) : null,
+        freemiumDaysLeft,
       };
     });
 
