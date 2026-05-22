@@ -63,7 +63,7 @@ async function syncTeamTokko(teamId: string, apiKey: string) {
           synced_at: now.toISOString(),
         };
       });
-      await supabaseAdmin.from("tokko_properties").upsert(rows, { onConflict: "tokko_id" });
+      await supabaseAdmin.from("tokko_properties").upsert(rows, { onConflict: "tokko_id,team_id" });
     }
   }
 
