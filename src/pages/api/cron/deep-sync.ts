@@ -43,7 +43,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const activeUsers = (users as any[]).filter((u: any) => {
       if (u.plan && u.plan !== "free") return true;
       const diffDays = (nowMs - new Date(u.created_at || 0).getTime()) / (1000 * 60 * 60 * 24);
-      return diffDays <= FREEMIUM_DAYS;
+      return !(u.trial_ends_at ? Date.now() > new Date(u.trial_ends_at).getTime() : (Date.now() - new Date(u.created_at || 0).getTime()) / 86400000 > FREEMIUM_DAYS);
     });
 
     for (const user of activeUsers) {

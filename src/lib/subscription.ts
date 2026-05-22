@@ -140,12 +140,17 @@ function mapSub(data: any): Subscription {
   };
 }
 
-// Verifica si el freemium expiró (más de FREEMIUM_DAYS desde created_at)
-export function isFreemiumExpired(sub: Subscription): boolean {
+// Verifica si el freemium expiró
+// Si tiene trial_ends_at → usa esa fecha como límite
+// Si no → calcula created_at + FREEMIUM_DAYS (comportamiento original)
+export function isFreemiumExpired(sub: Subscription & { trial_ends_at?: string | null }): boolean {
   if (sub.plan !== "free") return false;
   if (sub.isVip) return false;
-  const created = new Date(sub.createdAt);
   const now = new Date();
+  if (sub.trial_ends_at) {
+    return now > new Date(sub.trial_ends_at);
+  }
+  const created = new Date(sub.createdAt);
   const diffDays = (now.getTime() - created.getTime()) / (1000 * 60 * 60 * 24);
   return diffDays > FREEMIUM_DAYS;
 }

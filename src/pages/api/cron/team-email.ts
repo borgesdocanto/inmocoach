@@ -168,7 +168,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const leaders = (leadersRaw || []).filter(l => {
     if (l.plan && l.plan !== "free") return true;
     const diffDays = (nowMs - new Date(l.created_at || 0).getTime()) / (1000 * 60 * 60 * 24);
-    return diffDays <= FREEMIUM_DAYS;
+    const ends = (l as any).trial_ends_at;
+    return ends ? Date.now() <= new Date(ends).getTime() : diffDays <= FREEMIUM_DAYS;
   });
   if (!leaders?.length) return res.status(200).json({ ok: true, sent: 0, skipped: 0, failed: 0 });
 

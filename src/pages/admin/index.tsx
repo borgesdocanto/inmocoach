@@ -1,3 +1,4 @@
+import React from "react";
 import { GetServerSideProps } from "next";
 import { useSession } from "next-auth/react";
 import { useState, useEffect } from "react";
@@ -677,14 +678,9 @@ export default function AdminPanel() {
                             <option value="individual">→ Individual</option>
                             <option value="teams">→ Teams</option>
                           </select>
-                          {/* Extender trial */}
+                          {/* Extender trial — date picker */}
                           {u.plan === "free" && (
-                            <button onClick={() => userAction(u.email, "extend_trial", { daysExtension: 7 })}
-                              disabled={actionLoading === `${u.email}-extend_trial`}
-                              className="text-xs font-semibold text-gray-500 hover:text-gray-800 bg-gray-100 hover:bg-gray-200 px-2.5 py-1.5 rounded-lg transition-colors flex items-center gap-1">
-                              {actionLoading === `${u.email}-extend_trial` ? <Loader2 size={10} className="animate-spin" /> : <Clock size={10} />}
-                              +7 días
-                            </button>
+                            <ExtenderTrialBtn email={u.email} />
                           )}
                           {/* Activar/desactivar */}
                           {u.status === "active" ? (
@@ -1712,6 +1708,79 @@ export default function AdminPanel() {
         </div>
       )}
     </AppLayout>
+  );
+}
+
+function ExtenderTrialBtn({ email }: { email: string }) {
+  const [abierto, setAbierto] = React.useState(false);
+  const [fecha, setFecha] = React.useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 7);
+    return d.toISOString().split("T")[0];
+  });
+  const [loading, setLoading] = React.useState(false);
+  const [ok, setOk] = React.useState(false);
+
+  const handleExtender = async () => {
+    setLoading(true);
+    const res = await fetch("/api/admin/extend-trial", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, trial_ends_at: fecha }),
+    });
+    if (res.ok) {
+      setOk(true);
+      setAbierto(false);
+      setTimeout(() => setOk(false), 3000);
+    } else {
+      const j = await res.json();
+      alert(j.error || "Error");
+    }
+    setLoading(false);
+  };
+
+  if (ok) return (
+    <span className="text-xs font-semibold text-green-600 bg-green-50 px-2.5 py-1.5 rounded-lg">
+      ✓ Trial extendido
+    </span>
+  );
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setAbierto(v => !v)}
+        className="text-xs font-semibold text-gray-500 hover:text-gray-800 bg-gray-100 hover:bg-gray-200 px-2.5 py-1.5 rounded-lg transition-colors flex items-center gap-1"
+      >
+        <Clock size={10} /> Trial
+      </button>
+      {abierto && (
+        <div className="absolute z-50 top-8 left-0 bg-white border border-gray-200 rounded-xl shadow-xl p-3 min-w-[200px]">
+          <div className="text-xs font-semibold text-gray-500 mb-2">Extender trial hasta:</div>
+          <input
+            type="date"
+            value={fecha}
+            min={new Date().toISOString().split("T")[0]}
+            onChange={e => setFecha(e.target.value)}
+            className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs mb-2 outline-none focus:border-blue-400"
+          />
+          <div className="flex gap-2">
+            <button
+              onClick={() => setAbierto(false)}
+              className="flex-1 text-xs text-gray-400 hover:text-gray-600 bg-gray-50 hover:bg-gray-100 py-1.5 rounded-lg"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={handleExtender}
+              disabled={loading || !fecha}
+              className="flex-1 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 py-1.5 rounded-lg"
+            >
+              {loading ? "..." : "Guardar"}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 

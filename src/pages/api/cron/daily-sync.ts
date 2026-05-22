@@ -77,18 +77,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   // Solo usuarios con token de Google Y que no tengan trial expirado
   const { data: allUsersRaw } = await supabaseAdmin
     .from("subscriptions")
-    .select("email, team_id, streak_best, plan, created_at, status")
+    .select("email, team_id, streak_best, plan, created_at, trial_ends_at, status")
     .eq("status", "active")
     .not("google_access_token", "is", null);
 
   // Filtrar expirados en memoria (el plan free no cambia status en DB al vencer)
   const nowMs = Date.now();
-  const { FREEMIUM_DAYS: FREEMIUM_DAYS_VAL } = await import("../../../lib/brand");
-  const users = (allUsersRaw || []).filter(u => {
-    if (u.plan !== "free") return true;
-    const diffDays = (nowMs - new Date(u.created_at || 0).getTime()) / (1000 * 60 * 60 * 24);
-    return diffDays <= FREEMIUM_DAYS_VAL;
-  });
+  const { isFreeExpired } = await import("../../../lib/brand");
+  const users = (allUsersRaw || []).filter(u => !isFreeExpired(u));
 
   if (!users?.length) {
     return res.status(200).json({ ok: true, message: "No hay usuarios", synced: 0 });

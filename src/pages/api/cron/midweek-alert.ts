@@ -296,7 +296,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (u.plan !== "free") return true;
     const created = new Date(u.created_at || 0).getTime();
     const diffDays = (nowMs - created) / (1000 * 60 * 60 * 24);
-    return diffDays <= FREEMIUM_DAYS;
+    const ends = (u as any).trial_ends_at;
+    return ends ? Date.now() <= new Date(ends).getTime() : diffDays <= FREEMIUM_DAYS;
   });
 
   const { targetEmail } = req.body || {};
