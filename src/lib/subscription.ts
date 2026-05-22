@@ -13,6 +13,7 @@ export interface Subscription {
   status: "active" | "cancelled" | "past_due" | "expired";
   currentPeriodEnd?: string;
   createdAt: string;
+  trial_ends_at?: string | null;
   teamId?: string;
   teamRole?: string;
   isVip: boolean;
@@ -134,6 +135,7 @@ function mapSub(data: any): Subscription {
     status: data.status,
     currentPeriodEnd: data.current_period_end,
     createdAt: data.created_at,
+    trial_ends_at: data.trial_ends_at || null,
     teamId: data.team_id,
     teamRole: data.team_role,
     isVip: isVipEmail(data.email),
