@@ -406,7 +406,7 @@ export default function DetalleDocumento() {
       alert("Nombre y email son obligatorios"); return;
     }
     setGuardandoFirmante(true);
-    const res = await fetch(`/api/firma/agregar-firmante`, {
+    const res = await fetch("/api/firma/agregar-firmante", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -428,6 +428,8 @@ export default function DetalleDocumento() {
     }
     setGuardandoFirmante(false);
   };
+
+  const handleEliminar = async () => {
     if (!doc) return;
     if (!confirm(`¿Eliminar el documento "${nombreDoc}"? Esta acción no se puede deshacer.`)) return;
     setEliminando(true);
@@ -667,7 +669,6 @@ export default function DetalleDocumento() {
               <div style={{ fontSize: 12, fontWeight: 700, color: "#374151", textTransform: "uppercase", letterSpacing: .5 }}>
                 Firmantes ({firmados}/{firmantes.length || 1} firmaron)
               </div>
-              {/* Agregar firmante — solo si el doc no está completamente firmado */}
               {doc.estado === "pendiente" && !todos_firmaron && (
                 <button onClick={() => setAgregandoFirmante(v => !v)} style={{
                   background: agregandoFirmante ? "#f3f4f6" : "none",
@@ -681,32 +682,20 @@ export default function DetalleDocumento() {
               )}
             </div>
 
-            {/* Formulario agregar firmante */}
             {agregandoFirmante && (
-              <div style={{
-                background: "#fff8f8", border: `1.5px solid ${RED}20`, borderRadius: 12,
-                padding: 16, marginBottom: 16
-              }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: RED, marginBottom: 12 }}>
-                  Nuevo firmante
-                </div>
+              <div style={{ background: "#fff8f8", border: "1.5px solid #fecdd3", borderRadius: 12, padding: 16, marginBottom: 16 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: RED, marginBottom: 12 }}>Nuevo firmante</div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
                   <div>
                     <label style={{ fontSize: 10, fontWeight: 600, color: "#6b7280", display: "block", marginBottom: 3 }}>Nombre y apellido *</label>
-                    <input
-                      value={nuevoFirmante.nombre}
-                      onChange={e => setNuevoFirmante(f => ({ ...f, nombre: e.target.value }))}
+                    <input value={nuevoFirmante.nombre} onChange={e => setNuevoFirmante(f => ({ ...f, nombre: e.target.value }))}
                       placeholder="Juan García"
-                      style={{ width: "100%", border: "1.5px solid #e5e7eb", borderRadius: 8, padding: "8px 11px", fontSize: 13, outline: "none", fontFamily: "inherit", boxSizing: "border-box" as const }}
-                    />
+                      style={{ width: "100%", border: "1.5px solid #e5e7eb", borderRadius: 8, padding: "8px 11px", fontSize: 13, outline: "none", fontFamily: "inherit", boxSizing: "border-box" }} />
                   </div>
                   <div>
                     <label style={{ fontSize: 10, fontWeight: 600, color: "#6b7280", display: "block", marginBottom: 3 }}>Rol</label>
-                    <select
-                      value={nuevoFirmante.rol}
-                      onChange={e => setNuevoFirmante(f => ({ ...f, rol: e.target.value }))}
-                      style={{ width: "100%", border: "1.5px solid #e5e7eb", borderRadius: 8, padding: "8px 11px", fontSize: 13, outline: "none", fontFamily: "inherit", boxSizing: "border-box" as const, background: "#fff" }}
-                    >
+                    <select value={nuevoFirmante.rol} onChange={e => setNuevoFirmante(f => ({ ...f, rol: e.target.value }))}
+                      style={{ width: "100%", border: "1.5px solid #e5e7eb", borderRadius: 8, padding: "8px 11px", fontSize: 13, outline: "none", fontFamily: "inherit", background: "#fff", boxSizing: "border-box" }}>
                       {["Firmante","Vendedor","Comprador","Locador","Locatario","Garante","Testigo"].map(r => (
                         <option key={r} value={r}>{r}</option>
                       ))}
@@ -716,33 +705,23 @@ export default function DetalleDocumento() {
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
                   <div>
                     <label style={{ fontSize: 10, fontWeight: 600, color: "#6b7280", display: "block", marginBottom: 3 }}>Email *</label>
-                    <input
-                      type="email"
-                      value={nuevoFirmante.email}
-                      onChange={e => setNuevoFirmante(f => ({ ...f, email: e.target.value }))}
+                    <input type="email" value={nuevoFirmante.email} onChange={e => setNuevoFirmante(f => ({ ...f, email: e.target.value }))}
                       placeholder="juan@gmail.com"
-                      style={{ width: "100%", border: "1.5px solid #e5e7eb", borderRadius: 8, padding: "8px 11px", fontSize: 13, outline: "none", fontFamily: "inherit", boxSizing: "border-box" as const }}
-                    />
+                      style={{ width: "100%", border: "1.5px solid #e5e7eb", borderRadius: 8, padding: "8px 11px", fontSize: 13, outline: "none", fontFamily: "inherit", boxSizing: "border-box" }} />
                   </div>
                   <div>
                     <label style={{ fontSize: 10, fontWeight: 600, color: "#6b7280", display: "block", marginBottom: 3 }}>Teléfono</label>
-                    <input
-                      value={nuevoFirmante.telefono}
-                      onChange={e => setNuevoFirmante(f => ({ ...f, telefono: e.target.value }))}
+                    <input value={nuevoFirmante.telefono} onChange={e => setNuevoFirmante(f => ({ ...f, telefono: e.target.value }))}
                       placeholder="+54 11..."
-                      style={{ width: "100%", border: "1.5px solid #e5e7eb", borderRadius: 8, padding: "8px 11px", fontSize: 13, outline: "none", fontFamily: "inherit", boxSizing: "border-box" as const }}
-                    />
+                      style={{ width: "100%", border: "1.5px solid #e5e7eb", borderRadius: 8, padding: "8px 11px", fontSize: 13, outline: "none", fontFamily: "inherit", boxSizing: "border-box" }} />
                   </div>
                 </div>
-                <button
-                  onClick={handleAgregarFirmante}
-                  disabled={guardandoFirmante}
-                  style={{
-                    background: guardandoFirmante ? "#9ca3af" : RED, color: "#fff",
-                    border: "none", borderRadius: 8, padding: "9px 18px",
-                    fontSize: 13, fontWeight: 700, cursor: guardandoFirmante ? "not-allowed" : "pointer",
-                    display: "flex", alignItems: "center", gap: 6
-                  }}>
+                <button onClick={handleAgregarFirmante} disabled={guardandoFirmante} style={{
+                  background: guardandoFirmante ? "#9ca3af" : RED, color: "#fff",
+                  border: "none", borderRadius: 8, padding: "9px 18px",
+                  fontSize: 13, fontWeight: 700, cursor: guardandoFirmante ? "not-allowed" : "pointer",
+                  display: "flex", alignItems: "center", gap: 6
+                }}>
                   <Send size={13} /> {guardandoFirmante ? "Agregando..." : "Agregar y enviar email"}
                 </button>
               </div>
