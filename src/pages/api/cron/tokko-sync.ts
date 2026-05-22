@@ -94,7 +94,26 @@ async function syncTeam(teamId: string, apiKey: string): Promise<{ properties: n
         branch_name: u.branch?.name || u.office?.name || null,
         synced_at: new Date().toISOString(),
       }));
-      await supabaseAdmin.from("tokko_agents").upsert(rows, { onConflict: "tokko_id" });
+      // Upsert agentes: insertar nuevos, actualizar nombre/foto/branch pero NO el email
+        // (el email puede haber sido corregido manualmente si difiere del email en Tokko)
+        for (const row of rows) {
+          const { email: _ignoredEmail, ...rowSinEmail } = row;
+          const { data: existing } = await supabaseAdmin
+            .from("tokko_agents")
+            .select("id, email")
+            .eq("tokko_id", row.tokko_id)
+            .eq("team_id", row.team_id)
+            .single();
+          if (existing) {
+            // Actualizar todo MENOS el email
+            await supabaseAdmin.from("tokko_agents")
+              .update({ ...rowSinEmail })
+              .eq("id", existing.id);
+          } else {
+            // Nuevo agente: insertar con el email de Tokko
+            await supabaseAdmin.from("tokko_agents").insert(row);
+          }
+        };
       results.users = users.length;
 
       // Patch branch_id from tokko_properties for agents whose branch is null
