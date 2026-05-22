@@ -12,6 +12,8 @@ import { startOfWeek, format } from "date-fns";
 
 const BATCH_SIZE = 5;
 
+export const config = { maxDuration: 300 }; // 5 minutos — Vercel Pro
+
 function getMonday(): string {
   return format(startOfWeek(new Date(), { weekStartsOn: 1 }), "yyyy-MM-dd");
 }
@@ -74,17 +76,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(200).json({ ok: true, result });
   }
 
-  // Solo usuarios con token de Google Y que no tengan trial expirado
+  // Todos los usuarios con refresh token — incluye active, trial, y free
+  // isFreeExpired filtra los free vencidos en memoria
   const { data: allUsersRaw } = await supabaseAdmin
     .from("subscriptions")
     .select("email, team_id, streak_best, plan, created_at, trial_ends_at, status")
-    .eq("status", "active")
-    .not("google_access_token", "is", null);
+    .not("google_refresh_token", "is", null);
 
-  // Filtrar expirados en memoria (el plan free no cambia status en DB al vencer)
-  const nowMs = Date.now();
+  // Filtrar cancelados y expirados en memoria
   const { isFreeExpired } = await import("../../../lib/brand");
-  const users = (allUsersRaw || []).filter(u => !isFreeExpired(u));
+  const users = (allUsersRaw || []).filter(u =>
+    u.status !== "cancelled" && !isFreeExpired(u)
+  );
 
   if (!users?.length) {
     return res.status(200).json({ ok: true, message: "No hay usuarios", synced: 0 });
@@ -92,8 +95,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   console.log(`🔄 Daily sync: ${users.length} usuarios`);
 
-  res.status(200).json({ ok: true, total: users.length, message: `Sincronizando ${users.length} usuarios` });
-
+  // CRÍTICO: sincronizar ANTES de responder — Vercel mata background work post-response
   const results = { synced: 0, skipped: 0, error: 0 };
   for (let i = 0; i < users.length; i += BATCH_SIZE) {
     const batch = users.slice(i, i + BATCH_SIZE);
@@ -107,14 +109,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   console.log(`✅ Daily sync completo:`, results);
 
-  // Ejecutar streak-alert inmediatamente después del sync
-  // para que los eventos recién sincronizados sean considerados
-  try {
-    const baseUrl = process.env.NEXTAUTH_URL;
-    const secret = process.env.CRON_SECRET;
-    fetch(`${baseUrl}/api/cron/streak-alert`, {
-      method: "POST",
-      headers: { "x-cron-secret": secret! },
-    }).catch(() => {});
-  } catch {}
+  return res.status(200).json({ ok: true, total: users.length, results });
 }

@@ -166,7 +166,7 @@ function detectType(title: string): EventType {
     .normalize("NFD").replace(/[\u0300-\u036f]/g, ""); // quita tildes para comparar
 
   // Cierres — "firma" como palabra completa para evitar "confirmar", "información", etc.
-  if (hasWord(t, "firma") || t.includes("escritura")) return "firma";
+  if (hasWord(t, "firma") || t.includes("escritura") || hasWord(t, "cierre") || hasWord(t, "reserva")) return "firma";
 
   // Tasación / captación
   if (t.includes("tasac") || t.includes("captac")) return "tasacion";
