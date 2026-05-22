@@ -4,6 +4,7 @@ import { NextApiRequest, NextApiResponse } from "next";
 import { getServerSession } from "next-auth";
 import { authOptions } from "../../../lib/auth";
 import { isSuperAdmin } from "../../../lib/adminGuard";
+import { getEffectiveEmail } from "../../../lib/impersonation";
 import { supabaseAdmin } from "../../../lib/supabase";
 
 export const config = { maxDuration: 120 };
@@ -94,16 +95,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!rawTeamId) return res.status(400).json({ error: "teamId requerido" });
 
   const email = session.user.email;
+  const effectiveEmail = getEffectiveEmail(req, session) ?? email;
   const isAdmin = isSuperAdmin(email);
 
-  // Obtener subscription del usuario
+  // Obtener subscription del usuario efectivo (impersonado o real)
   const { data: sub } = await supabaseAdmin
     .from("subscriptions")
     .select("team_id, team_role")
-    .eq("email", email)
+    .eq("email", effectiveEmail)
     .single();
 
-  // __own__ = el owner quiere sincronizar su propio equipo
+  // __own__ = sincronizar el equipo del usuario efectivo
   const teamId = rawTeamId === "__own__" ? sub?.team_id : rawTeamId;
   if (!teamId) return res.status(400).json({ error: "No tenés un equipo configurado" });
 
