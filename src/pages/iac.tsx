@@ -263,27 +263,30 @@ export default function IACPage() {
                       color: d.isToday ? "#fff" : "#374151",
                     }}>{d.dayNum}</div>
                   </div>
-                  {/* Eventos del día */}
+                  {/* Eventos del día — verdes y no verdes */}
                   <div style={{ padding: "6px 4px", display: "flex", flexDirection: "column", gap: 3, minHeight: 40 }}>
-                    {d.events.filter((e: any) => e.isGreen).length === 0 && (
+                    {d.events.length === 0 && (
                       <div style={{ flex: 1 }} />
                     )}
-                    {d.events.filter((e: any) => e.isGreen).map((ev: any) => (
+                    {d.events.map((ev: any) => (
                       <div key={ev.id} title={ev.title} style={{
-                        background: "#f0fdf4",
-                        border: "0.5px solid #bbf7d0",
-                        borderLeft: `2px solid #16a34a`,
+                        background: ev.isGreen ? "#f0fdf4" : "#f9fafb",
+                        border: ev.isGreen ? "0.5px solid #bbf7d0" : "0.5px solid #e5e7eb",
+                        borderLeft: ev.isGreen ? "2px solid #16a34a" : "2px solid #d1d5db",
                         borderRadius: 4,
                         padding: "3px 5px",
                         cursor: "default",
+                        opacity: ev.isGreen ? 1 : 0.75,
                       }}>
                         <div style={{
-                          fontSize: 10, color: "#166534", fontWeight: 500,
+                          fontSize: 10,
+                          color: ev.isGreen ? "#166534" : "#6b7280",
+                          fontWeight: ev.isGreen ? 500 : 400,
                           overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
                           lineHeight: 1.3,
                         }}>{ev.title}</div>
                         {ev.start?.slice(11, 16) !== "00:00" && (
-                          <div style={{ fontSize: 9, color: "#4ade80", marginTop: 1 }}>{ev.start?.slice(11, 16)}</div>
+                          <div style={{ fontSize: 9, color: ev.isGreen ? "#4ade80" : "#9ca3af", marginTop: 1 }}>{ev.start?.slice(11, 16)}</div>
                         )}
                       </div>
                     ))}
