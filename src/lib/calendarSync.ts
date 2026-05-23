@@ -336,7 +336,21 @@ export async function persistEvents(
 ): Promise<void> {
   if (!events.length) return;
 
-  const rows = events
+  // Deduplicar por title+start — el mismo evento puede aparecer con distintos IDs
+  // en múltiples calendarios del usuario (primary, gmail, calendarios de grupo)
+  // Preferir el evento con isUserColored=true o el primero que aparezca
+  const dedupMap = new Map<string, SyncedEvent>();
+  for (const e of events) {
+    if (!e.start) continue;
+    const key = `${e.title}|||${e.start.slice(0, 16)}`; // título + minuto exacto
+    const existing = dedupMap.get(key);
+    if (!existing || (!existing.isUserColored && e.isUserColored)) {
+      dedupMap.set(key, e);
+    }
+  }
+  const deduped = Array.from(dedupMap.values());
+
+  const rows = deduped
     .filter(e => e.start)
     .map(e => ({
       user_email: userEmail,
