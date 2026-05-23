@@ -302,14 +302,29 @@ export async function fetchCalendarEvents(
     e.status !== "cancelled" &&
     e.summary
   );
+  // Cargar config UNA SOLA VEZ antes del loop — en serverless el módulo se recarga
+  // en cada invocación y el cache en memoria no persiste entre eventos del mismo request
   const { green, procesos, cierres } = await getGreenTypes();
+  // _keywordsCache ya está cargado por getGreenTypes — usarlo directamente
+  const keywordsSnapshot = _keywordsCache ? [..._keywordsCache] : [];
 
-  return Promise.all(items.map(async e => {
-    const dynamicType = await detectTypeDynamic(e.summary!);
-    const type = (dynamicType || detectType(e.summary!)) as EventType;
+  // Detectar tipo usando keywords ya cargados (sin llamadas extra a Supabase)
+  function detectTypeFast(title: string): string {
+    const t = title.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    if (keywordsSnapshot.length) {
+      const sorted = [...keywordsSnapshot].sort((a, b) =>
+        Math.max(...b.keywords.map((k: string) => k.length)) - Math.max(...a.keywords.map((k: string) => k.length))
+      );
+      for (const { type, keywords } of sorted) {
+        if ((keywords as string[]).some((kw: string) => t.includes(kw))) return type;
+      }
+    }
+    return detectType(title);
+  }
+
+  return items.map(e => {
+    const type = detectTypeFast(e.summary!) as EventType;
     const isUserColored = !!(e.colorId && GREEN_COLOR_IDS.has(e.colorId));
-    // Si el evento está en el calendario del agente, cuenta — no filtramos por organizador
-    // porque herramientas como Tokko crean eventos desde otras cuentas pero los espejean al calendar del agente
     const isGreen = isUserColored || green.has(type);
     return {
       id: e.id!,
@@ -325,7 +340,7 @@ export async function fetchCalendarEvents(
       durationMinutes: durationMinutes(e),
       attendeesCount: attendeesCount(e),
     } as SyncedEvent;
-  }));
+  });
 }
 
 // ── Persistir eventos en Supabase ─────────────────────────────────────────────
