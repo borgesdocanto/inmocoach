@@ -12,14 +12,24 @@ function iacColor(v: number) {
   return v >= 100 ? "#16a34a" : v >= 67 ? "#d97706" : "#dc2626";
 }
 
-function localDateStr(d: Date) {
-  return d.toISOString().slice(0, 10);
+// "Hoy" en horario Argentina (UTC-3) como string yyyy-mm-dd
+function todayAr(): string {
+  return new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().slice(0, 10);
 }
 
+// Fecha local del browser como yyyy-mm-dd (para calcular semanas — el browser ya está en ART)
+function localDateStr(d: Date) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+// Lunes de la semana (en hora local del browser = Argentina)
 function getMonday(weekOffset = 0) {
   const now = new Date();
-  const day = now.getDay();
-  const diff = (day === 0 ? -6 : 1 - day) + weekOffset * 7;
+  const dow = now.getDay(); // 0=dom
+  const diff = (dow === 0 ? -6 : 1 - dow) + weekOffset * 7;
   const mon = new Date(now);
   mon.setDate(now.getDate() + diff);
   mon.setHours(0, 0, 0, 0);
@@ -99,7 +109,7 @@ export default function IACPage() {
         dayNum: d.getDate(),
         greens: s?.greenCount ?? 0,
         events: s?.events ?? [],
-        isToday: ds === localDateStr(new Date()),
+        isToday: ds === todayAr(),
       };
     });
   }, [data, weekOffset]);

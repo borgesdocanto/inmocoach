@@ -11,6 +11,11 @@ import { getAgentRankStats } from "../../../lib/ranks";
 import { supabaseAdmin } from "../../../lib/supabase";
 import { subDays, addDays, startOfDay, endOfDay, formatISO } from "date-fns";
 
+// Convertir timestamp UTC a fecha en horario Argentina (UTC-3)
+function utcToArDate(utcStr: string): string {
+  return new Date(new Date(utcStr).getTime() - 3 * 60 * 60 * 1000).toISOString().slice(0, 10);
+}
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "GET") return res.status(405).end();
 
@@ -42,7 +47,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const byDay: Record<string, typeof events> = {};
   events.forEach(ev => {
-    const day = ev.start.slice(0, 10);
+    // Agrupar por fecha en horario Argentina (UTC-3), no UTC
+    const day = utcToArDate(ev.start);
     if (!byDay[day]) byDay[day] = [];
     byDay[day].push(ev);
   });
