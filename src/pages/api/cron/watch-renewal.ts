@@ -17,14 +17,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   results.renewed = renewResult.renewed;
   results.failed += renewResult.failed;
 
-  // 2. Registrar watches para usuarios activos que no tienen watch activo
+  // 2. Registrar watches para usuarios activos o en trial que no tienen watch activo
   const { data: activeUsers } = await supabaseAdmin
     .from("subscriptions")
-    .select("email, google_refresh_token")
-    .eq("status", "active")
+    .select("email, google_refresh_token, plan, status, created_at, trial_ends_at")
+    .in("status", ["active", "trial"])
     .not("google_refresh_token", "is", null);
 
-  if (activeUsers?.length) {
+  // Filtrar free expirados en memoria
+  const { isFreeExpired } = await import("../../../lib/brand");
+  const validUsers = (activeUsers || []).filter(u => !isFreeExpired(u));
+
+  if (validUsers?.length) {
     // Usuarios que ya tienen watch vigente
     const { data: existingChannels } = await supabaseAdmin
       .from("calendar_watch_channels")
@@ -33,7 +37,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const usersWithWatch = new Set((existingChannels || []).map(c => c.user_email));
 
-    for (const user of activeUsers) {
+    for (const user of validUsers) {
       if (usersWithWatch.has(user.email)) {
         results.skipped++;
         continue;

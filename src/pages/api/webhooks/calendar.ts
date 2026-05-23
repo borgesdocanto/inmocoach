@@ -3,6 +3,10 @@
 //   X-Goog-Channel-ID — el channelId que registramos
 //   X-Goog-Resource-State — "sync" (primer ping), "exists" (cambio), "not_exists" (borrado)
 //   X-Goog-Resource-ID — resourceId del calendario
+//
+// CRÍTICO: Vercel mata el proceso al enviar la respuesta.
+// Por eso sincronizamos ANTES de responder, igual que sync-now.ts.
+// Usamos maxDuration:30 — Google espera hasta 30s para el 200.
 import { NextApiRequest, NextApiResponse } from "next";
 import { supabaseAdmin } from "../../../lib/supabase";
 import { syncAndPersist } from "../../../lib/calendarSync";
@@ -12,18 +16,22 @@ import { computeAndSaveStreak } from "../../../lib/streak";
 import { saveWeeklyStatsAndRank } from "../../../lib/ranks";
 import { startOfWeek, format } from "date-fns";
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  // Google espera 200 rápido — responder ANTES de procesar para evitar timeouts
-  res.status(200).end();
+export const config = { maxDuration: 30 };
 
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  // Aceptar GET y POST — Google envía POST pero algunos proxies convierten a GET
   const channelId = req.headers["x-goog-channel-id"] as string;
   const resourceState = req.headers["x-goog-resource-state"] as string;
 
-  // "sync" es el primer ping al registrar — no necesita procesamiento
-  if (!channelId || resourceState === "sync") return;
+  // "sync" es el primer ping al registrar el watch — responder 200 y salir
+  if (!channelId || resourceState === "sync") {
+    return res.status(200).end();
+  }
 
   // Solo procesar cambios reales
-  if (resourceState !== "exists" && resourceState !== "not_exists") return;
+  if (resourceState !== "exists" && resourceState !== "not_exists") {
+    return res.status(200).end();
+  }
 
   try {
     // Buscar a qué usuario corresponde este channel
@@ -34,29 +42,38 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .single();
 
     if (!channel?.user_email) {
-      console.warn(`[calendarWebhook] channel ${channelId} not found in DB`);
-      return;
+      console.warn(`[calendarWebhook] channel ${channelId} not found`);
+      return res.status(200).end();
     }
 
     const email = channel.user_email;
 
-    // Verificar que el usuario tenga plan activo
+    // Verificar que el usuario tenga plan activo o trial vigente
     const { data: sub } = await supabaseAdmin
       .from("subscriptions")
-      .select("status, plan, team_id, streak_best")
+      .select("status, plan, team_id, streak_best, created_at, trial_ends_at")
       .eq("email", email)
       .single();
 
-    if (!sub || sub.status !== "active") return;
+    if (!sub) {
+      return res.status(200).end();
+    }
+
+    // Verificar que no sea free expirado (importar isFreeExpired dinámicamente)
+    const { isFreeExpired } = await import("../../../lib/brand");
+    if (isFreeExpired(sub)) {
+      console.log(`[calendarWebhook] skip ${email} — trial expired`);
+      return res.status(200).end();
+    }
 
     const accessToken = await getValidAccessToken(email);
     if (!accessToken) {
       console.warn(`[calendarWebhook] no token for ${email}`);
-      return;
+      return res.status(200).end();
     }
 
-    // Sincronizar los últimos 90 días
-    console.log(`[calendarWebhook] syncing ${email} triggered by channel ${channelId}`);
+    // CRÍTICO: Sincronizar ANTES de responder — Vercel mata el proceso post-respuesta
+    console.log(`[calendarWebhook] syncing ${email} (channel ${channelId.slice(-8)})`);
     const events = await syncAndPersist(accessToken, email, sub.team_id, 90);
 
     // Actualizar streak y rank
@@ -77,14 +94,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       (streakData as any)?.best ?? sub.streak_best ?? 0
     ).catch(() => null);
 
-    // Actualizar timestamp de última sync — el polling del dashboard lo detecta
+    // Marcar timestamp — el polling del dashboard lo detecta para refrescar la UI
     await supabaseAdmin
       .from("subscriptions")
       .update({ last_webhook_sync: new Date().toISOString() })
       .eq("email", email);
 
-    console.log(`[calendarWebhook] ✅ ${email} synced — ${events.length} events`);
+    console.log(`[calendarWebhook] ✅ ${email} — ${events.length} eventos sincronizados`);
+    return res.status(200).end();
   } catch (err: any) {
     console.error("[calendarWebhook] error:", err?.message);
+    // Siempre 200 para que Google no deshabilite el watch
+    return res.status(200).end();
   }
 }
