@@ -3,18 +3,16 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import { getServerSession } from "next-auth";
 import { authOptions } from "../../../lib/auth";
-import { requireSuperAdmin } from "../../../lib/adminGuard";
+import { isSuperAdmin } from "../../../lib/adminGuard";
 import { supabaseAdmin } from "../../../lib/supabase";
 import { stopCalendarWatch, registerCalendarWatch } from "../../../lib/calendarWatch";
 import { getValidAccessToken } from "../../../lib/googleToken";
-import { google } from "googleapis";
 
 export const config = { maxDuration: 300 };
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const session = await getServerSession(req, res, authOptions);
-  const guard = await requireSuperAdmin(session);
-  if (guard) return res.status(guard.status).json({ error: guard.error });
+  if (!isSuperAdmin(session?.user?.email)) return res.status(403).json({ error: "Forbidden" });
 
   // 1. Obtener todos los channels activos
   const { data: channels } = await supabaseAdmin
