@@ -107,7 +107,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     rankStats = await getAgentRankStats(email);
   } catch {}
 
-  res.setHeader("Cache-Control", "private, max-age=60");
+  res.setHeader("Cache-Control", "no-store");
 
   return res.status(200).json({
     user: { name: session.user.name, email: session.user.email, image: session.user.image },

@@ -40,11 +40,41 @@ export default function IACPage() {
 
   useEffect(() => {
     if (status !== "authenticated") return;
+
+    const loadCache = async () => {
+      const r = await fetch("/api/calendar/cached?days=90", { cache: "no-store" });
+      if (r.ok) { const d = await r.json(); setData(d); }
+      setLoading(false);
+    };
+
+    const triggerSync = async () => {
+      try {
+        const r = await fetch("/api/calendar/sync-now?force=true", { method: "POST" });
+        if (r.ok) await loadCache();
+      } catch {}
+    };
+
+    // Carga inicial: caché inmediato + sync en paralelo
     setLoading(true);
-    fetch("/api/calendar/cached?days=90")
-      .then(r => r.ok ? r.json() : null)
-      .then(d => { setData(d); setLoading(false); })
-      .catch(() => setLoading(false));
+    loadCache();
+    triggerSync();
+
+    // Polling: detectar cambios del webhook cada 20s
+    let lastKnown: string | undefined;
+    const poll = async () => {
+      try {
+        const r = await fetch("/api/calendar/last-updated", { cache: "no-store" });
+        if (!r.ok) return;
+        const { lastUpdated } = await r.json();
+        if (!lastUpdated) return;
+        if (lastKnown === undefined) { lastKnown = lastUpdated; return; }
+        if (lastUpdated !== lastKnown) { lastKnown = lastUpdated; await loadCache(); }
+      } catch {}
+    };
+
+    const t = setTimeout(poll, 5000);
+    const i = setInterval(poll, 20000);
+    return () => { clearTimeout(t); clearInterval(i); };
   }, [status]);
 
   const weekGoal = data?.totals?.iacGoal ?? 15;
