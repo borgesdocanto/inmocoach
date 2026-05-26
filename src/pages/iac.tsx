@@ -12,6 +12,13 @@ function iacColor(v: number) {
   return v >= 100 ? "#16a34a" : v >= 67 ? "#d97706" : "#dc2626";
 }
 
+// Hora de un timestamp UTC en horario Argentina (UTC-3) → "HH:MM"
+function utcToArTime(utcStr: string): string {
+  const d = new Date(utcStr);
+  const ar = new Date(d.getTime() - 3 * 60 * 60 * 1000);
+  return ar.toISOString().slice(11, 16);
+}
+
 // "Hoy" en horario Argentina (UTC-3) como string yyyy-mm-dd
 function todayAr(): string {
   return new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().slice(0, 10);
@@ -285,8 +292,8 @@ export default function IACPage() {
                           overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
                           lineHeight: 1.3,
                         }}>{ev.title}</div>
-                        {ev.start?.slice(11, 16) !== "00:00" && (
-                          <div style={{ fontSize: 9, color: ev.isGreen ? "#4ade80" : "#9ca3af", marginTop: 1 }}>{ev.start?.slice(11, 16)}</div>
+                        {utcToArTime(ev.start) !== "00:00" && (
+                          <div style={{ fontSize: 9, color: ev.isGreen ? "#4ade80" : "#9ca3af", marginTop: 1 }}>{utcToArTime(ev.start)}</div>
                         )}
                       </div>
                     ))}
