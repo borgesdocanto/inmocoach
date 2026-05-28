@@ -593,13 +593,23 @@ export default function DetalleDocumento() {
                   </a>
                 )}
                 {doc.url_documento_firmado ? (
-                  <a href={doc.url_documento_firmado} target="_blank" rel="noopener noreferrer" style={{
-                    display: "flex", alignItems: "center", gap: 5,
-                    background: "#065f46", color: "#fff", borderRadius: 8,
-                    padding: "6px 12px", fontSize: 12, fontWeight: 700, textDecoration: "none"
-                  }}>
-                    <Download size={13} /> Descargar firmado
-                  </a>
+                  <>
+                    <a href={doc.url_documento_firmado} target="_blank" rel="noopener noreferrer" style={{
+                      display: "flex", alignItems: "center", gap: 5,
+                      background: "#065f46", color: "#fff", borderRadius: 8,
+                      padding: "6px 12px", fontSize: 12, fontWeight: 700, textDecoration: "none"
+                    }}>
+                      <Download size={13} /> Descargar firmado
+                    </a>
+                    <button onClick={handleGenerarPdf} disabled={generando} title="Regenerar PDF con el formato actualizado" style={{
+                      background: "none", border: "1.5px solid #e5e7eb", color: "#9ca3af",
+                      borderRadius: 8, padding: "6px 10px", fontSize: 11,
+                      cursor: generando ? "not-allowed" : "pointer",
+                      display: "flex", alignItems: "center", gap: 4
+                    }}>
+                      <RefreshCw size={11} /> {generando ? "..." : "Regenerar"}
+                    </button>
+                  </>
                 ) : todos_firmaron ? (
                   <button onClick={handleGenerarPdf} disabled={generando} style={{
                     background: generando ? "#9ca3af" : RED, color: "#fff",
