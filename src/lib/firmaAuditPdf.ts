@@ -184,6 +184,39 @@ export async function generarPdfConAuditoria(
   // Normalizar firmantes — si no viene array, construir desde campos legacy
   const firmantes: FirmanteDatos[] = datos.firmantes?.length > 0 ? datos.firmantes : [];
 
+  // ── Footer en cada hoja del documento original ────────────────────────────────
+  const fechaCierre = datos.signed_at
+    ? new Date(datos.signed_at).toLocaleDateString("es-AR", {
+        timeZone: "America/Argentina/Buenos_Aires",
+        day: "2-digit", month: "2-digit", year: "numeric"
+      })
+    : new Date().toLocaleDateString("es-AR", { timeZone: "America/Argentina/Buenos_Aires", day: "2-digit", month: "2-digit", year: "numeric" });
+
+  const footerText = safe(
+    `Firmado electronicamente · Token: ${datos.firma_token} · ${fechaCierre} · Ley 25.506 Argentina`
+  );
+
+  const pagesCount = pdfDoc.getPageCount();
+  for (let i = 0; i < pagesCount; i++) {
+    const page = pdfDoc.getPage(i);
+    const { width } = page.getSize();
+    // Línea separadora sutil
+    page.drawLine({
+      start: { x: 30, y: 22 },
+      end: { x: width - 30, y: 22 },
+      thickness: 0.3,
+      color: rgb(0.75, 0.75, 0.75),
+    });
+    // Texto del footer centrado
+    page.drawText(footerText, {
+      x: 30,
+      y: 10,
+      size: 6.5,
+      font: helvetica,
+      color: rgb(0.6, 0.6, 0.6),
+    });
+  }
+
   // ── Página de auditoría ──────────────────────────────────────────────────────
   const auditPage = pdfDoc.addPage([pageWidth, pageHeight]);
   let y = pageHeight - margin;
