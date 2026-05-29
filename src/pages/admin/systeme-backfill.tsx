@@ -69,49 +69,73 @@ export default function BackfillPage() {
       setCurrentIdx(i);
       setResults(prev => prev.map((r, idx) => idx === i ? { ...r, status: "running" } : r));
 
-      try {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 55000);
-        let res: Response;
+      // Procesar en páginas de 25 contactos para evitar timeout
+      let offset = 0;
+      let dayCreated = 0, dayUpdated = 0, daySkipped = 0, dayErrors = 0;
+      let dayErrorDetail = "";
+      let dayContacts = 0;
+      let pageHasError = false;
+
+      while (true) {
+        if (stopRequested) break;
         try {
-          res = await fetch("/api/admin/systeme-backfill", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ date: dates[i] }),
-            signal: controller.signal,
-          });
-        } finally {
-          clearTimeout(timeout);
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 50000);
+          let res: Response;
+          try {
+            res = await fetch("/api/admin/systeme-backfill", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ date: dates[i], offset }),
+              signal: controller.signal,
+            });
+          } finally { clearTimeout(timeout); }
+
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+
+          dayCreated += data.created || 0;
+          dayUpdated += data.updated || 0;
+          daySkipped += data.skipped || 0;
+          dayErrors += data.errors || 0;
+          dayContacts = data.totalContacts || dayContacts;
+          if (data.errorDetail) dayErrorDetail = data.errorDetail;
+          if (data.errors > 0) pageHasError = true;
+
+          setTotals(prev => ({
+            created: prev.created + (data.created || 0),
+            updated: prev.updated + (data.updated || 0),
+            skipped: prev.skipped + (data.skipped || 0),
+            errors: prev.errors + (data.errors || 0),
+          }));
+
+          setResults(prev => prev.map((r, idx) => idx === i ? {
+            ...r, status: "running",
+            contacts: dayContacts, created: dayCreated, updated: dayUpdated,
+            skipped: daySkipped, errors: dayErrors,
+          } : r));
+
+          if (!data.hasMore) break;
+          offset = data.nextOffset;
+          await new Promise(r => setTimeout(r, 800));
+
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          dayErrors++;
+          dayErrorDetail = msg;
+          pageHasError = true;
+          break;
         }
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
-        setResults(prev => prev.map((r, idx) => idx === i ? {
-          ...r,
-          status: data.errors > 0 ? "error" : "done",
-          contacts: data.contacts,
-          created: data.created,
-          updated: data.updated,
-          skipped: data.skipped,
-          errors: data.errors,
-          errorDetail: data.errorDetail,
-        } : r));
-        setTotals(prev => ({
-          created: prev.created + (data.created || 0),
-          updated: prev.updated + (data.updated || 0),
-          skipped: prev.skipped + (data.skipped || 0),
-          errors: prev.errors + (data.errors || 0),
-        }));
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        setResults(prev => prev.map((r, idx) => idx === i ? {
-          ...r, status: "error",
-          contacts: 0, created: 0, updated: 0, skipped: 0, errors: 1,
-          errorDetail: msg,
-        } : r));
       }
 
-      // Pausa entre días para no saturar Systeme
-      if (i < dates.length - 1) await new Promise(r => setTimeout(r, 1500));
+      setResults(prev => prev.map((r, idx) => idx === i ? {
+        ...r,
+        status: pageHasError ? "error" : "done",
+        contacts: dayContacts, created: dayCreated, updated: dayUpdated,
+        skipped: daySkipped, errors: dayErrors, errorDetail: dayErrorDetail,
+      } : r));
+
+      if (i < dates.length - 1) await new Promise(r => setTimeout(r, 1000));
     }
 
     setRunning(false);

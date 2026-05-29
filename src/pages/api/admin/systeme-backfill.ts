@@ -49,12 +49,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const session = await getServerSession(req, res, authOptions);
   if (!isSuperAdmin(session?.user?.email)) return res.status(403).end();
 
-  const { date, teamId: bodyTeamId } = req.body as { date: string; teamId?: string };
+  const { date, teamId: bodyTeamId, offset: bodyOffset } = req.body as { date: string; teamId?: string; offset?: number };
   if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
     return res.status(400).json({ error: "date requerido (YYYY-MM-DD)" });
   }
 
   const teamId = bodyTeamId || "bb61ed0d-96dd-4c45-ac9a-c72169bd0b93";
+  const offset = bodyOffset || 0;
+  const PAGE_SIZE = 25;
 
   const [syncConfigRes, teamRes, whitelistRes, fixedRes] = await Promise.all([
     supabaseAdmin.from("sync_configs").select("systeme_api_key").eq("team_id", teamId).single(),
@@ -96,7 +98,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   await paginate(`${base}/api/v1/contact/?key=${tokkoKey}&deleted_at__gt=${date}&format=json&limit=100`);
   await paginate(`${base}/api/v1/contact/?key=${tokkoKey}&created_at__gt=${date}&format=json&limit=100`);
 
-  if (contacts.length === 0) return res.json({ date, contacts: 0, created: 0, updated: 0, skipped: 0, errors: 0 });
+  const totalContacts = contacts.length;
+  const page = contacts.slice(offset, offset + PAGE_SIZE);
+  const hasMore = offset + PAGE_SIZE < totalContacts;
+
+  if (page.length === 0) return res.json({ date, contacts: 0, created: 0, updated: 0, skipped: 0, errors: 0, hasMore: false, totalContacts });
 
   // 2. Leer cache de Supabase para estos emails
   const emails = contacts.map(c => c.email.toLowerCase());
@@ -133,8 +139,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   let created = 0, updated = 0, skipped = 0, errors = 0;
   const errorDetails: string[] = [];
 
-  // 4. Procesar cada contacto
-  for (const contact of contacts) {
+  // 4. Procesar la página de contactos
+  for (const contact of page) {
     if (!contact.email?.trim()) { skipped++; continue; }
 
     try {
@@ -241,7 +247,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   return res.json({
-    date, contacts: contacts.length, created, updated, skipped, errors,
+    date, contacts: page.length, totalContacts, created, updated, skipped, errors,
+    hasMore, nextOffset: offset + PAGE_SIZE,
     errorDetail: errorDetails.slice(0, 5).join("\n") || null,
   });
 }
