@@ -253,22 +253,27 @@ async function syncTags(
 export async function runSync(params: {
   tokkoKey: string;
   systemeKey: string;
-  whitelistTags: string[];  // tags de Tokko a sincronizar
-  fixedTags: string[];      // tags que siempre se agregan
+  whitelistTags: string[];
+  fixedTags: string[];
+  overrideContacts?: TokkoContact[]; // para backfill — omitir la query de hoy
 }): Promise<SyncResult> {
-  const { tokkoKey, systemeKey, whitelistTags, fixedTags } = params;
+  const { tokkoKey, systemeKey, whitelistTags, fixedTags, overrideContacts } = params;
   const result: SyncResult = { created: 0, updated: 0, skipped: 0, errors: 0 };
   const errors: string[] = [];
 
-  // 1. Traer contactos de Tokko modificados/creados hoy
+  // 1. Traer contactos — usar overrideContacts si se provee (backfill)
   let contacts: TokkoContact[] = [];
-  try {
-    contacts = await fetchTokkoContactsToday(tokkoKey);
-  } catch (fetchErr: unknown) {
-    const msg = fetchErr instanceof Error ? fetchErr.message : "Error desconocido";
-    result.errors++;
-    result.errorDetail = `Error al traer contactos de Tokko: ${msg}`;
-    return result;
+  if (overrideContacts) {
+    contacts = overrideContacts;
+  } else {
+    try {
+      contacts = await fetchTokkoContactsToday(tokkoKey);
+    } catch (fetchErr: unknown) {
+      const msg = fetchErr instanceof Error ? fetchErr.message : "Error desconocido";
+      result.errors++;
+      result.errorDetail = `Error al traer contactos de Tokko: ${msg}`;
+      return result;
+    }
   }
 
   if (contacts.length === 0) {
