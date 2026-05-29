@@ -7,10 +7,6 @@ import { authOptions } from "../../../lib/auth";
 import { supabaseAdmin } from "../../../lib/supabase";
 import { getEffectiveEmail } from "../../../lib/impersonation";
 
-interface TokkoContact {
-  tags?: { name: string }[];
-}
-
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "GET") return res.status(405).end();
   const session = await getServerSession(req, res, authOptions);
@@ -37,31 +33,27 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!team?.tokko_api_key) return res.status(400).json({ error: "No hay API key de Tokko configurada" });
 
   try {
-    // Tokko no tiene endpoint de tags — las tags vienen en los contactos.
-    // Traemos la primera página de contactos y extraemos las tags únicas.
-    // limit=100 es suficiente para cubrir la variedad de tags de una inmo.
-    const url = `https://tokkobroker.com/api/v1/contact/?key=${team.tokko_api_key}&format=json&limit=100`;
-    const r = await fetch(url, { signal: AbortSignal.timeout(20000) });
-
-    if (!r.ok) {
-      return res.status(502).json({ error: `Tokko respondió con error ${r.status}` });
-    }
-
-    const data = await r.json();
-    const contacts: TokkoContact[] = data?.objects ?? [];
-
-    // Extraer tags únicas de todos los contactos
+    // Tokko tiene endpoint específico de tags: /api/v1/contact_tag/
+    // Soporta paginación igual que otros endpoints
     const tagSet = new Set<string>();
-    for (const contact of contacts) {
-      for (const tag of (contact.tags ?? [])) {
-        if (tag.name && tag.name.trim()) {
-          tagSet.add(tag.name.trim());
-        }
+    let url: string | null = `https://tokkobroker.com/api/v1/contact_tag/?key=${team.tokko_api_key}&format=json`;
+
+    while (url) {
+      const r: Response = await fetch(url, { signal: AbortSignal.timeout(20000) });
+      if (!r.ok) {
+        return res.status(502).json({ error: `Tokko respondió con error ${r.status}` });
       }
+      const data = await r.json();
+      const objects: { name: string }[] = data?.objects ?? [];
+      for (const tag of objects) {
+        if (tag.name && tag.name.trim()) tagSet.add(tag.name.trim());
+      }
+      const next: string | undefined = data?.meta?.next;
+      url = next ? `https://tokkobroker.com${next}` : null;
     }
 
     const tags = Array.from(tagSet).sort((a, b) => a.localeCompare(b, "es"));
-    return res.json({ tags, contactsSampled: contacts.length });
+    return res.json({ tags });
 
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Error desconocido";
