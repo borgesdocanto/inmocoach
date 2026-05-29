@@ -38,7 +38,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   // Traer contactos directamente con el rango extendido
   const base = "https://tokkobroker.com";
   const key = team.tokko_api_key;
-  const contacts: { email: string; name: string; cellphone?: string; tags?: { name: string }[]; agent?: { name?: string; email?: string } | null; lead_status?: string; is_owner?: boolean }[] = [];
+  const contacts: { id: number; email: string; name: string; cellphone?: string; tags?: { name: string }[]; agent?: { name?: string; email?: string } | null; lead_status?: string; is_owner?: boolean }[] = [];
   const seen = new Set<string>();
 
   async function paginate(startUrl: string) {
