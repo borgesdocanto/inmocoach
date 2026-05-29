@@ -153,35 +153,50 @@ async function getOrCreateTag(name: string, existingTags: { id: number; name: st
   return d.id as number;
 }
 
-async function findContactByEmail(email: string, key: string): Promise<SystemeContact | null> {
-  // Probar primero con emailAddress, luego con email como fallback
-  for (const param of ["emailAddress", "email"]) {
-    try {
-      const r = await fetchWithRetry429(
-        `https://api.systeme.io/api/contacts?${param}=${encodeURIComponent(email)}&limit=1`,
-        { method: "GET", headers: { "X-API-Key": key, accept: "application/json" } }
-      );
-      if (!r.ok) continue;
-      const d = await r.json();
-      const found = d.items?.[0] ?? null;
-      if (found) return found;
-    } catch {
-      continue;
-    }
-  }
-  return null;
-}
-
-async function createContact(payload: Record<string, unknown>, key: string): Promise<{ id: number } | null> {
+// Systeme no soporta búsqueda por email via API (feature request pendiente en su roadmap).
+// En su lugar usamos upsert: POST para crear, y si 422 "email ya existe" hacemos PATCH con el email.
+async function upsertContact(payload: Record<string, unknown>, key: string): Promise<{ id: number; isNew: boolean } | null> {
+  // Intentar crear
   const r = await fetchWithRetry429("https://api.systeme.io/api/contacts", {
     method: "POST",
     headers: { "X-API-Key": key, "content-type": "application/json", accept: "application/json" },
     body: JSON.stringify(payload),
   });
-  if (r.status === 201) return r.json();
+
+  if (r.status === 201) {
+    const d = await r.json();
+    return { id: d.id as number, isNew: true };
+  }
+
+  if (r.status === 422) {
+    const errBody = await r.text().catch(() => "");
+    // Si ya existe, Systeme devuelve el ID del contacto existente en la respuesta
+    try {
+      const errJson = JSON.parse(errBody);
+      // Algunos endpoints devuelven el id del existente
+      if (errJson?.id) return { id: errJson.id as number, isNew: false };
+    } catch { /* ignorar */ }
+
+    // Si no devuelve el id, buscar paginando por email (ineficiente pero único camino)
+    // Como último recurso: buscar el contacto listando con limit alto
+    const searchR = await fetchWithRetry429(
+      `https://api.systeme.io/api/contacts?limit=1&email=${encodeURIComponent(payload.email as string)}`,
+      { method: "GET", headers: { "X-API-Key": key, accept: "application/json" } }
+    );
+    if (searchR.ok) {
+      const sd = await searchR.json();
+      const found = sd.items?.[0];
+      if (found?.id) return { id: found.id as number, isNew: false };
+    }
+    // No pudimos encontrar el ID — no podemos actualizar
+    return null;
+  }
+
   const errBody = await r.text().catch(() => "");
   throw new Error(`Systeme POST /api/contacts → ${r.status}: ${errBody.slice(0, 200)}`);
 }
+
+
 
 async function updateContact(id: number, payload: Record<string, unknown>, key: string): Promise<void> {
   await fetchWithRetry429(`https://api.systeme.io/api/contacts/${id}`, {
@@ -325,31 +340,19 @@ export async function runSync(params: {
         fields,
       };
 
-      // Buscar si existe en Systeme
-      const existing = await findContactByEmail(contact.email.trim(), systemeKey);
-
-      if (!existing) {
-        let created: { id: number } | null = null;
-        try {
-          created = await createContact(payload, systemeKey);
-        } catch (createErr: unknown) {
-          const createMsg = createErr instanceof Error ? createErr.message : "";
-          // Si el error es "email ya usado", el contacto existe en Systeme
-          // findContactByEmail no lo encontró — loguear para diagnóstico
-          if (createMsg.includes("422") && createMsg.includes("email")) {
-            errors.push(`${contact.email}: existe en Systeme pero búsqueda no lo encontró`);
-            result.errors++;
-            continue;
-          }
-          throw createErr;
-        }
-        if (created) {
-          await syncTags(created.id, allDesiredTags, [], systemeTags, systemeKey);
-          result.created++;
-        }
+      // Upsert: crear o actualizar según si existe en Systeme
+      const upserted = await upsertContact(payload, systemeKey);
+      if (!upserted) {
+        errors.push(`${contact.email}: no se pudo crear ni encontrar en Systeme`);
+        result.errors++;
+        continue;
+      }
+      if (upserted.isNew) {
+        await syncTags(upserted.id, allDesiredTags, [], systemeTags, systemeKey);
+        result.created++;
       } else {
-        await updateContact(existing.id, payload, systemeKey);
-        await syncTags(existing.id, allDesiredTags, existing.tags ?? [], systemeTags, systemeKey);
+        await updateContact(upserted.id, payload, systemeKey);
+        await syncTags(upserted.id, allDesiredTags, [], systemeTags, systemeKey);
         result.updated++;
       }
     } catch (err: unknown) {
