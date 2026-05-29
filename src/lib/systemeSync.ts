@@ -108,26 +108,7 @@ async function fetchWithRetry429(url: string, opts: RequestInit, retries = 3): P
 
 function sleep(ms: number) { return new Promise(r => setTimeout(r, ms)); }
 
-// Crear campos custom agent_name y agent_email si no existen
-export async function ensureCustomFields(systemeKey: string): Promise<void> {
-  const data = await systemeGet("/api/contactFields", systemeKey);
-  const existing: string[] = (data.items ?? []).map((f: { slug: string }) => f.slug);
 
-  const needed = [
-    { slug: "agent_name", name: "Nombre del agente Tokko" },
-    { slug: "agent_email", name: "Email del agente Tokko" },
-  ];
-
-  for (const field of needed) {
-    if (!existing.includes(field.slug)) {
-      await fetchWithRetry429("https://api.systeme.io/api/contactFields", {
-        method: "POST",
-        headers: { "X-API-Key": systemeKey, "content-type": "application/json", accept: "application/json" },
-        body: JSON.stringify({ slug: field.slug, name: field.name, fieldType: "text" }),
-      });
-    }
-  }
-}
 
 async function fetchSystemeTags(key: string): Promise<{ id: number; name: string }[]> {
   const data = await systemeGet("/api/tags", key);

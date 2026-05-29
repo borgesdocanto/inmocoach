@@ -7,7 +7,7 @@ import { authOptions } from "../../../lib/auth";
 import { supabaseAdmin } from "../../../lib/supabase";
 import { isSuperAdmin } from "../../../lib/adminGuard";
 import { getEffectiveEmail } from "../../../lib/impersonation";
-import { runSync, ensureCustomFields } from "../../../lib/systemeSync";
+import { runSync } from "../../../lib/systemeSync";
 import { Resend } from "resend";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -86,15 +86,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const logId = log?.id;
 
   try {
-    // Asegurar campos custom en Systeme si es la primera vez
-    if (!syncConfig.systeme_fields_created) {
-      await ensureCustomFields(syncConfig.systeme_api_key);
-      await supabaseAdmin
-        .from("sync_configs")
-        .update({ systeme_fields_created: true, updated_at: new Date().toISOString() })
-        .eq("team_id", teamId);
-    }
-
     const result = await runSync({
       tokkoKey: team.tokko_api_key,
       systemeKey: syncConfig.systeme_api_key,
