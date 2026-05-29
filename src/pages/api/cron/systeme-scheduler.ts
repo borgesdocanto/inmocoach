@@ -7,7 +7,7 @@ import { supabaseAdmin } from "../../../lib/supabase";
 
 const CRON_SECRET = process.env.CRON_SECRET;
 const BASE_URL = process.env.NEXTAUTH_URL ?? "https://www.inmocoach.com.ar";
-const DELAY_MS = 30_000; // 30 segundos entre cada inmo
+const DELAY_MS = 5_000; // 5 segundos entre cada inmo (aumentar si hay muchas)
 
 function sleep(ms: number) { return new Promise(r => setTimeout(r, ms)); }
 
@@ -26,34 +26,32 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (error) return res.status(500).json({ error: error.message });
   if (!configs || configs.length === 0) return res.json({ ok: true, ran: 0 });
 
-  // Responder inmediatamente para que Vercel no time-out la respuesta del cron
-  // Nota: usamos waitUntil si está disponible, sino procesamos igual
-  res.json({ ok: true, queued: configs.length });
+  // Ejecutar secuencialmente y DESPUÉS responder (Vercel mata el proceso al responder)
+  const results: { team_id: string; ok: boolean }[] = [];
 
-  // Ejecutar secuencialmente (fire-and-forget desde la perspectiva del cron)
-  // Como Vercel puede matar el proceso, hacemos el await explícito antes de responder
-  // PERO ya respondimos — esto funciona en Vercel Pro con funciones de hasta 900s
   for (let i = 0; i < configs.length; i++) {
     const { team_id } = configs[i];
     try {
-      await fetch(`${BASE_URL}/api/systeme/run`, {
+      const r = await fetch(`${BASE_URL}/api/systeme/run`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${CRON_SECRET}`,
         },
         body: JSON.stringify({ teamId: team_id }),
-        signal: AbortSignal.timeout(120_000), // 2 min por inmo
+        signal: AbortSignal.timeout(55_000), // 55s por inmo
       });
+      results.push({ team_id, ok: r.ok });
     } catch {
-      // Si una falla, continuamos con la siguiente
+      results.push({ team_id, ok: false });
     }
 
-    // Pausa entre inmos (excepto después de la última)
     if (i < configs.length - 1) {
       await sleep(DELAY_MS);
     }
   }
+
+  return res.json({ ok: true, ran: results.length, results });
 }
 
 // maxDuration no declarado — usa el default del plan
