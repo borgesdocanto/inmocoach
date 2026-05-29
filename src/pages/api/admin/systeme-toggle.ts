@@ -4,12 +4,12 @@ import { NextApiRequest, NextApiResponse } from "next";
 import { getServerSession } from "next-auth";
 import { authOptions } from "../../../lib/auth";
 import { supabaseAdmin } from "../../../lib/supabase";
-import { requireSuperAdmin } from "../../../lib/adminGuard";
+import { isSuperAdmin } from "../../../lib/adminGuard";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") return res.status(405).end();
   const session = await getServerSession(req, res, authOptions);
-  if (!requireSuperAdmin(session, res)) return;
+  if (!isSuperAdmin(session?.user?.email)) return res.status(403).json({ error: "Sin permiso" });
 
   const { teamId, active } = req.body as { teamId: string; active: boolean };
   if (!teamId || typeof active !== "boolean") return res.status(400).json({ error: "Parámetros inválidos" });
