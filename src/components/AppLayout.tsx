@@ -27,9 +27,10 @@ export default function AppLayout({ children, topbarExtra, greeting }: AppLayout
   const { data: session, status } = useSession();
   const [mobileMenu, setMobileMenu] = useState(false);
   const [configOpen, setConfigOpen] = useState(
-    router.pathname.startsWith("/tokko") || router.pathname.startsWith("/config") || router.pathname === "/cuenta"
+    router.pathname.startsWith("/tokko") || router.pathname.startsWith("/config") || router.pathname === "/cuenta" || router.pathname.startsWith("/integraciones")
   );
   const [isOwner, setIsOwner] = useState(false);
+  const [hasSystemeSync, setHasSystemeSync] = useState(false);
   const [agencyLogo, setAgencyLogo] = useState<string | null>(null);
   const [agencyName, setAgencyName] = useState<string | null>(null);
   const [unseenCoach, setUnseenCoach] = useState(0);
@@ -64,6 +65,12 @@ export default function AppLayout({ children, topbarExtra, greeting }: AppLayout
         .then(d => {
           const role = d.subscription?.teamRole;
           setIsOwner(role === "owner" || role === "team_leader");
+          if (role === "owner" || role === "team_leader") {
+            fetch("/api/systeme/config")
+              .then(r => r.ok ? r.json() : null)
+              .then(d => { if (d) setHasSystemeSync(true); })
+              .catch(() => {});
+          }
           const isAdminImpersonating = isSuperAdmin(session?.user?.email);
           if (d.subscription?.isExpired && !isAdminImpersonating) {
             router.replace("/expired");
@@ -123,10 +130,11 @@ export default function AppLayout({ children, topbarExtra, greeting }: AppLayout
     {
       label: "Configuración",
       icon: "⚙",
-      active: path.startsWith("/tokko") || path.startsWith("/config") || path === "/cuenta",
+      active: path.startsWith("/tokko") || path.startsWith("/config") || path === "/cuenta" || path.startsWith("/integraciones"),
       children: [
         { label: "Mi cuenta", href: "/cuenta", active: path === "/cuenta" },
-        { label: "Tokko Broker", href: "/tokko-setup", active: path === "/tokko-setup" },
+        { label: "Integraciones", href: "/tokko-setup", active: path === "/tokko-setup" || path.startsWith("/integraciones") },
+        ...(hasSystemeSync && isOwner ? [{ label: "↳ Systeme.io", href: "/integraciones/systeme", active: path === "/integraciones/systeme" }] : []),
         { label: "Ranking", href: "/config/ranking", active: path === "/config/ranking" },
         ...(isOwner ? [{ label: "Mails", href: "/config/mails", active: path === "/config/mails" }] : []),
         { label: "Mails de fidelización", href: "/config/mails-automaticos", active: path === "/config/mails-automaticos" },

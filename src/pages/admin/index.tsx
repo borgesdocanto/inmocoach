@@ -27,7 +27,7 @@ const PLAN_LABEL: Record<string, string> = {
 interface AdminStats {
   totals: { users: number; paid: number; free: number; withCalendar: number; newLast7: number; newLast30: number; conversionRate: number };
   byPlan: { free: number; individual: number; teams: number };
-  teams: { id: string; name: string; agency_name?: string; owner_email: string; ownerName: string; memberCount: number; created_at: string; status: string; has_tokko: boolean }[];
+  teams: { id: string; name: string; agency_name?: string; owner_email: string; ownerName: string; memberCount: number; created_at: string; status: string; has_tokko: boolean; has_systeme_sync: boolean }[];
   recentPayments: { amount: number; created_at: string; status: string }[];
 }
 
@@ -104,6 +104,8 @@ export default function AdminPanel() {
   const [suspendMsg, setSuspendMsg] = useState("");
   const [tokkoSyncing, setTokkoSyncing] = useState(false);
   const [tokkoSyncMsg, setTokkoSyncMsg] = useState("");
+  const [systemeToggling, setSystemeToggling] = useState(false);
+  const [systemeToggleMsg, setSystemeToggleMsg] = useState("");
   // Cambio de email
   const [changeEmailModal, setChangeEmailModal] = useState<{ email: string; name?: string } | null>(null);
   const [changeEmailNew, setChangeEmailNew] = useState("");
@@ -219,6 +221,26 @@ export default function AdminPanel() {
       setChangeEmailResult({ ok: false, message: "Error de conexión" });
     }
     setChangeEmailLoading(false);
+  };
+
+  const toggleSystemeSync = async (teamId: string, active: boolean) => {
+    setSystemeToggling(true); setSystemeToggleMsg("");
+    try {
+      const r = await fetch("/api/admin/systeme-toggle", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ teamId, active }),
+      });
+      const d = await r.json();
+      if (d.ok) {
+        setSystemeToggleMsg(active ? "✓ Systeme activado" : "✓ Systeme desactivado");
+        setSelectedTeam(prev => prev ? { ...prev, has_systeme_sync: active } : prev);
+        setTimeout(() => setSystemeToggleMsg(""), 3000);
+      } else {
+        setSystemeToggleMsg(`✗ ${d.error || "Error"}`);
+      }
+    } catch { setSystemeToggleMsg("✗ Error de conexión"); }
+    setSystemeToggling(false);
   };
 
   const triggerTokkoSync = async (teamId: string) => {
@@ -807,6 +829,50 @@ export default function AdminPanel() {
                           {tokkoSyncMsg && (
                             <span className={`text-xs font-bold ${tokkoSyncMsg.startsWith("✓") ? "text-green-600" : "text-red-500"}`}>
                               {tokkoSyncMsg}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                      {/* Toggle Systeme.io sync */}
+                      {selectedTeam.has_tokko && (
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => toggleSystemeSync(selectedTeam.id, !selectedTeam.has_systeme_sync)}
+                            disabled={systemeToggling}
+                            className="text-xs font-bold px-3 py-1.5 rounded-lg border transition-colors flex items-center gap-1"
+                            style={{
+                              borderColor: selectedTeam.has_systeme_sync ? "#bbf7d0" : "#e5e7eb",
+                              color: selectedTeam.has_systeme_sync ? "#15803d" : "#6b7280",
+                              background: selectedTeam.has_systeme_sync ? "#f0fdf4" : "#f9fafb",
+                              opacity: systemeToggling ? 0.6 : 1,
+                            }}>
+                            {selectedTeam.has_systeme_sync ? "✓ Systeme ON" : "◌ Systeme OFF"}
+                          </button>
+                          {systemeToggleMsg && (
+                            <span className={}>
+                              {systemeToggleMsg}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                      {/* Toggle Systeme.io sync */}
+                      {selectedTeam.has_tokko && (
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => toggleSystemeSync(selectedTeam.id, !selectedTeam.has_systeme_sync)}
+                            disabled={systemeToggling}
+                            className="text-xs font-bold px-3 py-1.5 rounded-lg border transition-colors flex items-center gap-1"
+                            style={{
+                              borderColor: selectedTeam.has_systeme_sync ? "#bbf7d0" : "#e5e7eb",
+                              color: selectedTeam.has_systeme_sync ? "#15803d" : "#6b7280",
+                              background: selectedTeam.has_systeme_sync ? "#f0fdf4" : "#f9fafb",
+                              opacity: systemeToggling ? 0.6 : 1,
+                            }}>
+                            {selectedTeam.has_systeme_sync ? "✓ Systeme ON" : "◌ Systeme OFF"}
+                          </button>
+                          {systemeToggleMsg && (
+                            <span className={`text-xs font-bold ${systemeToggleMsg.startsWith("✓") ? "text-green-600" : "text-red-500"}`}>
+                              {systemeToggleMsg}
                             </span>
                           )}
                         </div>

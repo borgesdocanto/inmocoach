@@ -1,0 +1,308 @@
+/**
+ * lib/systemeSync.ts
+ * Motor de sincronización Tokko → Systeme.io
+ * Portado del script Python SincronizadorDeContactos
+ */
+
+interface TokkoContact {
+  id: number;
+  email: string;
+  name: string;
+  cellphone?: string;
+  created_at?: string;
+  deleted_at?: string;
+  tags?: { name: string }[];
+  agent?: { name?: string; email?: string } | null;
+  lead_status?: string;
+  is_owner?: boolean;
+}
+
+interface SystemeContact {
+  id: number;
+  email: string;
+  tags?: { id: number; name: string }[];
+}
+
+interface SyncResult {
+  created: number;
+  updated: number;
+  skipped: number;
+  errors: number;
+  errorDetail?: string;
+}
+
+// ── Tokko ──────────────────────────────────────────────────────────────────
+
+export async function fetchTokkoContactsToday(tokkoKey: string): Promise<TokkoContact[]> {
+  const today = new Date().toISOString().split("T")[0];
+  const base = "https://tokkobroker.com";
+  const contacts: TokkoContact[] = [];
+  const seen = new Set<string>();
+
+  // Contactos editados hoy (deleted_at__gt es el campo real para "modificados")
+  async function paginate(startUrl: string) {
+    let url: string | null = startUrl;
+    while (url) {
+      const r = await fetch(url, { signal: AbortSignal.timeout(30000) });
+      if (!r.ok) throw new Error(`Tokko error ${r.status}`);
+      const data = await r.json();
+      for (const c of (data.objects ?? []) as TokkoContact[]) {
+        if (c.email && !seen.has(c.email)) {
+          seen.add(c.email);
+          contacts.push(c);
+        }
+      }
+      const next = data.meta?.next;
+      url = next ? `${base}${next}` : null;
+    }
+  }
+
+  await paginate(`${base}/api/v1/contact/?key=${tokkoKey}&deleted_at__gt=${today}&format=json`);
+  await paginate(`${base}/api/v1/contact/?key=${tokkoKey}&created_at__gt=${today}&format=json`);
+
+  return contacts;
+}
+
+// ── Procesamiento de contacto ──────────────────────────────────────────────
+
+function normalizePhone(phone: string | undefined): string {
+  if (!phone) return "";
+  const clean = phone.replace(/[+\-\s]/g, "");
+  return clean.startsWith("549") ? clean : "";
+}
+
+function classifyStatus(status: string | undefined): string {
+  if (status === "Cerrado") return "Cerrado";
+  if (status === "Perdidos") return "Perdido";
+  return "Activo";
+}
+
+function splitName(fullName: string): { first_name: string; surname: string } {
+  const parts = fullName.trim().split(/\s+/);
+  const first_name = parts.shift() ?? "";
+  const surname = parts.join(" ") || "-";
+  return { first_name, surname };
+}
+
+// ── Systeme.io API ─────────────────────────────────────────────────────────
+
+async function systemeGet(path: string, key: string) {
+  const r = await fetchWithRetry429(`https://api.systeme.io${path}`, {
+    method: "GET",
+    headers: { "X-API-Key": key, accept: "application/json" },
+  });
+  if (!r.ok) throw new Error(`Systeme GET ${path} → ${r.status}`);
+  return r.json();
+}
+
+async function fetchWithRetry429(url: string, opts: RequestInit, retries = 3): Promise<Response> {
+  for (let i = 0; i < retries; i++) {
+    const r = await fetch(url, { ...opts, signal: AbortSignal.timeout(30000) });
+    if (r.status !== 429) return r;
+    const wait = parseInt(r.headers.get("Retry-After") ?? "60") + 3;
+    await sleep(wait * 1000);
+  }
+  throw new Error("429 persistente tras reintentos");
+}
+
+function sleep(ms: number) { return new Promise(r => setTimeout(r, ms)); }
+
+// Crear campos custom agent_name y agent_email si no existen
+export async function ensureCustomFields(systemeKey: string): Promise<void> {
+  const data = await systemeGet("/api/contactFields", systemeKey);
+  const existing: string[] = (data.items ?? []).map((f: { slug: string }) => f.slug);
+
+  const needed = [
+    { slug: "agent_name", name: "Nombre del agente Tokko" },
+    { slug: "agent_email", name: "Email del agente Tokko" },
+  ];
+
+  for (const field of needed) {
+    if (!existing.includes(field.slug)) {
+      await fetchWithRetry429("https://api.systeme.io/api/contactFields", {
+        method: "POST",
+        headers: { "X-API-Key": systemeKey, "content-type": "application/json", accept: "application/json" },
+        body: JSON.stringify({ slug: field.slug, name: field.name, fieldType: "text" }),
+      });
+    }
+  }
+}
+
+async function fetchSystemeTags(key: string): Promise<{ id: number; name: string }[]> {
+  const data = await systemeGet("/api/tags", key);
+  return data.items ?? [];
+}
+
+async function getOrCreateTag(name: string, existingTags: { id: number; name: string }[], key: string): Promise<number | null> {
+  const found = existingTags.find(t => t.name === name);
+  if (found) return found.id;
+
+  const r = await fetchWithRetry429("https://api.systeme.io/api/tags", {
+    method: "POST",
+    headers: { "X-API-Key": key, "content-type": "application/json", accept: "application/json" },
+    body: JSON.stringify({ name }),
+  });
+  if (!r.ok) return null;
+  const d = await r.json();
+  const newTag = { id: d.id, name };
+  existingTags.push(newTag);
+  return d.id;
+}
+
+async function findContactByEmail(email: string, key: string): Promise<SystemeContact | null> {
+  try {
+    const r = await fetchWithRetry429(
+      `https://api.systeme.io/api/contacts?email=${encodeURIComponent(email)}&limit=1`,
+      { method: "GET", headers: { "X-API-Key": key, accept: "application/json" } }
+    );
+    if (!r.ok) return null;
+    const d = await r.json();
+    return d.items?.[0] ?? null;
+  } catch {
+    return null;
+  }
+}
+
+async function createContact(payload: Record<string, unknown>, key: string): Promise<{ id: number } | null> {
+  const r = await fetchWithRetry429("https://api.systeme.io/api/contacts", {
+    method: "POST",
+    headers: { "X-API-Key": key, "content-type": "application/json", accept: "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (r.status === 201) return r.json();
+  return null;
+}
+
+async function updateContact(id: number, payload: Record<string, unknown>, key: string): Promise<void> {
+  await fetchWithRetry429(`https://api.systeme.io/api/contacts/${id}`, {
+    method: "PATCH",
+    headers: { "X-API-Key": key, "content-type": "application/merge-patch+json", accept: "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
+
+async function syncTags(
+  contactId: number,
+  desiredTagNames: string[],
+  currentTags: { id: number; name: string }[],
+  allTags: { id: number; name: string }[],
+  key: string
+): Promise<void> {
+  const currentNames = new Set(currentTags.map(t => t.name));
+  const desiredNames = new Set(desiredTagNames);
+
+  // Agregar las que faltan
+  for (const name of desiredNames) {
+    if (!currentNames.has(name)) {
+      const tagId = await getOrCreateTag(name, allTags, key);
+      if (tagId) {
+        await fetchWithRetry429(`https://api.systeme.io/api/contacts/${contactId}/tags`, {
+          method: "POST",
+          headers: { "X-API-Key": key, "content-type": "application/json" },
+          body: JSON.stringify({ tagId }),
+        });
+      }
+    }
+  }
+
+  // Quitar las que sobran (solo las que InmoCoach maneja — no tocamos tags manuales del usuario)
+  for (const ct of currentTags) {
+    if (!desiredNames.has(ct.name) && allTags.some(t => t.name === ct.name)) {
+      await fetchWithRetry429(`https://api.systeme.io/api/contacts/${contactId}/tags/${ct.id}`, {
+        method: "DELETE",
+        headers: { "X-API-Key": key },
+      });
+    }
+  }
+}
+
+// ── Función principal ──────────────────────────────────────────────────────
+
+export async function runSync(params: {
+  tokkoKey: string;
+  systemeKey: string;
+  whitelistTags: string[];  // tags de Tokko a sincronizar
+  fixedTags: string[];      // tags que siempre se agregan
+}): Promise<SyncResult> {
+  const { tokkoKey, systemeKey, whitelistTags, fixedTags } = params;
+  const result: SyncResult = { created: 0, updated: 0, skipped: 0, errors: 0 };
+  const errors: string[] = [];
+
+  // 1. Traer contactos de Tokko modificados/creados hoy
+  const contacts = await fetchTokkoContactsToday(tokkoKey);
+
+  if (contacts.length === 0) return result;
+
+  // 2. Cargar tags de Systeme una sola vez
+  const systemeTags = await fetchSystemeTags(systemeKey);
+
+  // 3. Procesar cada contacto
+  for (const contact of contacts) {
+    if (!contact.email?.trim()) { result.skipped++; continue; }
+
+    try {
+      const { first_name, surname } = splitName(contact.name ?? "");
+      const phone = normalizePhone(contact.cellphone);
+      const status = classifyStatus(contact.lead_status);
+      const agentName = contact.agent?.name ?? "";
+      const agentEmail = contact.agent?.email ?? "";
+
+      // Tags: filtrar por whitelist + agregar fijas + is_owner si aplica
+      const tokkoTagNames = (contact.tags ?? []).map(t => t.name);
+      const filteredTags = whitelistTags.length > 0
+        ? tokkoTagNames.filter(n => whitelistTags.includes(n))
+        : tokkoTagNames;
+
+      const allDesiredTags = Array.from(new Set([
+        ...fixedTags,
+        ...filteredTags,
+        ...(contact.is_owner ? ["is_owner"] : []),
+        status,
+      ]));
+
+      // Payload del contacto
+      const fields: { slug: string; value: string }[] = [
+        { slug: "surname", value: surname },
+        { slug: "phone_number", value: phone },
+        { slug: "status", value: status },
+        { slug: "agent_name", value: agentName },
+        { slug: "agent_email", value: agentEmail },
+      ];
+
+      const payload = {
+        email: contact.email.trim(),
+        firstName: first_name,
+        locale: "es",
+        fields,
+      };
+
+      // Buscar si existe en Systeme
+      const existing = await findContactByEmail(contact.email.trim(), systemeKey);
+
+      if (!existing) {
+        const created = await createContact(payload, systemeKey);
+        if (created) {
+          await syncTags(created.id, allDesiredTags, [], systemeTags, systemeKey);
+          result.created++;
+        } else {
+          result.errors++;
+          errors.push(`No se pudo crear: ${contact.email}`);
+        }
+      } else {
+        await updateContact(existing.id, payload, systemeKey);
+        await syncTags(existing.id, allDesiredTags, existing.tags ?? [], systemeTags, systemeKey);
+        result.updated++;
+      }
+    } catch (err: unknown) {
+      result.errors++;
+      const msg = err instanceof Error ? err.message : "Error desconocido";
+      errors.push(`${contact.email}: ${msg}`);
+    }
+  }
+
+  if (errors.length > 0) {
+    result.errorDetail = errors.slice(0, 10).join("\n");
+  }
+
+  return result;
+}
