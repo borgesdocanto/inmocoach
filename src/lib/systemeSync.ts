@@ -152,7 +152,8 @@ async function createContact(payload: Record<string, unknown>, key: string): Pro
     body: JSON.stringify(payload),
   });
   if (r.status === 201) return r.json();
-  return null;
+  const errBody = await r.text().catch(() => "");
+  throw new Error(`Systeme POST /api/contacts → ${r.status}: ${errBody.slice(0, 200)}`);
 }
 
 async function updateContact(id: number, payload: Record<string, unknown>, key: string): Promise<void> {
