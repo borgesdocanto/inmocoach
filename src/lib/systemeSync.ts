@@ -153,45 +153,42 @@ async function getOrCreateTag(name: string, existingTags: { id: number; name: st
   return d.id as number;
 }
 
-// Systeme no soporta búsqueda por email via API (feature request pendiente en su roadmap).
-// En su lugar usamos upsert: POST para crear, y si 422 "email ya existe" hacemos PATCH con el email.
-async function upsertContact(payload: Record<string, unknown>, key: string): Promise<{ id: number; isNew: boolean } | null> {
-  // Intentar crear
+// Cache de contactos de Systeme: email.toLowerCase() → id
+// Se carga una vez al inicio de la corrida paginando con hasMore/startingAfter
+async function loadSystemeContactsCache(key: string): Promise<Map<string, number>> {
+  const cache = new Map<string, number>();
+  let startingAfter: number | null = null;
+  let hasMore = true;
+
+  while (hasMore) {
+    const url = startingAfter
+      ? `https://api.systeme.io/api/contacts?limit=100&startingAfter=${startingAfter}`
+      : "https://api.systeme.io/api/contacts?limit=100";
+
+    const r: Response = await fetchWithRetry429(url, {
+      method: "GET",
+      headers: { "X-API-Key": key, accept: "application/json" },
+    });
+    if (!r.ok) throw new Error(`Systeme GET /api/contacts → ${r.status}`);
+
+    const d = await r.json();
+    const items: { id: number; email: string }[] = d.items ?? [];
+    for (const item of items) {
+      if (item.email) cache.set(item.email.toLowerCase(), item.id);
+    }
+    hasMore = d.hasMore === true && items.length > 0;
+    if (hasMore) startingAfter = items[items.length - 1].id;
+  }
+  return cache;
+}
+
+async function createContact(payload: Record<string, unknown>, key: string): Promise<{ id: number } | null> {
   const r = await fetchWithRetry429("https://api.systeme.io/api/contacts", {
     method: "POST",
     headers: { "X-API-Key": key, "content-type": "application/json", accept: "application/json" },
     body: JSON.stringify(payload),
   });
-
-  if (r.status === 201) {
-    const d = await r.json();
-    return { id: d.id as number, isNew: true };
-  }
-
-  if (r.status === 422) {
-    const errBody = await r.text().catch(() => "");
-    // Si ya existe, Systeme devuelve el ID del contacto existente en la respuesta
-    try {
-      const errJson = JSON.parse(errBody);
-      // Algunos endpoints devuelven el id del existente
-      if (errJson?.id) return { id: errJson.id as number, isNew: false };
-    } catch { /* ignorar */ }
-
-    // Si no devuelve el id, buscar paginando por email (ineficiente pero único camino)
-    // Como último recurso: buscar el contacto listando con limit alto
-    const searchR = await fetchWithRetry429(
-      `https://api.systeme.io/api/contacts?limit=1&email=${encodeURIComponent(payload.email as string)}`,
-      { method: "GET", headers: { "X-API-Key": key, accept: "application/json" } }
-    );
-    if (searchR.ok) {
-      const sd = await searchR.json();
-      const found = sd.items?.[0];
-      if (found?.id) return { id: found.id as number, isNew: false };
-    }
-    // No pudimos encontrar el ID — no podemos actualizar
-    return null;
-  }
-
+  if (r.status === 201) return r.json();
   const errBody = await r.text().catch(() => "");
   throw new Error(`Systeme POST /api/contacts → ${r.status}: ${errBody.slice(0, 200)}`);
 }
@@ -298,6 +295,18 @@ export async function runSync(params: {
     }
   }
 
+  // 2c. Cargar cache de todos los contactos existentes en Systeme (email → id)
+  // El script Python original hace esto para evitar la falta de búsqueda por email en la API
+  let contactsCache = new Map<string, number>();
+  try {
+    contactsCache = await loadSystemeContactsCache(systemeKey);
+  } catch (cacheErr: unknown) {
+    const cacheMsg = cacheErr instanceof Error ? cacheErr.message : "Error";
+    result.errors++;
+    result.errorDetail = `Error al cargar contactos de Systeme: ${cacheMsg}`;
+    return result;
+  }
+
   // 3. Procesar cada contacto
   for (const contact of contacts) {
       // Sin email → no se puede sincronizar en Systeme
@@ -340,19 +349,22 @@ export async function runSync(params: {
         fields,
       };
 
-      // Upsert: crear o actualizar según si existe en Systeme
-      const upserted = await upsertContact(payload, systemeKey);
-      if (!upserted) {
-        errors.push(`${contact.email}: no se pudo crear ni encontrar en Systeme`);
-        result.errors++;
-        continue;
-      }
-      if (upserted.isNew) {
-        await syncTags(upserted.id, allDesiredTags, [], systemeTags, systemeKey);
-        result.created++;
+      // Buscar en cache local si el contacto ya existe en Systeme
+      const emailKey = contact.email.trim().toLowerCase();
+      const existingId = contactsCache.get(emailKey);
+
+      if (!existingId) {
+        // Crear nuevo contacto
+        const created = await createContact(payload, systemeKey);
+        if (created) {
+          contactsCache.set(emailKey, created.id); // actualizar cache
+          await syncTags(created.id, allDesiredTags, [], systemeTags, systemeKey);
+          result.created++;
+        }
       } else {
-        await updateContact(upserted.id, payload, systemeKey);
-        await syncTags(upserted.id, allDesiredTags, [], systemeTags, systemeKey);
+        // Actualizar contacto existente
+        await updateContact(existingId, payload, systemeKey);
+        await syncTags(existingId, allDesiredTags, [], systemeTags, systemeKey);
         result.updated++;
       }
     } catch (err: unknown) {
