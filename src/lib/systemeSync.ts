@@ -41,9 +41,10 @@ export async function fetchTokkoContactsToday(tokkoKey: string): Promise<TokkoCo
 
   // Contactos editados hoy (deleted_at__gt es el campo real para "modificados")
   async function paginate(startUrl: string) {
-    let url: string | null = startUrl;
-    while (url) {
-      const r = await fetch(url, { signal: AbortSignal.timeout(30000) });
+    let currentUrl: string | null = startUrl;
+    while (currentUrl) {
+      const fetchUrl: string = currentUrl;
+      const r: Response = await fetch(fetchUrl, { signal: AbortSignal.timeout(30000) });
       if (!r.ok) throw new Error(`Tokko error ${r.status}`);
       const data = await r.json();
       for (const c of (data.objects ?? []) as TokkoContact[]) {
@@ -52,8 +53,8 @@ export async function fetchTokkoContactsToday(tokkoKey: string): Promise<TokkoCo
           contacts.push(c);
         }
       }
-      const next = data.meta?.next;
-      url = next ? `${base}${next}` : null;
+      const next: string | undefined = data.meta?.next;
+      currentUrl = next ? `${base}${next}` : null;
     }
   }
 
