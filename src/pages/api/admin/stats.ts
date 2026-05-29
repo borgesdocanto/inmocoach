@@ -55,7 +55,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       ownerName: users.find(u => u.email === t.owner_email)?.name || t.owner_email,
       status: (t as any).status || "active",
       has_tokko: !!((t as any).tokko_api_key),
-      has_systeme_sync: !!((syncConfigs || []) as {team_id: string; is_active: boolean}[]).find(sc => sc.team_id === t.id && sc.is_active),
+      has_systeme_sync: !!((syncConfigs || []) as unknown as {team_id: string; is_active: boolean}[]).find(sc => sc.team_id === t.id && sc.is_active),
     })),
     recentPayments: payments || [],
   });
