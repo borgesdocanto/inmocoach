@@ -855,28 +855,6 @@ export default function AdminPanel() {
                           )}
                         </div>
                       )}
-                      {/* Toggle Systeme.io sync */}
-                      {selectedTeam.has_tokko && (
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => toggleSystemeSync(selectedTeam.id, !selectedTeam.has_systeme_sync)}
-                            disabled={systemeToggling}
-                            className="text-xs font-bold px-3 py-1.5 rounded-lg border transition-colors flex items-center gap-1"
-                            style={{
-                              borderColor: selectedTeam.has_systeme_sync ? "#bbf7d0" : "#e5e7eb",
-                              color: selectedTeam.has_systeme_sync ? "#15803d" : "#6b7280",
-                              background: selectedTeam.has_systeme_sync ? "#f0fdf4" : "#f9fafb",
-                              opacity: systemeToggling ? 0.6 : 1,
-                            }}>
-                            {selectedTeam.has_systeme_sync ? "✓ Systeme ON" : "◌ Systeme OFF"}
-                          </button>
-                          {systemeToggleMsg && (
-                            <span className={`text-xs font-bold ${systemeToggleMsg.startsWith("✓") ? "text-green-600" : "text-red-500"}`}>
-                              {systemeToggleMsg}
-                            </span>
-                          )}
-                        </div>
-                      )}
                       {/* Suspend / Reactivate team */}
                       {(() => {
                         const isSuspended = selectedTeam.status === "paused" || selectedTeam.status === "cancelled";
