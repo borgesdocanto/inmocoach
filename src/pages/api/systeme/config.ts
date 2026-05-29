@@ -79,22 +79,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       supabaseAdmin.from("sync_tags_fixed").delete().eq("team_id", teamId),
     ]);
 
-    const inserts: Promise<unknown>[] = [];
     if (whitelist.length > 0) {
-      inserts.push(
-        supabaseAdmin.from("sync_tags_whitelist").insert(
-          whitelist.map((tag_name: string) => ({ team_id: teamId, tag_name }))
-        )
+      await supabaseAdmin.from("sync_tags_whitelist").insert(
+        whitelist.map((tag_name: string) => ({ team_id: teamId, tag_name }))
       );
     }
     if (fixed && fixed.length > 0) {
-      inserts.push(
-        supabaseAdmin.from("sync_tags_fixed").insert(
-          fixed.map((tag_name: string) => ({ team_id: teamId, tag_name }))
-        )
+      await supabaseAdmin.from("sync_tags_fixed").insert(
+        fixed.map((tag_name: string) => ({ team_id: teamId, tag_name }))
       );
     }
-    await Promise.all(inserts);
     return res.json({ ok: true });
   }
 
