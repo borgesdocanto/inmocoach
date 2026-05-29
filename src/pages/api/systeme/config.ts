@@ -62,10 +62,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(400).json({ error: "Debés seleccionar al menos 4 tags de Tokko para sincronizar" });
     }
 
-    if (apiKey) {
-      const valid = await validateSystemeKey(apiKey);
-      if (!valid) return res.status(400).json({ error: "API key de Systeme.io inválida o sin acceso" });
-    } else if (!syncConfig.systeme_api_key) {
+    if (!apiKey && !syncConfig.systeme_api_key) {
       return res.status(400).json({ error: "Debés ingresar tu API key de Systeme.io" });
     }
 
@@ -95,14 +92,3 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   return res.status(405).end();
 }
 
-async function validateSystemeKey(apiKey: string): Promise<boolean> {
-  try {
-    const r = await fetch("https://api.systeme.io/api/tags?limit=1", {
-      headers: { "X-API-Key": apiKey, accept: "application/json" },
-      signal: AbortSignal.timeout(8000),
-    });
-    return r.status === 200;
-  } catch {
-    return false;
-  }
-}
