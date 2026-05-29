@@ -154,18 +154,22 @@ async function getOrCreateTag(name: string, existingTags: { id: number; name: st
 }
 
 async function findContactByEmail(email: string, key: string): Promise<SystemeContact | null> {
-  try {
-    // Systeme usa emailAddress (no email) como parámetro de búsqueda
-    const r = await fetchWithRetry429(
-      `https://api.systeme.io/api/contacts?emailAddress=${encodeURIComponent(email)}&limit=1`,
-      { method: "GET", headers: { "X-API-Key": key, accept: "application/json" } }
-    );
-    if (!r.ok) return null;
-    const d = await r.json();
-    return d.items?.[0] ?? null;
-  } catch {
-    return null;
+  // Probar primero con emailAddress, luego con email como fallback
+  for (const param of ["emailAddress", "email"]) {
+    try {
+      const r = await fetchWithRetry429(
+        `https://api.systeme.io/api/contacts?${param}=${encodeURIComponent(email)}&limit=1`,
+        { method: "GET", headers: { "X-API-Key": key, accept: "application/json" } }
+      );
+      if (!r.ok) continue;
+      const d = await r.json();
+      const found = d.items?.[0] ?? null;
+      if (found) return found;
+    } catch {
+      continue;
+    }
   }
+  return null;
 }
 
 async function createContact(payload: Record<string, unknown>, key: string): Promise<{ id: number } | null> {
@@ -330,10 +334,11 @@ export async function runSync(params: {
           created = await createContact(payload, systemeKey);
         } catch (createErr: unknown) {
           const createMsg = createErr instanceof Error ? createErr.message : "";
-          // Si el error es "email ya usado", buscar con otro método y actualizar
+          // Si el error es "email ya usado", el contacto existe en Systeme
+          // findContactByEmail no lo encontró — loguear para diagnóstico
           if (createMsg.includes("422") && createMsg.includes("email")) {
-            // Buscar por emailAddress exacto vía startingAfter no funciona — skip y contar como actualizado
-            result.skipped++;
+            errors.push(`${contact.email}: existe en Systeme pero búsqueda no lo encontró`);
+            result.errors++;
             continue;
           }
           throw createErr;
