@@ -240,9 +240,23 @@ export async function runSync(params: {
   const errors: string[] = [];
 
   // 1. Traer contactos de Tokko modificados/creados hoy
-  const contacts = await fetchTokkoContactsToday(tokkoKey);
+  let contacts: TokkoContact[] = [];
+  try {
+    contacts = await fetchTokkoContactsToday(tokkoKey);
+  } catch (fetchErr: unknown) {
+    const msg = fetchErr instanceof Error ? fetchErr.message : "Error desconocido";
+    result.errors++;
+    result.errorDetail = `Error al traer contactos de Tokko: ${msg}`;
+    return result;
+  }
 
-  if (contacts.length === 0) return result;
+  if (contacts.length === 0) {
+    result.errorDetail = "Tokko no devolvió contactos para hoy (0 resultados)";
+    return result;
+  }
+
+  // Guardar total en errorDetail temporalmente para debug
+  result.errorDetail = `Tokko devolvió ${contacts.length} contactos`;
 
   // 2. Cargar tags de Systeme una sola vez
   const systemeTags = await fetchSystemeTags(systemeKey);
