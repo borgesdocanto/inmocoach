@@ -134,6 +134,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return ia - ib;
       });
 
+    // Agregar al final grupo especial con campos booleanos de Tokko que se convierten en tags
+    groups.push({
+      group: "Campos especiales Tokko",
+      tags: ["is_owner"],
+    });
+
     return res.json({ groups, total: allTags.length });
 
   } catch (err: unknown) {

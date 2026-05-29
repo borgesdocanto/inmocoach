@@ -330,21 +330,34 @@ export default function SystemePage() {
                       {/* Tags del grupo */}
                       {isExpanded && (
                         <div style={{ padding: "12px 14px", display: "flex", flexWrap: "wrap", gap: 6, background: "white" }}>
+                          {group === "Campos especiales Tokko" && (
+                            <p style={{ width: "100%", fontSize: 12, color: "#6b7280", margin: "0 0 8px", background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 6, padding: "6px 10px" }}>
+                              Estas tags se generan a partir de campos del contacto en Tokko, no son tags nativas. Solo se asignan a los contactos que cumplen la condición.
+                            </p>
+                          )}
                           {filtered.map(tag => {
                             const selected = selectedTags.has(tag);
+                            const isSpecial = group === "Campos especiales Tokko";
+                            const specialDesc: Record<string, string> = {
+                              "is_owner": "Propietario — el contacto tiene o tuvo un inmueble asociado en Tokko (en venta, alquiler o ya operado)",
+                            };
                             return (
-                              <button
-                                key={tag}
-                                onClick={() => toggleTag(tag)}
-                                style={{
-                                  padding: "5px 12px", borderRadius: 20, fontSize: 12, fontWeight: 600,
-                                  border: `1.5px solid ${selected ? BRAND : "#e5e7eb"}`,
-                                  background: selected ? "#e0f2fe" : "white",
-                                  color: selected ? "#0369a1" : "#6b7280",
-                                  cursor: "pointer",
-                                }}>
-                                {selected ? "✓ " : ""}{tag}
-                              </button>
+                              <div key={tag} style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                                <button
+                                  onClick={() => toggleTag(tag)}
+                                  style={{
+                                    padding: "5px 12px", borderRadius: 20, fontSize: 12, fontWeight: 600,
+                                    border: `1.5px solid ${selected ? BRAND : isSpecial ? "#fbbf24" : "#e5e7eb"}`,
+                                    background: selected ? "#e0f2fe" : isSpecial ? "#fffbeb" : "white",
+                                    color: selected ? "#0369a1" : isSpecial ? "#92400e" : "#6b7280",
+                                    cursor: "pointer",
+                                  }}>
+                                  {selected ? "✓ " : ""}{tag}
+                                </button>
+                                {isSpecial && specialDesc[tag] && (
+                                  <span style={{ fontSize: 10, color: "#9ca3af", paddingLeft: 4 }}>{specialDesc[tag]}</span>
+                                )}
+                              </div>
                             );
                           })}
                         </div>
