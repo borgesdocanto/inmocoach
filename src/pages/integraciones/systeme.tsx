@@ -192,7 +192,7 @@ export default function SystemePage() {
   return (
     <AppLayout>
       <Head><title>Systeme.io — InmoCoach</title></Head>
-      <div style={{ maxWidth: 720, padding: "28px 24px", margin: "0 auto" }}>
+      <div style={{ maxWidth: 900, padding: "28px 24px", margin: "0 auto" }}>
 
         {/* Header */}
         <div style={{ marginBottom: 28 }}>
@@ -282,14 +282,14 @@ export default function SystemePage() {
                     boxSizing: "border-box",
                   }}
                 />
-                <span style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "#9ca3af", fontSize: 13 }}>🔍</span>
+                <span style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "#9ca3af", fontSize: 12, fontWeight: 900 }}>⌕</span>
                 {tagSearch && (
                   <button onClick={() => setTagSearch("")} style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "#9ca3af", fontSize: 16 }}>×</button>
                 )}
               </div>
 
-              {/* Grupos expandibles */}
-              <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 400, overflowY: "auto" }}>
+              {/* Grupos expandibles — flujo natural sin scroll interno */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                 {tagGroups.map(({ group, tags }) => {
                   const filtered = tagSearch
                     ? tags.filter(t => t.toLowerCase().includes(tagSearch.toLowerCase()))
@@ -299,37 +299,37 @@ export default function SystemePage() {
                   const selectedInGroup = filtered.filter(t => selectedTags.has(t)).length;
 
                   return (
-                    <div key={group} style={{ border: "1px solid #f3f4f6", borderRadius: 8, overflow: "hidden" }}>
+                    <div key={group} style={{ borderRadius: 8, overflow: "hidden", border: "1px solid #e5e7eb" }}>
                       {/* Header del grupo */}
                       <button
                         onClick={() => {
                           setExpandedGroups(prev => {
                             const next = new Set(prev);
-                            if (next.has(group)) next.delete(group);
-                            else next.add(group);
+                            if (next.has(group)) next.delete(group); else next.add(group);
                             return next;
                           });
                         }}
                         style={{
                           width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
-                          padding: "8px 12px", background: "#f9fafb", border: "none", cursor: "pointer",
-                          textAlign: "left",
+                          padding: "10px 14px", background: isExpanded ? "#f0f9ff" : "#f9fafb",
+                          border: "none", cursor: "pointer", textAlign: "left",
+                          borderBottom: isExpanded ? "1px solid #e0f2fe" : "none",
                         }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                          <span style={{ fontSize: 12, fontWeight: 800, color: "#374151" }}>{group}</span>
-                          <span style={{ fontSize: 11, color: "#9ca3af" }}>{filtered.length} tags</span>
+                          <span style={{ fontSize: 13, fontWeight: 700, color: isExpanded ? "#0369a1" : "#374151" }}>{group}</span>
+                          <span style={{ fontSize: 11, color: "#9ca3af", background: "#f3f4f6", padding: "1px 7px", borderRadius: 10 }}>{filtered.length}</span>
                           {selectedInGroup > 0 && (
-                            <span style={{ fontSize: 11, fontWeight: 700, color: "#0369a1", background: "#e0f2fe", padding: "1px 6px", borderRadius: 10 }}>
-                              {selectedInGroup} seleccionadas
+                            <span style={{ fontSize: 11, fontWeight: 700, color: "#0369a1", background: "#dbeafe", padding: "1px 8px", borderRadius: 10 }}>
+                              ✓ {selectedInGroup}
                             </span>
                           )}
                         </div>
-                        <span style={{ fontSize: 12, color: "#9ca3af" }}>{isExpanded ? "▲" : "▼"}</span>
+                        <span style={{ fontSize: 10, color: "#9ca3af", transform: isExpanded ? "rotate(180deg)" : "none", transition: "transform 0.2s", display: "inline-block" }}>▼</span>
                       </button>
 
                       {/* Tags del grupo */}
                       {isExpanded && (
-                        <div style={{ padding: "10px 12px", display: "flex", flexWrap: "wrap", gap: 6, background: "white" }}>
+                        <div style={{ padding: "12px 14px", display: "flex", flexWrap: "wrap", gap: 6, background: "white" }}>
                           {filtered.map(tag => {
                             const selected = selectedTags.has(tag);
                             return (
@@ -337,11 +337,11 @@ export default function SystemePage() {
                                 key={tag}
                                 onClick={() => toggleTag(tag)}
                                 style={{
-                                  padding: "4px 10px", borderRadius: 20, fontSize: 12, fontWeight: 600,
+                                  padding: "5px 12px", borderRadius: 20, fontSize: 12, fontWeight: 600,
                                   border: `1.5px solid ${selected ? BRAND : "#e5e7eb"}`,
-                                  background: selected ? "#e0f2fe" : "#f9fafb",
+                                  background: selected ? "#e0f2fe" : "white",
                                   color: selected ? "#0369a1" : "#6b7280",
-                                  cursor: "pointer", transition: "all 0.12s",
+                                  cursor: "pointer",
                                 }}>
                                 {selected ? "✓ " : ""}{tag}
                               </button>
@@ -353,7 +353,9 @@ export default function SystemePage() {
                   );
                 })}
                 {tagGroups.length === 0 && (
-                  <span style={{ fontSize: 13, color: "#9ca3af" }}>No se encontraron tags en Tokko</span>
+                  <div style={{ padding: "20px 0", textAlign: "center", color: "#9ca3af", fontSize: 13 }}>
+                    No se encontraron tags en Tokko
+                  </div>
                 )}
               </div>
 
