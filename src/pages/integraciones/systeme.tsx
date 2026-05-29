@@ -41,7 +41,9 @@ export default function SystemePage() {
 
   const [loading, setLoading] = useState(true);
   const [config, setConfig] = useState<Config | null>(null);
-  const [tokkoTags, setTokkoTags] = useState<string[]>([]);
+  const [tagGroups, setTagGroups] = useState<{ group: string; tags: string[] }[]>([]);
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+  const [tagSearch, setTagSearch] = useState("");
   const [tagsLoading, setTagsLoading] = useState(false);
   const [tagsError, setTagsError] = useState("");
   const [logs, setLogs] = useState<SyncLog[]>([]);
@@ -88,8 +90,11 @@ export default function SystemePage() {
     try {
       const r = await fetch("/api/systeme/tokko-tags");
       const d = await r.json();
-      if (d.tags) setTokkoTags(d.tags);
-      else setTagsError(d.error || "No se pudieron cargar las tags");
+      if (d.groups) {
+        setTagGroups(d.groups);
+        // Expandir el primer grupo por defecto
+        if (d.groups.length > 0) setExpandedGroups(new Set([d.groups[0].group]));
+      } else setTagsError(d.error || "No se pudieron cargar las tags");
     } catch { setTagsError("Error de conexión con Tokko"); }
     setTagsLoading(false);
   };
@@ -265,33 +270,96 @@ export default function SystemePage() {
             </div>
           ) : (
             <div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 8 }}>
-                {tokkoTags.map(tag => {
-                  const selected = selectedTags.has(tag);
+              {/* Buscador */}
+              <div style={{ position: "relative", marginBottom: 12 }}>
+                <input
+                  value={tagSearch}
+                  onChange={e => setTagSearch(e.target.value)}
+                  placeholder="Buscar tags..."
+                  style={{
+                    width: "100%", padding: "8px 12px 8px 32px", borderRadius: 8,
+                    border: "1px solid #e5e7eb", fontSize: 13, outline: "none",
+                    boxSizing: "border-box",
+                  }}
+                />
+                <span style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "#9ca3af", fontSize: 13 }}>🔍</span>
+                {tagSearch && (
+                  <button onClick={() => setTagSearch("")} style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "#9ca3af", fontSize: 16 }}>×</button>
+                )}
+              </div>
+
+              {/* Grupos expandibles */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 400, overflowY: "auto" }}>
+                {tagGroups.map(({ group, tags }) => {
+                  const filtered = tagSearch
+                    ? tags.filter(t => t.toLowerCase().includes(tagSearch.toLowerCase()))
+                    : tags;
+                  if (filtered.length === 0) return null;
+                  const isExpanded = expandedGroups.has(group) || !!tagSearch;
+                  const selectedInGroup = filtered.filter(t => selectedTags.has(t)).length;
+
                   return (
-                    <button
-                      key={tag}
-                      onClick={() => toggleTag(tag)}
-                      style={{
-                        padding: "5px 12px", borderRadius: 20, fontSize: 12, fontWeight: 600,
-                        border: `1.5px solid ${selected ? BRAND : "#e5e7eb"}`,
-                        background: selected ? "#e0f2fe" : "#f9fafb",
-                        color: selected ? "#0369a1" : "#6b7280",
-                        cursor: "pointer", transition: "all 0.15s",
-                      }}>
-                      {selected ? "✓ " : ""}{tag}
-                    </button>
+                    <div key={group} style={{ border: "1px solid #f3f4f6", borderRadius: 8, overflow: "hidden" }}>
+                      {/* Header del grupo */}
+                      <button
+                        onClick={() => {
+                          setExpandedGroups(prev => {
+                            const next = new Set(prev);
+                            if (next.has(group)) next.delete(group);
+                            else next.add(group);
+                            return next;
+                          });
+                        }}
+                        style={{
+                          width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
+                          padding: "8px 12px", background: "#f9fafb", border: "none", cursor: "pointer",
+                          textAlign: "left",
+                        }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <span style={{ fontSize: 12, fontWeight: 800, color: "#374151" }}>{group}</span>
+                          <span style={{ fontSize: 11, color: "#9ca3af" }}>{filtered.length} tags</span>
+                          {selectedInGroup > 0 && (
+                            <span style={{ fontSize: 11, fontWeight: 700, color: "#0369a1", background: "#e0f2fe", padding: "1px 6px", borderRadius: 10 }}>
+                              {selectedInGroup} seleccionadas
+                            </span>
+                          )}
+                        </div>
+                        <span style={{ fontSize: 12, color: "#9ca3af" }}>{isExpanded ? "▲" : "▼"}</span>
+                      </button>
+
+                      {/* Tags del grupo */}
+                      {isExpanded && (
+                        <div style={{ padding: "10px 12px", display: "flex", flexWrap: "wrap", gap: 6, background: "white" }}>
+                          {filtered.map(tag => {
+                            const selected = selectedTags.has(tag);
+                            return (
+                              <button
+                                key={tag}
+                                onClick={() => toggleTag(tag)}
+                                style={{
+                                  padding: "4px 10px", borderRadius: 20, fontSize: 12, fontWeight: 600,
+                                  border: `1.5px solid ${selected ? BRAND : "#e5e7eb"}`,
+                                  background: selected ? "#e0f2fe" : "#f9fafb",
+                                  color: selected ? "#0369a1" : "#6b7280",
+                                  cursor: "pointer", transition: "all 0.12s",
+                                }}>
+                                {selected ? "✓ " : ""}{tag}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
                   );
                 })}
-                {tokkoTags.length === 0 && (
+                {tagGroups.length === 0 && (
                   <span style={{ fontSize: 13, color: "#9ca3af" }}>No se encontraron tags en Tokko</span>
                 )}
               </div>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span style={{
-                  fontSize: 12, fontWeight: 700,
-                  color: selectedTags.size >= MIN_TAGS ? "#16a34a" : "#dc2626",
-                }}>
+
+              {/* Contador y actualizar */}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 10 }}>
+                <span style={{ fontSize: 12, fontWeight: 700, color: selectedTags.size >= MIN_TAGS ? "#16a34a" : "#dc2626" }}>
                   {selectedTags.size} seleccionada{selectedTags.size !== 1 ? "s" : ""} · mínimo {MIN_TAGS}
                 </span>
                 <button onClick={loadTags} style={{ fontSize: 12, color: "#9ca3af", background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>
