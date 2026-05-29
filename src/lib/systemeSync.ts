@@ -124,11 +124,14 @@ async function getOrCreateTag(name: string, existingTags: { id: number; name: st
     headers: { "X-API-Key": key, "content-type": "application/json", accept: "application/json" },
     body: JSON.stringify({ name }),
   });
-  if (!r.ok) return null;
+  if (!r.ok) {
+    const errBody = await r.text().catch(() => "");
+    throw new Error(`No se pudo crear tag "${name}" en Systeme → ${r.status}: ${errBody.slice(0, 150)}`);
+  }
   const d = await r.json();
-  const newTag = { id: d.id, name };
+  const newTag = { id: d.id as number, name };
   existingTags.push(newTag);
-  return d.id;
+  return d.id as number;
 }
 
 async function findContactByEmail(email: string, key: string): Promise<SystemeContact | null> {
@@ -224,6 +227,11 @@ export async function runSync(params: {
 
   // 2. Cargar tags de Systeme una sola vez
   const systemeTags = await fetchSystemeTags(systemeKey);
+
+  // 2b. Pre-crear las tags fijas en Systeme si no existen, para tenerlas listas
+  for (const fixedTag of fixedTags) {
+    await getOrCreateTag(fixedTag, systemeTags, systemeKey);
+  }
 
   // 3. Procesar cada contacto
   for (const contact of contacts) {
