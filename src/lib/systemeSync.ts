@@ -180,11 +180,15 @@ async function syncTags(
     if (!currentNames.has(name)) {
       const tagId = await getOrCreateTag(name, allTags, key);
       if (tagId) {
-        await fetchWithRetry429(`https://api.systeme.io/api/contacts/${contactId}/tags`, {
+        const tr = await fetchWithRetry429(`https://api.systeme.io/api/contacts/${contactId}/tags`, {
           method: "POST",
           headers: { "X-API-Key": key, "content-type": "application/json" },
           body: JSON.stringify({ tagId }),
         });
+        if (!tr.ok) {
+          const tbody = await tr.text().catch(() => "");
+          throw new Error(`Tag assign "${name}" → ${tr.status}: ${tbody.slice(0, 150)}`);
+        }
       }
     }
   }
