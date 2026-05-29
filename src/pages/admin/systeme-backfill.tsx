@@ -32,6 +32,7 @@ export default function BackfillPage() {
   const [running, setRunning] = useState(false);
   const [currentIdx, setCurrentIdx] = useState(-1);
   const [totals, setTotals] = useState({ created: 0, updated: 0, skipped: 0, errors: 0 });
+  const [stopRequested, setStopRequested] = useState(false);
 
   useEffect(() => {
     if (status === "unauthenticated") router.replace("/login");
@@ -47,10 +48,12 @@ export default function BackfillPage() {
 
   const run = async () => {
     setRunning(true);
+    setStopRequested(false);
     setTotals({ created: 0, updated: 0, skipped: 0, errors: 0 });
     const dates = getDates(days);
 
     for (let i = 0; i < dates.length; i++) {
+      if (stopRequested) break;
       setCurrentIdx(i);
       setResults(prev => prev.map((r, idx) => idx === i ? { ...r, status: "running" } : r));
 
@@ -139,16 +142,29 @@ export default function BackfillPage() {
         )}
 
         {/* Botón */}
-        <button
-          onClick={run}
-          disabled={running}
-          style={{
-            padding: "12px 28px", borderRadius: 10, fontSize: 14, fontWeight: 800,
-            background: running ? "#e5e7eb" : "#0ea5e9", color: running ? "#9ca3af" : "white",
-            border: "none", cursor: running ? "not-allowed" : "pointer", marginBottom: 24,
-          }}>
-          {running ? `Procesando ${results[currentIdx]?.date ?? "..."}` : done > 0 ? "Volver a correr" : `Iniciar backfill (${days} días)`}
-        </button>
+        <div style={{ display: "flex", gap: 12, marginBottom: 24 }}>
+          <button
+            onClick={run}
+            disabled={running}
+            style={{
+              padding: "12px 28px", borderRadius: 10, fontSize: 14, fontWeight: 800,
+              background: running ? "#e5e7eb" : "#0ea5e9", color: running ? "#9ca3af" : "white",
+              border: "none", cursor: running ? "not-allowed" : "pointer",
+            }}>
+            {running ? `Procesando ${results[currentIdx]?.date ?? "..."}` : done > 0 ? "Volver a correr" : `Iniciar backfill (${days} días)`}
+          </button>
+          {running && (
+            <button
+              onClick={() => setStopRequested(true)}
+              style={{
+                padding: "12px 20px", borderRadius: 10, fontSize: 14, fontWeight: 800,
+                background: "#fef2f2", color: "#dc2626", border: "1.5px solid #fca5a5",
+                cursor: "pointer",
+              }}>
+              ⏹ Parar
+            </button>
+          )}
+        </div>
 
         {/* Tabla de resultados */}
         <div style={{ border: "1px solid #f3f4f6", borderRadius: 10, overflow: "hidden" }}>
