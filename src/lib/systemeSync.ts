@@ -111,8 +111,17 @@ function sleep(ms: number) { return new Promise(r => setTimeout(r, ms)); }
 
 
 async function fetchSystemeTags(key: string): Promise<{ id: number; name: string }[]> {
-  const data = await systemeGet("/api/tags", key);
-  return data.items ?? [];
+  const allTags: { id: number; name: string }[] = [];
+  let lastId: number | null = null;
+  while (true) {
+    const url = lastId ? `/api/tags?limit=100&startingAfter=${lastId}` : "/api/tags?limit=100";
+    const data = await systemeGet(url, key);
+    const items: { id: number; name: string }[] = data.items ?? [];
+    allTags.push(...items);
+    if (items.length < 100) break;
+    lastId = items[items.length - 1].id;
+  }
+  return allTags;
 }
 
 async function getOrCreateTag(name: string, existingTags: { id: number; name: string }[], key: string): Promise<number | null> {
@@ -126,6 +135,16 @@ async function getOrCreateTag(name: string, existingTags: { id: number; name: st
   });
   if (!r.ok) {
     const errBody = await r.text().catch(() => "");
+    // Si ya existe (422), buscarla por nombre en el listado actual
+    if (r.status === 422 && errBody.includes("ya se ha utilizado")) {
+      // Recargar tags de Systeme para encontrarla
+      const refreshed = await fetchSystemeTags(key);
+      const found2 = refreshed.find(t => t.name === name);
+      if (found2) {
+        existingTags.push(found2);
+        return found2.id;
+      }
+    }
     throw new Error(`No se pudo crear tag "${name}" en Systeme → ${r.status}: ${errBody.slice(0, 150)}`);
   }
   const d = await r.json();
