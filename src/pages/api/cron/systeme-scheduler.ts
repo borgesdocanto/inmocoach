@@ -56,4 +56,4 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 }
 
-export const config = { maxDuration: 900 };
+// maxDuration no declarado — usa el default del plan
