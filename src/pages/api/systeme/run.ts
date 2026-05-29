@@ -53,7 +53,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     .eq("team_id", teamId)
     .single();
 
-  if (!syncConfig?.is_active) return res.status(400).json({ error: "Sync no activa para este team" });
+  if (!syncConfig) return res.status(400).json({ error: "Configuración de sync no encontrada para este equipo" });
+  if (!syncConfig.is_active) return res.status(400).json({ error: "Sync no activa para este team" });
   if (!syncConfig.is_configured) return res.status(400).json({ error: "Sync no configurada" });
   if (!syncConfig.systeme_api_key) return res.status(400).json({ error: "Sin API key de Systeme" });
 

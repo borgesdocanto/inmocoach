@@ -193,7 +193,7 @@ export default function SystemePage() {
   const handleRunNow = async () => {
     setRunning(true); setRunMsg("");
     try {
-      const r = await fetch("/api/systeme/run", { method: "POST" });
+      const r = await fetch("/api/systeme/run", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}) });
       const d = await r.json();
       if (d.ok) {
         setRunMsg(`✓ Corrida completada — ${d.created} creados · ${d.updated} actualizados${d.errors > 0 ? ` · ${d.errors} errores` : ""}`);
