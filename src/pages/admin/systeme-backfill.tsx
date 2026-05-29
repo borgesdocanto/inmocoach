@@ -33,6 +33,8 @@ export default function BackfillPage() {
   const [currentIdx, setCurrentIdx] = useState(-1);
   const [totals, setTotals] = useState({ created: 0, updated: 0, skipped: 0, errors: 0 });
   const [stopRequested, setStopRequested] = useState(false);
+  const [cacheStatus, setCacheStatus] = useState<"idle"|"loading"|"ready"|"error">("idle");
+  const [cacheTotal, setCacheTotal] = useState(0);
 
   useEffect(() => {
     if (status === "unauthenticated") router.replace("/login");
@@ -45,6 +47,16 @@ export default function BackfillPage() {
   useEffect(() => {
     setResults(getDates(days).map(date => ({ date, status: "pending" })));
   }, [days]);
+
+  const loadCache = async () => {
+    setCacheStatus("loading");
+    try {
+      const r = await fetch("/api/admin/systeme-cache-load", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}) });
+      const d = await r.json();
+      if (d.ok) { setCacheStatus("ready"); setCacheTotal(d.total); }
+      else { setCacheStatus("error"); }
+    } catch { setCacheStatus("error"); }
+  };
 
   const run = async () => {
     setRunning(true);
@@ -154,16 +166,46 @@ export default function BackfillPage() {
         )}
 
         {/* Botón */}
+        {/* Paso 1: cargar cache */}
+        <div style={{ background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: 10, padding: "14px 18px", marginBottom: 16 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+            <div>
+              <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: "#374151" }}>Paso 1 — Cargar contactos existentes de Systeme</p>
+              <p style={{ margin: "2px 0 0", fontSize: 12, color: "#9ca3af" }}>
+                {cacheStatus === "idle" && "Necesario para saber cuáles actualizar vs crear"}
+                {cacheStatus === "loading" && "Cargando... puede tardar 30-60 segundos"}
+                {cacheStatus === "ready" && `✓ Cache listo — ${cacheTotal} contactos en Systeme`}
+                {cacheStatus === "error" && "✗ Error al cargar cache"}
+              </p>
+            </div>
+            <button
+              onClick={loadCache}
+              disabled={cacheStatus === "loading" || running}
+              style={{
+                padding: "8px 18px", borderRadius: 8, fontSize: 13, fontWeight: 700,
+                background: cacheStatus === "ready" ? "#f0fdf4" : "#0ea5e9",
+                color: cacheStatus === "ready" ? "#16a34a" : "white",
+                border: cacheStatus === "ready" ? "1px solid #86efac" : "none",
+                cursor: cacheStatus === "loading" || running ? "not-allowed" : "pointer",
+                opacity: cacheStatus === "loading" ? 0.6 : 1,
+              }}>
+              {cacheStatus === "loading" ? "Cargando..." : cacheStatus === "ready" ? "✓ Listo" : "Cargar cache"}
+            </button>
+          </div>
+        </div>
+
+        {/* Paso 2: correr backfill */}
         <div style={{ display: "flex", gap: 12, marginBottom: 24 }}>
           <button
             onClick={run}
-            disabled={running}
+            disabled={running || cacheStatus !== "ready"}
             style={{
               padding: "12px 28px", borderRadius: 10, fontSize: 14, fontWeight: 800,
-              background: running ? "#e5e7eb" : "#0ea5e9", color: running ? "#9ca3af" : "white",
-              border: "none", cursor: running ? "not-allowed" : "pointer",
+              background: running || cacheStatus !== "ready" ? "#e5e7eb" : "#111827",
+              color: running || cacheStatus !== "ready" ? "#9ca3af" : "white",
+              border: "none", cursor: running || cacheStatus !== "ready" ? "not-allowed" : "pointer",
             }}>
-            {running ? `Procesando ${results[currentIdx]?.date ?? "..."}` : done > 0 ? "Volver a correr" : `Iniciar backfill (${days} días)`}
+            {running ? `Procesando ${results[currentIdx]?.date ?? "..."}` : done > 0 ? "Volver a correr" : `Paso 2 — Iniciar backfill (${days} días)`}
           </button>
           {running && (
             <button
