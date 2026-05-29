@@ -185,10 +185,14 @@ export default function BackfillPage() {
                  r.status === "done" ? "✓ OK" : "✗ Error"}
               </span>
               {r.status !== "pending" && r.status !== "running" && (
-                <span style={{ fontSize: 11, color: "#6b7280" }}>
-                  {r.contacts} contactos · +{r.created} · ↻{r.updated} · {r.skipped} skip
-                  {r.errors ? ` · ⚠${r.errors}` : ""}
-                </span>
+                <div style={{ fontSize: 11, color: "#6b7280", flex: 1 }}>
+                  <span>{r.contacts ?? 0} contactos · +{r.created ?? 0} creados · ↻{r.updated ?? 0} actualizados · {r.skipped ?? 0} skip{r.errors ? ` · ⚠ ${r.errors} errores` : ""}</span>
+                  {r.errorDetail && (
+                    <div style={{ marginTop: 3, color: "#dc2626", fontSize: 10, wordBreak: "break-all" }}>
+                      {r.errorDetail.slice(0, 200)}
+                    </div>
+                  )}
+                </div>
               )}
             </div>
           ))}
