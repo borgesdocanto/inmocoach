@@ -30,16 +30,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (!session?.user?.email) return res.status(401).json({ error: "No autenticado" });
     const email = getEffectiveEmail(req, session);
 
-    if (isSuperAdmin(email)) {
-      teamId = req.body?.teamId;
+    // Super admin impersonando desde el panel admin puede pasar teamId en el body.
+    // En cualquier otro caso (incluyendo super admin usando su propia cuenta),
+    // resolvemos el teamId desde la sesión para garantizar aislamiento entre tenants.
+    if (isSuperAdmin(email) && req.body?.teamId) {
+      // Solo cuando viene teamId explícito (llamado desde panel admin)
+      teamId = req.body.teamId;
     } else {
+      // Resolver siempre desde la sesión — aplica a todos los usuarios incluyendo super admin
       const { data: sub } = await supabaseAdmin
         .from("subscriptions")
         .select("team_id, team_role")
         .eq("email", email)
         .single();
       if (!sub?.team_id) return res.status(403).json({ error: "Sin equipo" });
-      if (sub.team_role !== "owner" && sub.team_role !== "team_leader") {
+      if (!isSuperAdmin(email) && sub.team_role !== "owner" && sub.team_role !== "team_leader") {
         return res.status(403).json({ error: "Sin permiso" });
       }
       teamId = sub.team_id;
