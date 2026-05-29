@@ -255,15 +255,28 @@ export async function runSync(params: {
     return result;
   }
 
-  // Guardar total en errorDetail temporalmente para debug
-  result.errorDetail = `Tokko devolvió ${contacts.length} contactos`;
+  // contacts.length disponible para debug si se necesita
 
   // 2. Cargar tags de Systeme una sola vez
-  const systemeTags = await fetchSystemeTags(systemeKey);
+  let systemeTags: { id: number; name: string }[] = [];
+  try {
+    systemeTags = await fetchSystemeTags(systemeKey);
+  } catch (tagsErr: unknown) {
+    const tagsMsg = tagsErr instanceof Error ? tagsErr.message : "Error";
+    result.errors++;
+    result.errorDetail = `Error al cargar tags de Systeme: ${tagsMsg}`;
+    return result;
+  }
 
   // 2b. Pre-crear las tags fijas en Systeme si no existen, para tenerlas listas
   for (const fixedTag of fixedTags) {
-    await getOrCreateTag(fixedTag, systemeTags, systemeKey);
+    try {
+      await getOrCreateTag(fixedTag, systemeTags, systemeKey);
+    } catch (tagErr: unknown) {
+      const tagMsg = tagErr instanceof Error ? tagErr.message : "Error";
+      result.errors++;
+      errors.push(`Pre-crear tag fija "${fixedTag}": ${tagMsg}`);
+    }
   }
 
   // 3. Procesar cada contacto
@@ -343,6 +356,8 @@ export async function runSync(params: {
 
   if (errors.length > 0) {
     result.errorDetail = errors.slice(0, 10).join("\n");
+  } else if (result.created === 0 && result.updated === 0 && result.skipped === 0) {
+    result.errorDetail = `Se procesaron ${contacts.length} contactos de Tokko pero ninguno requirió cambios en Systeme`;
   }
 
   return result;
