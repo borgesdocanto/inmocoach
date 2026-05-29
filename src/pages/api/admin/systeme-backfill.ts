@@ -68,8 +68,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
   }
 
-  await paginate(`${base}/api/v1/contact/?key=${key}&deleted_at__gt=${date}&format=json&limit=100`);
-  await paginate(`${base}/api/v1/contact/?key=${key}&created_at__gt=${date}&format=json&limit=100`);
+  await paginate(`${base}/api/v1/contact/?key=${key}&deleted_at__gt=${date}&format=json&limit=50`);
+  await paginate(`${base}/api/v1/contact/?key=${key}&created_at__gt=${date}&format=json&limit=50`);
 
   if (contacts.length === 0) {
     return res.json({ date, contacts: 0, created: 0, updated: 0, skipped: 0, errors: 0 });

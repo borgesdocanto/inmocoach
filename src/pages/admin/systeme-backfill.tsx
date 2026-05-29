@@ -58,12 +58,21 @@ export default function BackfillPage() {
       setResults(prev => prev.map((r, idx) => idx === i ? { ...r, status: "running" } : r));
 
       try {
-        const res = await fetch("/api/admin/systeme-backfill", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ date: dates[i] }),
-        });
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 55000);
+        let res: Response;
+        try {
+          res = await fetch("/api/admin/systeme-backfill", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ date: dates[i] }),
+            signal: controller.signal,
+          });
+        } finally {
+          clearTimeout(timeout);
+        }
         const data = await res.json();
+        if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
         setResults(prev => prev.map((r, idx) => idx === i ? {
           ...r,
           status: data.errors > 0 ? "error" : "done",
@@ -81,8 +90,11 @@ export default function BackfillPage() {
           errors: prev.errors + (data.errors || 0),
         }));
       } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
         setResults(prev => prev.map((r, idx) => idx === i ? {
-          ...r, status: "error", errorDetail: String(err),
+          ...r, status: "error",
+          contacts: 0, created: 0, updated: 0, skipped: 0, errors: 1,
+          errorDetail: msg,
         } : r));
       }
 
