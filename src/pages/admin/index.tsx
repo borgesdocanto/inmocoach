@@ -849,7 +849,7 @@ export default function AdminPanel() {
                             {selectedTeam.has_systeme_sync ? "✓ Systeme ON" : "◌ Systeme OFF"}
                           </button>
                           {systemeToggleMsg && (
-                            <span className={}>
+                            <span className={`text-xs font-bold ${systemeToggleMsg.startsWith("✓") ? "text-green-600" : "text-red-500"}`}>
                               {systemeToggleMsg}
                             </span>
                           )}
