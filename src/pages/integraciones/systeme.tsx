@@ -57,6 +57,9 @@ export default function SystemePage() {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
   const [saveOk, setSaveOk] = useState(false);
+  const [keyVerifying, setKeyVerifying] = useState(false);
+  const [keyValid, setKeyValid] = useState<boolean | null>(null);
+  const [keyVerifyMsg, setKeyVerifyMsg] = useState("");
 
   // Run manual
   const [running, setRunning] = useState(false);
@@ -135,6 +138,29 @@ export default function SystemePage() {
 
   const removeFixedTag = (tag: string) => {
     setFixedTags(prev => prev.filter(t => t !== tag));
+  };
+
+  // Verificar la key directamente desde el browser (evita el bloqueo del servidor)
+  const verifyKey = async () => {
+    const key = apiKey.trim();
+    if (!key) return;
+    setKeyVerifying(true); setKeyValid(null); setKeyVerifyMsg("");
+    try {
+      const r = await fetch("https://api.systeme.io/api/tags?limit=1", {
+        headers: { "X-API-Key": key, accept: "application/json" },
+      });
+      if (r.ok) {
+        setKeyValid(true);
+        setKeyVerifyMsg("✓ API key válida");
+      } else {
+        setKeyValid(false);
+        setKeyVerifyMsg(`✗ Key inválida (código ${r.status})`);
+      }
+    } catch {
+      setKeyValid(false);
+      setKeyVerifyMsg("✗ No se pudo conectar con Systeme.io");
+    }
+    setKeyVerifying(false);
   };
 
   const canSave = selectedTags.size >= MIN_TAGS && (!!apiKey.trim() || !!config?.hasKey);
@@ -238,17 +264,39 @@ export default function SystemePage() {
             </div>
           ) : (
             <div>
-              <input
-                value={apiKey}
-                onChange={e => setApiKey(e.target.value)}
-                placeholder="Pegá tu API key de Systeme.io"
-                style={{
-                  width: "100%", padding: "10px 14px", borderRadius: 8,
-                  border: "1px solid #e5e7eb", fontSize: 13, fontFamily: "monospace",
-                  outline: "none", boxSizing: "border-box",
-                }}
-              />
-              <p style={{ fontSize: 11, color: "#9ca3af", marginTop: 6 }}>
+              <div style={{ display: "flex", gap: 8 }}>
+                <input
+                  value={apiKey}
+                  onChange={e => { setApiKey(e.target.value); setKeyValid(null); setKeyVerifyMsg(""); }}
+                  placeholder="Pegá tu API key de Systeme.io"
+                  style={{
+                    flex: 1, padding: "10px 14px", borderRadius: 8,
+                    border: `1px solid ${keyValid === true ? "#86efac" : keyValid === false ? "#fca5a5" : "#e5e7eb"}`,
+                    fontSize: 13, fontFamily: "monospace",
+                    outline: "none", boxSizing: "border-box",
+                  }}
+                />
+                <button
+                  onClick={verifyKey}
+                  disabled={!apiKey.trim() || keyVerifying}
+                  style={{
+                    padding: "10px 16px", borderRadius: 8, fontSize: 13, fontWeight: 700,
+                    background: keyValid === true ? "#f0fdf4" : "#f9fafb",
+                    border: `1px solid ${keyValid === true ? "#86efac" : "#e5e7eb"}`,
+                    color: keyValid === true ? "#16a34a" : "#374151",
+                    cursor: apiKey.trim() && !keyVerifying ? "pointer" : "not-allowed",
+                    opacity: !apiKey.trim() ? 0.5 : 1,
+                    whiteSpace: "nowrap",
+                  }}>
+                  {keyVerifying ? "Verificando..." : keyValid === true ? "✓ Verificada" : "Verificar"}
+                </button>
+              </div>
+              {keyVerifyMsg && (
+                <p style={{ fontSize: 12, fontWeight: 600, marginTop: 6, color: keyValid ? "#16a34a" : "#dc2626" }}>
+                  {keyVerifyMsg}
+                </p>
+              )}
+              <p style={{ fontSize: 11, color: "#9ca3af", marginTop: 4 }}>
                 En Systeme.io → Configuración → Claves API públicas
               </p>
             </div>
