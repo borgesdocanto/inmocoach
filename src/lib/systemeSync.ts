@@ -182,6 +182,9 @@ async function loadSystemeContactsCache(key: string): Promise<Map<string, number
   return cache;
 }
 
+// Errores de email inválido de Systeme — se skipean, no son errores nuestros
+const INVALID_EMAIL_MSGS = ["no es válida", "not a valid email", "invalid email", "carece de un"];
+
 async function createContact(payload: Record<string, unknown>, key: string): Promise<{ id: number } | null> {
   const r = await fetchWithRetry429("https://api.systeme.io/api/contacts", {
     method: "POST",
@@ -190,6 +193,8 @@ async function createContact(payload: Record<string, unknown>, key: string): Pro
   });
   if (r.status === 201) return r.json();
   const errBody = await r.text().catch(() => "");
+  // Email inválido según Systeme → retornar null para skipear sin error
+  if (r.status === 422 && INVALID_EMAIL_MSGS.some(m => errBody.includes(m))) return null;
   throw new Error(`Systeme POST /api/contacts → ${r.status}: ${errBody.slice(0, 200)}`);
 }
 
@@ -360,6 +365,8 @@ export async function runSync(params: {
           contactsCache.set(emailKey, created.id); // actualizar cache
           await syncTags(created.id, allDesiredTags, [], systemeTags, systemeKey);
           result.created++;
+        } else {
+          result.skipped++; // email inválido según Systeme
         }
       } else {
         // Actualizar contacto existente
