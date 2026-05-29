@@ -190,10 +190,10 @@ async function syncTags(
   key: string
 ): Promise<void> {
   const currentNames = new Set(currentTags.map(t => t.name));
-  const desiredNames = new Set(desiredTagNames);
+  const desiredNamesArr = Array.from(new Set(desiredTagNames));
 
   // Agregar las que faltan
-  for (const name of desiredNames) {
+  for (const name of desiredNamesArr) {
     if (!currentNames.has(name)) {
       const tagId = await getOrCreateTag(name, allTags, key);
       if (tagId) {
@@ -207,8 +207,9 @@ async function syncTags(
   }
 
   // Quitar las que sobran (solo las que InmoCoach maneja — no tocamos tags manuales del usuario)
+  const desiredNamesSet = new Set(desiredNamesArr);
   for (const ct of currentTags) {
-    if (!desiredNames.has(ct.name) && allTags.some(t => t.name === ct.name)) {
+    if (!desiredNamesSet.has(ct.name) && allTags.some(t => t.name === ct.name)) {
       await fetchWithRetry429(`https://api.systeme.io/api/contacts/${contactId}/tags/${ct.id}`, {
         method: "DELETE",
         headers: { "X-API-Key": key },
