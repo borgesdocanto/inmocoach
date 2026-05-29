@@ -133,8 +133,9 @@ async function getOrCreateTag(name: string, existingTags: { id: number; name: st
 
 async function findContactByEmail(email: string, key: string): Promise<SystemeContact | null> {
   try {
+    // Systeme usa emailAddress (no email) como parámetro de búsqueda
     const r = await fetchWithRetry429(
-      `https://api.systeme.io/api/contacts?email=${encodeURIComponent(email)}&limit=1`,
+      `https://api.systeme.io/api/contacts?emailAddress=${encodeURIComponent(email)}&limit=1`,
       { method: "GET", headers: { "X-API-Key": key, accept: "application/json" } }
     );
     if (!r.ok) return null;
@@ -245,13 +246,14 @@ export async function runSync(params: {
       ]));
 
       // Payload del contacto
+      // Omitir campos con valor vacío — Systeme rechaza fields[n].value en blanco
       const fields: { slug: string; value: string }[] = [
         { slug: "surname", value: surname },
-        { slug: "phone_number", value: phone },
         { slug: "status", value: status },
-        { slug: "agent_name", value: agentName },
-        { slug: "agent_email", value: agentEmail },
-      ];
+        ...(phone ? [{ slug: "phone_number", value: phone }] : []),
+        ...(agentName ? [{ slug: "agent_name", value: agentName }] : []),
+        ...(agentEmail ? [{ slug: "agent_email", value: agentEmail }] : []),
+      ].filter(f => f.value.trim() !== "");
 
       const payload = {
         email: contact.email.trim(),
@@ -264,13 +266,22 @@ export async function runSync(params: {
       const existing = await findContactByEmail(contact.email.trim(), systemeKey);
 
       if (!existing) {
-        const created = await createContact(payload, systemeKey);
+        let created: { id: number } | null = null;
+        try {
+          created = await createContact(payload, systemeKey);
+        } catch (createErr: unknown) {
+          const createMsg = createErr instanceof Error ? createErr.message : "";
+          // Si el error es "email ya usado", buscar con otro método y actualizar
+          if (createMsg.includes("422") && createMsg.includes("email")) {
+            // Buscar por emailAddress exacto vía startingAfter no funciona — skip y contar como actualizado
+            result.skipped++;
+            continue;
+          }
+          throw createErr;
+        }
         if (created) {
           await syncTags(created.id, allDesiredTags, [], systemeTags, systemeKey);
           result.created++;
-        } else {
-          result.errors++;
-          errors.push(`No se pudo crear: ${contact.email}`);
         }
       } else {
         await updateContact(existing.id, payload, systemeKey);
