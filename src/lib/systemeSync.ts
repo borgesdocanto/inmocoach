@@ -223,7 +223,8 @@ export async function runSync(params: {
 
   // 3. Procesar cada contacto
   for (const contact of contacts) {
-    if (!contact.email?.trim()) { result.skipped++; continue; }
+      // Sin email → no se puede sincronizar en Systeme
+      if (!contact.email?.trim()) { result.skipped++; continue; }
 
     try {
       const { first_name, surname } = splitName(contact.name ?? "");
