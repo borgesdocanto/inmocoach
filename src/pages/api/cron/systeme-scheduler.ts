@@ -12,7 +12,10 @@ const DELAY_MS = 5_000; // 5 segundos entre cada inmo (aumentar si hay muchas)
 function sleep(ms: number) { return new Promise(r => setTimeout(r, ms)); }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (req.headers.authorization !== `Bearer ${CRON_SECRET}`) {
+  // Aceptar tanto Authorization header como x-cron-secret, igual que los otros crons
+  const isVercel = req.headers.authorization === `Bearer ${CRON_SECRET}`;
+  const isManual = req.headers["x-cron-secret"] === CRON_SECRET;
+  if (!isVercel && !isManual) {
     return res.status(401).json({ error: "Unauthorized" });
   }
 
