@@ -53,8 +53,9 @@ function buildHtml(text: string, agencyName: string): string {
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  const secret = req.headers["x-cron-secret"] || req.query.secret;
-  if (secret !== process.env.CRON_SECRET) return res.status(401).json({ error: "No autorizado" });
+  const isVercel = req.headers.authorization === `Bearer ${process.env.CRON_SECRET}`;
+  const isManual = req.headers["x-cron-secret"] === process.env.CRON_SECRET || req.query.secret === process.env.CRON_SECRET;
+  if (!isVercel && !isManual) return res.status(401).json({ error: "No autorizado" });
 
   const today = new Date();
   const todayM = today.getMonth() + 1;
