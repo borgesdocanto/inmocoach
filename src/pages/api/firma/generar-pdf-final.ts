@@ -168,10 +168,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       firmantes,
     });
 
-    // Subir a Storage
-    const finalPath = `${docId}/documento_firmado_final.pdf`;
+    // Subir a Storage con timestamp para romper caché al regenerar
+    const timestamp = Date.now();
+    const finalPath = `${docId}/documento_firmado_final_${timestamp}.pdf`;
     await supabaseAdmin.storage.from("firma-docs")
       .upload(finalPath, pdfFinal, { contentType: "application/pdf", upsert: true });
+
+    // Limpiar versiones anteriores del PDF firmado
+    const { data: archivos } = await supabaseAdmin.storage.from("firma-docs").list(docId);
+    const anteriores = (archivos || []).filter(f =>
+      f.name.startsWith("documento_firmado_final_") && f.name !== `documento_firmado_final_${timestamp}.pdf`
+    );
+    if (anteriores.length > 0) {
+      await supabaseAdmin.storage.from("firma-docs")
+        .remove(anteriores.map(f => `${docId}/${f.name}`));
+    }
 
     const { data: signedData } = await supabaseAdmin.storage.from("firma-docs")
       .createSignedUrl(finalPath, 60 * 60 * 24 * 365 * 5);
