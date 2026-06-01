@@ -255,73 +255,57 @@ export async function generarPdfConAuditoria(
   y -= 18;
 
   // ── Firmantes individuales ────────────────────────────────────────────────────
+  // Cada firmante necesita: datos (~80px) + fotos (~130px) + separador (~20px) = ~230px mínimo
+  const ESPACIO_FIRMANTE = 240;
+  let currentPage = auditPage;
+
   for (let i = 0; i < firmantes.length; i++) {
     const firmante = firmantes[i];
 
-    // Si no hay espacio suficiente, agregar nueva página
-    const espacioNecesario = 220; // altura aprox por firmante
-    let page = auditPage;
-
-    if (y < espacioNecesario && i > 0) {
-      page = pdfDoc.addPage([pageWidth, pageHeight]);
+    // Crear nueva página si no hay espacio suficiente
+    if (y < ESPACIO_FIRMANTE) {
+      currentPage = pdfDoc.addPage([pageWidth, pageHeight]);
       y = pageHeight - margin;
+      // Mini header en páginas de continuación
+      currentPage.drawRectangle({ x: 0, y: pageHeight - 28, width: pageWidth, height: 28, color: RED });
+      currentPage.drawText(safe("REGISTRO DE FIRMA ELECTRONICA · " + datos.agency_name), {
+        x: margin, y: pageHeight - 19, size: 8, font: helveticaBold, color: WHITE
+      });
+      y = pageHeight - 40;
     }
 
-    y = await dibujarFirmante(pdfDoc, page, firmante, y, i + 1, firmantes.length, margin, contentWidth);
+    y = await dibujarFirmante(pdfDoc, currentPage, firmante, y, i + 1, firmantes.length, margin, contentWidth);
 
     if (i < firmantes.length - 1) {
-      hline(page, y - 4);
+      hline(currentPage, y - 4);
       y -= 18;
     }
   }
 
   // ── Hash del documento ────────────────────────────────────────────────────────
-  const lastPage = pdfDoc.getPage(pdfDoc.getPageCount() - 1);
-  let yLast = Math.min(y - 10, pageHeight - margin - 560);
-  if (yLast < 120) {
-    const newPage = pdfDoc.addPage([pageWidth, pageHeight]);
-    yLast = pageHeight - margin - 20;
-    lastPage; // keep reference
-    // Draw on new page
-    const np = newPage;
-    np.drawText(safe("INTEGRIDAD DEL DOCUMENTO"), { x: margin, y: yLast, size: 7, font: helveticaBold, color: RED });
-    yLast -= 14;
-    const docHash = sha256(pdfOriginalBytes);
-    np.drawText(safe("Hash SHA-256 del documento original:"), { x: margin, y: yLast, size: 7.5, font: helvetica, color: GRAY });
-    yLast -= 12;
-    np.drawRectangle({ x: margin, y: yLast - 4, width: contentWidth, height: 16, color: LIGHT });
-    np.drawText(safe(docHash), { x: margin + 4, y: yLast + 1, size: 6.5, font: helvetica, color: DARK });
-    yLast -= 22;
+  // Usar siempre la última página real y crear nueva si hace falta
+  let hashPage = pdfDoc.getPage(pdfDoc.getPageCount() - 1);
+  let yLast = y - 16;
 
-    // Footer legal
-    const legal = [
-      "Este documento fue firmado electronicamente. La firma electronica tiene",
-      "plena validez legal segun la Ley 25.506 de Firma Digital de la Republica Argentina.",
-    ];
-    np.drawRectangle({ x: margin, y: yLast - legal.length * 11 - 4, width: contentWidth, height: legal.length * 11 + 10, color: rgb(0.97,0.97,0.97), borderColor: rgb(0.85,0.85,0.85), borderWidth: 0.5 });
-    for (const line of legal) {
-      np.drawText(safe(line), { x: margin + 6, y: yLast, size: 7, font: helvetica, color: GRAY });
-      yLast -= 11;
-    }
-    np.drawText(safe(`${datos.agency_name} · ${new Date().toISOString()}`), { x: margin, y: 20, size: 6, font: helvetica, color: rgb(0.7,0.7,0.7) });
-  } else {
-    hline(lastPage, yLast - 4);
-    yLast -= 18;
-    lastPage.drawText(safe("INTEGRIDAD DEL DOCUMENTO"), { x: margin, y: yLast, size: 7, font: helveticaBold, color: RED });
-    yLast -= 14;
-    const docHash = sha256(pdfOriginalBytes);
-    lastPage.drawText(safe("Hash SHA-256:"), { x: margin, y: yLast, size: 7.5, font: helvetica, color: GRAY });
-    lastPage.drawRectangle({ x: margin + 90, y: yLast - 4, width: contentWidth - 90, height: 14, color: LIGHT });
-    lastPage.drawText(safe(docHash), { x: margin + 94, y: yLast, size: 6, font: helvetica, color: DARK });
-    yLast -= 20;
-
-    const legal = [
-      "Firmado electronicamente segun Ley 25.506 de Firma Digital - Republica Argentina.",
-    ];
-    lastPage.drawRectangle({ x: margin, y: yLast - 14, width: contentWidth, height: 18, color: rgb(0.97,0.97,0.97), borderColor: rgb(0.85,0.85,0.85), borderWidth: 0.5 });
-    lastPage.drawText(safe(legal[0]), { x: margin + 6, y: yLast - 2, size: 7, font: helvetica, color: GRAY });
-    lastPage.drawText(safe(`${datos.agency_name} · ${new Date().toISOString()}`), { x: margin, y: 20, size: 6, font: helvetica, color: rgb(0.7,0.7,0.7) });
+  if (yLast < 100) {
+    hashPage = pdfDoc.addPage([pageWidth, pageHeight]);
+    yLast = pageHeight - margin;
   }
+
+  hline(hashPage, yLast - 4);
+  yLast -= 18;
+  hashPage.drawText(safe("INTEGRIDAD DEL DOCUMENTO"), { x: margin, y: yLast, size: 7, font: helveticaBold, color: RED });
+  yLast -= 14;
+  const docHash = sha256(pdfOriginalBytes);
+  hashPage.drawText(safe("Hash SHA-256:"), { x: margin, y: yLast, size: 7.5, font: helvetica, color: GRAY });
+  hashPage.drawRectangle({ x: margin + 90, y: yLast - 4, width: contentWidth - 90, height: 14, color: LIGHT });
+  hashPage.drawText(safe(docHash), { x: margin + 94, y: yLast, size: 6, font: helvetica, color: DARK });
+  yLast -= 20;
+
+  const legal = ["Firmado electronicamente segun Ley 25.506 de Firma Digital - Republica Argentina."];
+  hashPage.drawRectangle({ x: margin, y: yLast - 14, width: contentWidth, height: 18, color: rgb(0.97,0.97,0.97), borderColor: rgb(0.85,0.85,0.85), borderWidth: 0.5 });
+  hashPage.drawText(safe(legal[0]), { x: margin + 6, y: yLast - 2, size: 7, font: helvetica, color: GRAY });
+  hashPage.drawText(safe(`${datos.agency_name} · ${new Date().toISOString()}`), { x: margin, y: 20, size: 6, font: helvetica, color: rgb(0.7,0.7,0.7) });
 
   return pdfDoc.save();
 }
