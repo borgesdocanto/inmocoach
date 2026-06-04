@@ -29,10 +29,31 @@ export interface DatosAuditoria {
 
 async function fetchImageBytes(url: string): Promise<Uint8Array | null> {
   try {
-    const res = await fetch(url);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000); // 8s timeout por imagen
+    const res = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeout);
     if (!res.ok) return null;
     return new Uint8Array(await res.arrayBuffer());
   } catch { return null; }
+}
+
+// Prefetch todas las imágenes de todos los firmantes en paralelo
+async function prefetchAllImages(firmantes: FirmanteDatos[]): Promise<Map<string, Uint8Array | null>> {
+  const urls = new Map<string, string>();
+  for (const f of firmantes) {
+    if (f.firma_imagen_url) urls.set(f.firma_imagen_url, f.firma_imagen_url);
+    if (f.dni_frente_url) urls.set(f.dni_frente_url, f.dni_frente_url);
+    if (f.dni_dorso_url) urls.set(f.dni_dorso_url, f.dni_dorso_url);
+    if (f.selfie_url) urls.set(f.selfie_url, f.selfie_url);
+  }
+  const results = new Map<string, Uint8Array | null>();
+  await Promise.all(
+    Array.from(urls.keys()).map(async url => {
+      results.set(url, await fetchImageBytes(url));
+    })
+  );
+  return results;
 }
 
 function detectImageType(bytes: Uint8Array): "jpeg" | "png" | null {
@@ -72,7 +93,8 @@ async function dibujarFirmante(
   numero: number,
   total: number,
   margin: number,
-  contentWidth: number
+  contentWidth: number,
+  imageCache: Map<string, Uint8Array | null>
 ): Promise<number> {
   const helvetica = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const helveticaBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
@@ -132,7 +154,7 @@ async function dibujarFirmante(
     page.drawText(safe(slot.label), { x: slot.x + 2, y: imgY - 10, size: 6.5, font: helveticaBold, color: GRAY });
 
     if (slot.url) {
-      const imgBytes = await fetchImageBytes(slot.url);
+      const imgBytes = imageCache.get(slot.url) ?? null;
       if (imgBytes) {
         const imgType = detectImageType(imgBytes);
         const hash = sha256(imgBytes);
@@ -254,8 +276,10 @@ export async function generarPdfConAuditoria(
   hline(auditPage, y - 4);
   y -= 18;
 
+  // ── Prefetch todas las imágenes en paralelo antes del loop ───────────────────
+  const imageCache = await prefetchAllImages(firmantes);
+
   // ── Firmantes individuales ────────────────────────────────────────────────────
-  // Cada firmante necesita: datos (~80px) + fotos (~130px) + separador (~20px) = ~230px mínimo
   const ESPACIO_FIRMANTE = 240;
   let currentPage = auditPage;
 
@@ -274,7 +298,7 @@ export async function generarPdfConAuditoria(
       y = pageHeight - 40;
     }
 
-    y = await dibujarFirmante(pdfDoc, currentPage, firmante, y, i + 1, firmantes.length, margin, contentWidth);
+    y = await dibujarFirmante(pdfDoc, currentPage, firmante, y, i + 1, firmantes.length, margin, contentWidth, imageCache);
 
     if (i < firmantes.length - 1) {
       hline(currentPage, y - 4);

@@ -8,7 +8,7 @@ import { getEffectiveEmail } from "../../../lib/impersonation";
 import { generarPdfConAuditoria, FirmanteDatos } from "../../../lib/firmaAuditPdf";
 import { getAgencyName } from "../../../lib/firmaEmail";
 
-export const config = { api: { bodyParser: { sizeLimit: "25mb" } } };
+export const config = { api: { bodyParser: { sizeLimit: "25mb" } }, maxDuration: 60 };
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") return res.status(405).end();
