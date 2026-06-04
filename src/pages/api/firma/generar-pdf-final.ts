@@ -164,34 +164,49 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       firmantes,
     });
 
-    // Subir a Storage con timestamp para romper caché al regenerar
+    // Subir a Storage con timestamp para romper caché
     const timestamp = Date.now();
     const finalPath = `${docId}/documento_firmado_final_${timestamp}.pdf`;
-    await supabaseAdmin.storage.from("firma-docs")
+
+    const { error: uploadError } = await supabaseAdmin.storage.from("firma-docs")
       .upload(finalPath, pdfFinal, { contentType: "application/pdf", upsert: true });
 
-    // Limpiar versiones anteriores (con y sin timestamp)
-    const { data: archivos } = await supabaseAdmin.storage.from("firma-docs").list(docId);
-    const anteriores = (archivos || []).filter(f =>
-      (f.name.startsWith("documento_firmado_final_") || f.name === "documento_firmado_final.pdf")
-      && f.name !== `documento_firmado_final_${timestamp}.pdf`
-    );
-    if (anteriores.length > 0) {
-      await supabaseAdmin.storage.from("firma-docs")
-        .remove(anteriores.map(f => `${docId}/${f.name}`));
+    if (uploadError) {
+      console.error("Error subiendo PDF:", uploadError);
+      return res.status(500).json({ error: "Error al subir el PDF al storage" });
     }
 
-    const { data: signedData } = await supabaseAdmin.storage.from("firma-docs")
-      .createSignedUrl(finalPath, 60 * 60 * 24 * 365 * 5);
-    const pdfUrl = signedData?.signedUrl || null;
+    // Limpiar versiones anteriores (ignorar errores — no es crítico)
+    try {
+      const { data: archivos } = await supabaseAdmin.storage.from("firma-docs").list(docId);
+      const anteriores = (archivos || []).filter(f =>
+        (f.name.startsWith("documento_firmado_final_") || f.name === "documento_firmado_final.pdf")
+        && f.name !== `documento_firmado_final_${timestamp}.pdf`
+      );
+      if (anteriores.length > 0) {
+        await supabaseAdmin.storage.from("firma-docs")
+          .remove(anteriores.map(f => `${docId}/${f.name}`));
+      }
+    } catch { /* no crítico */ }
 
-    await supabaseAdmin.from("firma_documentos")
+    const { data: signedData, error: signError } = await supabaseAdmin.storage.from("firma-docs")
+      .createSignedUrl(finalPath, 60 * 60 * 24 * 365 * 5);
+
+    if (signError || !signedData?.signedUrl) {
+      console.error("Error generando URL firmada:", signError);
+      return res.status(500).json({ error: "Error al generar la URL del PDF" });
+    }
+
+    const pdfUrl = signedData.signedUrl;
+
+    const { error: updateError } = await supabaseAdmin.from("firma_documentos")
       .update({ url_documento_firmado: pdfUrl })
       .eq("id", docId);
 
-
-    // Emails manejados por /api/firmar/[token].ts al momento de la firma
-    // Este endpoint solo genera y guarda el PDF
+    if (updateError) {
+      console.error("Error actualizando URL en BD:", updateError);
+      return res.status(500).json({ error: "Error al guardar la URL del PDF" });
+    }
 
     return res.json({ ok: true, pdf_url: pdfUrl });
 
