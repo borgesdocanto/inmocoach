@@ -263,7 +263,7 @@ function FormularioPdf({
 
   const procesarPdf = (file: File) => {
     if (file.type !== "application/pdf") { alert("Solo se aceptan archivos PDF"); return; }
-    if (file.size > 9 * 1024 * 1024) { alert("El PDF no puede superar 9 MB"); return; }
+    if (file.size > 15 * 1024 * 1024) { alert("El PDF no puede superar 15 MB"); return; }
     const reader = new FileReader();
     reader.onload = e => {
       const result = e.target?.result as string;
