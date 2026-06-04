@@ -170,10 +170,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     await supabaseAdmin.storage.from("firma-docs")
       .upload(finalPath, pdfFinal, { contentType: "application/pdf", upsert: true });
 
-    // Limpiar versiones anteriores del PDF firmado
+    // Limpiar versiones anteriores (con y sin timestamp)
     const { data: archivos } = await supabaseAdmin.storage.from("firma-docs").list(docId);
     const anteriores = (archivos || []).filter(f =>
-      f.name.startsWith("documento_firmado_final_") && f.name !== `documento_firmado_final_${timestamp}.pdf`
+      (f.name.startsWith("documento_firmado_final_") || f.name === "documento_firmado_final.pdf")
+      && f.name !== `documento_firmado_final_${timestamp}.pdf`
     );
     if (anteriores.length > 0) {
       await supabaseAdmin.storage.from("firma-docs")
