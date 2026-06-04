@@ -7,12 +7,8 @@ import { supabaseAdmin } from "../../../lib/supabase";
 import { getEffectiveEmail } from "../../../lib/impersonation";
 import { generarPdfConAuditoria, FirmanteDatos } from "../../../lib/firmaAuditPdf";
 import { getAgencyName } from "../../../lib/firmaEmail";
-import { Resend } from "resend";
-import { emailWrapperFirma, EMAIL_FROM } from "../../../lib/email";
 
 export const config = { api: { bodyParser: { sizeLimit: "25mb" } } };
-
-const resend = new Resend(process.env.RESEND_API_KEY!);
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") return res.status(405).end();
@@ -192,58 +188,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .update({ url_documento_firmado: pdfUrl })
       .eq("id", docId);
 
-    const pdfBase64 = Buffer.from(pdfFinal).toString("base64");
-    const fileName = `${nombreDoc.replace(/[^a-zA-Z0-9]/g, "_")}_firmado.pdf`;
 
-    // Email a CADA firmante con su copia
-    for (const f of firmantes) {
-      if (!f.email) continue;
-      await resend.emails.send({
-        from: EMAIL_FROM,
-        to: f.email,
-        subject: `Tu copia firmada: ${nombreDoc}`,
-        html: emailWrapperFirma(`
-          <h2 style="font-size:18px;font-weight:800;color:#111;margin:0 0 8px;">
-            Tu documento firmado
-          </h2>
-          <p style="color:#6b7280;font-size:14px;margin:0 0 20px;line-height:1.6;">
-            Hola <strong>${f.nombre}</strong>, te enviamos tu copia del documento 
-            <strong>"${nombreDoc}"</strong>. Lo encontras adjunto a este email.
-          </p>
-          <p style="color:#9ca3af;font-size:11px;text-align:center;margin:0;">${agencyName}</p>
-        `, agencyName),
-        attachments: [{ filename: fileName, content: pdfBase64 }],
-      }).catch(e => console.error("Email firmante error:", e));
-    }
-
-    // Email al INMOBILIARIO — solo cuando todos firmaron (no desde el panel manual)
-    if (enviar_email_inmobiliario) {
-      const resumenFirmantes = firmantes.map(f =>
-        `${f.nombre} (${f.rol || "Firmante"}) — ${f.signed_at ? "Firmo el " + new Date(f.signed_at).toLocaleDateString("es-AR") : "Pendiente"}`
-      ).join("<br/>");
-
-      await resend.emails.send({
-        from: EMAIL_FROM,
-        to: doc.usuario_email,
-        subject: `PDF firmado listo: ${nombreDoc}`,
-        html: emailWrapperFirma(`
-          <h2 style="font-size:18px;font-weight:800;color:#111;margin:0 0 8px;">
-            Documento firmado completo
-          </h2>
-          <p style="color:#6b7280;font-size:14px;margin:0 0 16px;line-height:1.6;">
-            El PDF de <strong>"${nombreDoc}"</strong> con la pagina de auditoria esta listo. 
-            Lo encontras adjunto con las fotos de DNI, selfie y firma de todos los firmantes.
-          </p>
-          <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:14px;margin-bottom:16px;font-size:13px;line-height:1.7;">
-            ${resumenFirmantes}
-          </div>
-          ${pdfUrl ? `<a href="${pdfUrl}" style="display:block;background:#aa0000;color:#fff;text-align:center;padding:12px;border-radius:10px;font-size:14px;font-weight:700;text-decoration:none;">
-            Ver documento firmado
-          </a>` : ""}
-        `, agencyName),
-        attachments: [{ filename: fileName, content: pdfBase64 }],
-      }).catch(e => console.error("Email inmobiliario error:", e));
-    }
+    // Emails manejados por /api/firmar/[token].ts al momento de la firma
+    // Este endpoint solo genera y guarda el PDF
 
     return res.json({ ok: true, pdf_url: pdfUrl });
 
