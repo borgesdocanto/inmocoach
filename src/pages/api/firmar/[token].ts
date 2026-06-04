@@ -172,8 +172,31 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (!tiposValidos.includes(tipoImg)) return res.status(400).json({ error: "Tipo inválido" });
 
       const base64Data = (base64 as string).replace(/^data:[^;]+;base64,/, "");
-      const buffer = Buffer.from(base64Data, "base64");
-      const ext = mime === "image/png" ? "png" : "jpg";
+      let buffer = Buffer.from(base64Data, "base64");
+      let ext = mime === "image/png" ? "png" : "jpg";
+
+      // Resize antes de guardar — max 1200px, JPEG 82% (excepto firma que va como PNG pequeña)
+      try {
+        const sharp = (await import("sharp")).default;
+        if (tipoImg === "firma") {
+          // Firma: mantener PNG pero reducir si es muy grande
+          buffer = await sharp(buffer)
+            .resize(600, 300, { fit: "inside", withoutEnlargement: true })
+            .png({ quality: 90 })
+            .toBuffer();
+          ext = "png";
+        } else {
+          // DNI frente, dorso, selfie: convertir a JPEG y reducir
+          buffer = await sharp(buffer)
+            .resize(1200, 1200, { fit: "inside", withoutEnlargement: true })
+            .jpeg({ quality: 82, mozjpeg: true })
+            .toBuffer();
+          ext = "jpg";
+        }
+      } catch (e) {
+        // Si falla el resize, continuar con el buffer original
+        console.warn("Resize falló, usando imagen original:", e);
+      }
 
       // Guardar con ID del firmante si existe, sino del documento
       const storageId = tipo === "firmante" ? `${doc.id}/firmante_${firmante!.id}` : doc.id;
