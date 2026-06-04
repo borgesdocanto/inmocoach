@@ -172,7 +172,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (!tiposValidos.includes(tipoImg)) return res.status(400).json({ error: "Tipo inválido" });
 
       const base64Data = (base64 as string).replace(/^data:[^;]+;base64,/, "");
-      let buffer = Buffer.from(base64Data, "base64");
+      let buffer: Buffer = Buffer.from(base64Data, "base64");
       let ext = mime === "image/png" ? "png" : "jpg";
 
       // Resize antes de guardar — max 1200px, JPEG 82% (excepto firma que va como PNG pequeña)
@@ -183,14 +183,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           buffer = await sharp(buffer)
             .resize(600, 300, { fit: "inside", withoutEnlargement: true })
             .png({ quality: 90 })
-            .toBuffer();
+            .toBuffer() as Promise<Buffer>;
           ext = "png";
         } else {
           // DNI frente, dorso, selfie: convertir a JPEG y reducir
           buffer = await sharp(buffer)
             .resize(1200, 1200, { fit: "inside", withoutEnlargement: true })
             .jpeg({ quality: 82, mozjpeg: true })
-            .toBuffer();
+            .toBuffer() as Promise<Buffer>;
           ext = "jpg";
         }
       } catch (e) {
