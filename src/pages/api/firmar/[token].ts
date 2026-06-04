@@ -8,7 +8,7 @@ import { generarPdfConAuditoria, FirmanteDatos } from "../../../lib/firmaAuditPd
 import { Resend } from "resend";
 import { emailWrapperFirma, EMAIL_FROM } from "../../../lib/email";
 
-export const config = { api: { bodyParser: { sizeLimit: "15mb" } } };
+export const config = { api: { bodyParser: { sizeLimit: "15mb" } }, maxDuration: 60 };
 
 async function getDocAgencyName(usuarioEmail: string): Promise<string> {
   const { data: sub } = await supabaseAdmin
