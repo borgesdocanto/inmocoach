@@ -180,17 +180,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const sharp = (await import("sharp")).default;
         if (tipoImg === "firma") {
           // Firma: mantener PNG pero reducir si es muy grande
-          buffer = await sharp(buffer)
+          buffer = Buffer.from(await sharp(buffer)
             .resize(600, 300, { fit: "inside", withoutEnlargement: true })
             .png({ quality: 90 })
-            .toBuffer() as Promise<Buffer>;
+            .toBuffer());
           ext = "png";
         } else {
           // DNI frente, dorso, selfie: convertir a JPEG y reducir
-          buffer = await sharp(buffer)
+          buffer = Buffer.from(await sharp(buffer)
             .resize(1200, 1200, { fit: "inside", withoutEnlargement: true })
             .jpeg({ quality: 82, mozjpeg: true })
-            .toBuffer() as Promise<Buffer>;
+            .toBuffer());
           ext = "jpg";
         }
       } catch (e) {
