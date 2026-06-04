@@ -469,17 +469,21 @@ export default function DetalleDocumento() {
 
   const handleGenerarPdf = async () => {
     setGenerando(true);
-    const res = await fetch("/api/firma/generar-pdf-final", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ documento_id: id }),
-    });
-    const j = await res.json();
-    if (res.ok && j.pdf_url) {
-      await cargar();
-      mostrarMsg("✅ PDF generado");
-    } else {
-      alert(j.error || "Error al generar PDF");
+    try {
+      const res = await fetch("/api/firma/generar-pdf-final", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ documento_id: id }),
+      });
+      const j = await res.json();
+      if (res.ok) {
+        await cargar();
+        mostrarMsg("✅ PDF generado correctamente");
+      } else {
+        alert(j.error || "Error al generar PDF");
+      }
+    } catch (e) {
+      alert("Error de conexión al generar el PDF");
     }
     setGenerando(false);
   };
