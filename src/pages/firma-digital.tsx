@@ -263,7 +263,10 @@ function FormularioPdf({
 
   const procesarPdf = (file: File) => {
     if (file.type !== "application/pdf") { alert("Solo se aceptan archivos PDF"); return; }
-    if (file.size > 15 * 1024 * 1024) { alert("El PDF no puede superar 15 MB"); return; }
+    if (file.size > 8 * 1024 * 1024) {
+      alert("El PDF pesa más de 8 MB y no puede subirse directamente.\n\nPodés reducir su tamaño en:\n• smallpdf.com/compress-pdf\n• ilovepdf.com/compress_pdf\n\nEn general quedan menores a 2 MB sin perder calidad.");
+      return;
+    }
     const reader = new FileReader();
     reader.onload = e => {
       const result = e.target?.result as string;

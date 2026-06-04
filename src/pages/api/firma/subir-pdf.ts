@@ -8,7 +8,7 @@ import { getEffectiveEmail } from "../../../lib/impersonation";
 import { createSubmissionFromPdf, isDocusealConfigured } from "../../../lib/docuseal";
 import { enviarEmailFirma, getAgencyName } from "../../../lib/firmaEmail";
 
-export const config = { api: { bodyParser: { sizeLimit: "20mb" } } };
+export const config = { api: { bodyParser: { sizeLimit: "10mb" } } };
 
 const LIMITE_MENSUAL_FREE = 5;
 
