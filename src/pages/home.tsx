@@ -1,112 +1,145 @@
 import Head from "next/head";
 import { useRouter } from "next/router";
-import { ArrowRight, CheckCircle } from "lucide-react";
+import { ArrowRight, CheckCircle, TrendingUp, Calendar, Building2, Brain } from "lucide-react";
 
-const RED = "#aa0000";
-const DARK = "#111827";
+// ── Paleta y tokens ──────────────────────────────────────────────────────────
+const C = {
+  sky:    "#0ea5e9",
+  skyDim: "#38bdf8",
+  skyDark:"#0369a1",
+  ink:    "#0a0f1a",
+  inkMid: "#1e2535",
+  inkSoft:"#2d3748",
+  slate:  "#64748b",
+  mist:   "#94a3b8",
+  silver: "#cbd5e1",
+  paper:  "#f8fafc",
+  white:  "#ffffff",
+};
 
-// ── Mock screenshots as inline SVG ──────────────────────────────────────────
-
+// ── SVG screens ──────────────────────────────────────────────────────────────
 function ScreenDashboard() {
   return (
-    <svg viewBox="0 0 520 320" xmlns="http://www.w3.org/2000/svg" style={{ width: "100%", borderRadius: 12, display: "block" }}>
-      <rect width="520" height="320" fill="#f4f5f7" rx="12"/>
+    <svg viewBox="0 0 560 340" xmlns="http://www.w3.org/2000/svg" style={{ width: "100%", display: "block" }}>
+      <rect width="560" height="340" fill="#0a0f1a" rx="16"/>
       {/* sidebar */}
-      <rect width="130" height="320" fill="#fff" rx="0"/>
-      <rect x="0" y="0" width="130" height="320" rx="12" fill="#fff"/>
-      <rect x="12" y="18" width="60" height="12" rx="3" fill="#111827" opacity=".85"/>
-      <rect x="12" y="34" width="40" height="8" rx="2" fill="#e5e7eb"/>
-      {[0,1,2,3,4,5].map(i => (
+      <rect width="140" height="340" fill="#111827" rx="0"/>
+      <rect width="140" height="340" rx="16" fill="#111827"/>
+      <rect x="0" y="0" width="140" height="340" fill="#111827"/>
+      {/* logo area */}
+      <rect x="16" y="16" width="36" height="36" rx="8" fill="#0ea5e9" opacity=".15"/>
+      <rect x="24" y="28" width="20" height="4" rx="2" fill="#0ea5e9"/>
+      <rect x="24" y="36" width="14" height="3" rx="1.5" fill="#38bdf8" opacity=".6"/>
+      <rect x="58" y="22" width="52" height="7" rx="3" fill="#e2e8f0" opacity=".8"/>
+      <rect x="58" y="34" width="36" height="5" rx="2" fill="#475569"/>
+      {/* nav items */}
+      {[
+        { y: 76, active: true, w: 52 },
+        { y: 106, active: false, w: 44 },
+        { y: 136, active: false, w: 60 },
+        { y: 166, active: false, w: 48 },
+        { y: 196, active: false, w: 40 },
+      ].map((item, i) => (
         <g key={i}>
-          <rect x="12" y={72 + i*34} width="106" height="24" rx="6" fill={i===0 ? "#fef2f2" : "transparent"}/>
-          <rect x="22" y={79 + i*34} width="8" height="8" rx="2" fill={i===0 ? RED : "#d1d5db"}/>
-          <rect x="36" y={81 + i*34} width={[48,56,60,52,44,58][i]} height="6" rx="2" fill={i===0 ? RED : "#9ca3af"} opacity={i===0 ? 1 : 0.6}/>
+          <rect x="12" y={item.y} width="116" height="22" rx="6" fill={item.active ? "#0ea5e9" : "transparent"} opacity={item.active ? .15 : 0}/>
+          <rect x="20" y={item.y + 7} width="8" height="8" rx="2" fill={item.active ? "#0ea5e9" : "#334155"}/>
+          <rect x="34" y={item.y + 9} width={item.w} height="5" rx="2" fill={item.active ? "#0ea5e9" : "#475569"} opacity={item.active ? 1 : .7}/>
         </g>
       ))}
-      {/* main */}
-      <rect x="142" y="20" width="100" height="9" rx="3" fill="#111827" opacity=".8"/>
-      <rect x="142" y="34" width="70" height="7" rx="2" fill="#d1d5db"/>
-      {/* 4 cards */}
-      {[0,1,2,3].map(i => (
+      {/* main area header */}
+      <rect x="156" y="18" width="90" height="9" rx="4" fill="#f1f5f9" opacity=".9"/>
+      <rect x="156" y="32" width="60" height="6" rx="3" fill="#475569"/>
+      {/* KPI cards */}
+      {[
+        { x: 156, color: "#0ea5e9", val: "87%", label: "IAC Semana" },
+        { x: 254, color: "#10b981", val: "✦ 12", label: "Reuniones" },
+        { x: 352, color: "#f59e0b", val: "#2", label: "Ranking" },
+        { x: 450, color: "#8b5cf6", val: "5🔥", label: "Racha" },
+      ].map((c, i) => (
         <g key={i}>
-          <rect x={142 + i*92} y="58" width="84" height="72" rx="8" fill="#fff"/>
-          <rect x={142 + i*92} y="58" width="84" height="4" rx="4" fill={[RED,"#16a34a","#d97706","#7c3aed"][i]}/>
-          <rect x={150 + i*92} y="72" width="40" height="7" rx="2" fill="#d1d5db"/>
-          <text x={150 + i*92} y="104" fontFamily="Georgia,serif" fontSize="20" fontWeight="700" fill={[RED,"#16a34a","#d97706","#7c3aed"][i]}>{["67%","✦ 8","#3","OK"][i]}</text>
-          <rect x={150 + i*92} y="110" width="50" height="5" rx="2" fill="#e5e7eb"/>
+          <rect x={c.x} y="50" width="88" height="78" rx="10" fill="#111827"/>
+          <rect x={c.x} y="50" width="88" height="3" rx="1.5" fill={c.color}/>
+          <rect x={c.x + 8} y="64" width={[44, 38, 36, 42][i]} height="5" rx="2" fill="#475569"/>
+          <text x={c.x + 8} y="108" fontFamily="Georgia,serif" fontSize="20" fontWeight="700" fill={c.color}>{c.val}</text>
+          <rect x={c.x + 8} y="116" width="50" height="4" rx="2" fill="#334155"/>
         </g>
       ))}
-      {/* week calendar */}
-      <rect x="142" y="148" width="366" height="104" rx="8" fill="#fff"/>
-      <rect x="152" y="158" width="50" height="6" rx="2" fill="#374151" opacity=".7"/>
-      {["L","M","M","J","V","S","D"].map((d,i) => (
-        <g key={i}>
-          <rect x={152 + i*48} y="172" width="38" height="10" rx="2" fill="#f9fafb"/>
-          <text x={168 + i*48} y="181" textAnchor="middle" fontSize="7" fill="#9ca3af">{d}</text>
-          {[2,1,3,0,2,1,0][i] > 0 && Array.from({length:[2,1,3,0,2,1,0][i]}).map((_,j) => (
-            <rect key={j} x={154 + i*48} y={186 + j*14} width={34} height="11" rx="3" fill={`${RED}22`}/>
-          ))}
-        </g>
-      ))}
-      {/* coach */}
-      <rect x="142" y="262" width="366" height="44" rx="8" fill="#111827"/>
-      <circle cx="160" cy="284" r="10" fill="#374151"/>
-      <rect x="176" y="275" width="80" height="6" rx="2" fill="#fff" opacity=".7"/>
-      <rect x="176" y="285" width="120" height="5" rx="2" fill="#6b7280"/>
-      <rect x="420" y="277" width="72" height="14" rx="6" fill={RED}/>
+      {/* week bar */}
+      <rect x="156" y="140" width="382" height="112" rx="10" fill="#111827"/>
+      <rect x="168" y="152" width="55" height="6" rx="3" fill="#e2e8f0" opacity=".6"/>
+      {["L","M","M","J","V","S","D"].map((d, i) => {
+        const bars = [3, 1, 4, 0, 2, 1, 0];
+        const x = 168 + i * 52;
+        return (
+          <g key={i}>
+            <text x={x + 10} y="174" textAnchor="middle" fontSize="7" fill="#475569">{d}</text>
+            {Array.from({ length: bars[i] }).map((_, j) => (
+              <rect key={j} x={x} y={178 + j * 20} width="38" height="14" rx="4"
+                fill={i === 2 ? "#0ea5e9" : "#0ea5e9"} opacity={i === 2 ? .9 : .35}/>
+            ))}
+          </g>
+        );
+      })}
+      {/* coach strip */}
+      <rect x="156" y="264" width="382" height="56" rx="10" fill="#0ea5e9" opacity=".08"/>
+      <rect x="156" y="264" width="3" height="56" rx="1.5" fill="#0ea5e9"/>
+      <circle cx="178" cy="292" r="14" fill="#1e293b"/>
+      <rect x="198" y="280" width="80" height="6" rx="3" fill="#e2e8f0" opacity=".7"/>
+      <rect x="198" y="292" width="140" height="5" rx="2" fill="#475569"/>
+      <rect x="198" y="304" width="100" height="5" rx="2" fill="#334155"/>
+      <rect x="470" y="280" width="52" height="22" rx="8" fill="#0ea5e9" opacity=".8"/>
+      <rect x="478" y="288" width="36" height="5" rx="2" fill="#fff" opacity=".9"/>
     </svg>
   );
 }
 
 function ScreenTeam() {
   return (
-    <svg viewBox="0 0 520 300" xmlns="http://www.w3.org/2000/svg" style={{ width: "100%", borderRadius: 12, display: "block" }}>
-      <rect width="520" height="300" fill="#f4f5f7" rx="12"/>
-      <rect width="130" height="300" fill="#fff"/>
+    <svg viewBox="0 0 560 320" xmlns="http://www.w3.org/2000/svg" style={{ width: "100%", display: "block" }}>
+      <rect width="560" height="320" fill="#0a0f1a" rx="16"/>
+      <rect width="140" height="320" fill="#111827"/>
       {[0,1,2,3,4,5].map(i => (
         <g key={i}>
-          <rect x="12" y={56 + i*34} width="106" height="24" rx="6" fill={i===4 ? "#fef2f2" : "transparent"}/>
-          <rect x="22" y={63 + i*34} width="8" height="8" rx="2" fill={i===4 ? RED : "#d1d5db"}/>
-          <rect x="36" y={65 + i*34} width={[48,56,60,52,44,58][i]} height="6" rx="2" fill={i===4 ? RED : "#9ca3af"} opacity={i===4 ? 1 : 0.6}/>
+          <rect x="12" y={60 + i*36} width="116" height="22" rx="6" fill={i===4 ? "#0ea5e9" : "transparent"} opacity={i===4?.15:0}/>
+          <rect x="20" y={67 + i*36} width="8" height="8" rx="2" fill={i===4 ? "#0ea5e9" : "#334155"}/>
+          <rect x="34" y={69 + i*36} width={[48,56,60,52,44,58][i]} height="5" rx="2" fill={i===4?"#0ea5e9":"#475569"} opacity={i===4?1:.7}/>
         </g>
       ))}
-      {/* header */}
-      <rect x="142" y="16" width="90" height="9" rx="3" fill="#111827" opacity=".8"/>
-      <rect x="142" y="30" width="60" height="6" rx="2" fill="#d1d5db"/>
-      {/* 4 KPI cards */}
-      {[0,1,2,3].map(i => (
-        <g key={i}>
-          <rect x={142 + i*92} y="50" width="84" height="56" rx="8" fill="#fff"/>
-          <rect x={142 + i*92} y="50" width="84" height="3" rx="2" fill={[RED,"#16a34a","#d97706",RED][i]}/>
-          <rect x={150 + i*92} y="60" width="44" height="5" rx="2" fill="#e5e7eb"/>
-          <text x={150 + i*92} y="86" fontFamily="Georgia,serif" fontSize="18" fontWeight="700" fill={[RED,"#16a34a","#d97706",RED][i]}>{["$67k","94%","↑12%","3"][i]}</text>
-        </g>
-      ))}
-      {/* ranking table */}
-      <rect x="142" y="118" width="366" height="166" rx="8" fill="#fff"/>
-      <rect x="152" y="128" width="60" height="6" rx="2" fill="#374151" opacity=".7"/>
-      {/* cols header */}
-      {["Agente","IAC","Racha","Tendencia"].map((h,i) => (
-        <rect key={i} x={152 + [0,130,190,250][i]} y="142" width={[80,40,40,70][i]} height="5" rx="2" fill="#d1d5db"/>
-      ))}
-      {/* rows */}
+      <rect x="156" y="16" width="90" height="9" rx="4" fill="#f1f5f9" opacity=".9"/>
+      {/* KPI row */}
       {[
-        {name:"Ana Martínez",iac:94,racha:7,color:"#16a34a"},
-        {name:"Luis Gómez",iac:78,racha:4,color:"#d97706"},
-        {name:"Paula Díaz",iac:61,racha:2,color:"#d97706"},
-        {name:"Ariel Vega",iac:45,racha:1,color:RED},
-        {name:"Sol Fernández",iac:32,racha:0,color:RED},
-      ].map((r,i) => (
+        { x: 156, color: "#0ea5e9", val: "8/10" },
+        { x: 250, color: "#10b981", val: "94%" },
+        { x: 344, color: "#f59e0b", val: "↑12%" },
+        { x: 438, color: "#0ea5e9", val: "3★" },
+      ].map((c, i) => (
         <g key={i}>
-          <rect x="142" y={154 + i*24} width="366" height="24" fill={i%2===0?"#f9fafb":"#fff"}/>
-          <circle cx="162" cy={166 + i*24} r="7" fill="#e5e7eb"/>
-          <rect x="174" y={162 + i*24} width="60" height="5" rx="2" fill="#374151" opacity=".7"/>
-          {/* IAC bar */}
-          <rect x="282" y={162 + i*24} width="50" height="7" rx="3" fill="#f3f4f6"/>
-          <rect x="282" y={162 + i*24} width={r.iac/2} height="7" rx="3" fill={r.color} opacity=".7"/>
-          <text x="340" y={169 + i*24} fontSize="7" fill={r.color} fontWeight="600">{r.iac}%</text>
-          <rect x="352" y={162 + i*24} width="20" height="7" rx="3" fill={r.color} opacity=".15"/>
-          <text x="356" y={169 + i*24} fontSize="7" fill={r.color}>{r.racha}w</text>
+          <rect x={c.x} y="36" width="84" height="56" rx="8" fill="#111827"/>
+          <rect x={c.x} y="36" width="84" height="2.5" rx="1.5" fill={c.color}/>
+          <rect x={c.x + 8} y="46" width="44" height="4" rx="2" fill="#334155"/>
+          <text x={c.x + 8} y="78" fontFamily="Georgia,serif" fontSize="18" fontWeight="700" fill={c.color}>{c.val}</text>
+        </g>
+      ))}
+      {/* ranking */}
+      <rect x="156" y="104" width="382" height="200" rx="10" fill="#111827"/>
+      <rect x="168" y="116" width="60" height="6" rx="3" fill="#e2e8f0" opacity=".6"/>
+      {[
+        { name: "Ana Martínez", iac: 92, racha: 7, color: "#10b981" },
+        { name: "Luis Gómez", iac: 78, racha: 4, color: "#f59e0b" },
+        { name: "Paula Díaz", iac: 61, racha: 2, color: "#f59e0b" },
+        { name: "Ariel Vega", iac: 45, racha: 1, color: "#0ea5e9" },
+        { name: "Sol Fernández", iac: 30, racha: 0, color: "#ef4444" },
+      ].map((r, i) => (
+        <g key={i}>
+          <rect x="156" y={130 + i*32} width="382" height="32" fill={i%2===0?"#0d1520":"#111827"}/>
+          <circle cx="176" cy={146 + i*32} r="9" fill="#1e293b"/>
+          <text x="176" y={150 + i*32} textAnchor="middle" fontSize="7" fill="#94a3b8">{i+1}</text>
+          <rect x="192" y={142 + i*32} width="70" height="5" rx="2" fill="#cbd5e1" opacity=".8"/>
+          <rect x="290" y={142 + i*32} width="60" height="8" rx="3" fill="#1e293b"/>
+          <rect x="290" y={142 + i*32} width={r.iac * 0.6} height="8" rx="3" fill={r.color} opacity=".7"/>
+          <text x="360" y={149 + i*32} fontSize="7" fill={r.color} fontWeight="700">{r.iac}%</text>
+          <rect x="380" y={142 + i*32} width="26" height="8" rx="3" fill={r.color} opacity=".15"/>
+          <text x="386" y={149 + i*32} fontSize="7" fill={r.color}>{r.racha}w</text>
         </g>
       ))}
     </svg>
@@ -115,55 +148,50 @@ function ScreenTeam() {
 
 function ScreenCartera() {
   return (
-    <svg viewBox="0 0 520 300" xmlns="http://www.w3.org/2000/svg" style={{ width: "100%", borderRadius: 12, display: "block" }}>
-      <rect width="520" height="300" fill="#f4f5f7" rx="12"/>
-      <rect width="130" height="300" fill="#fff"/>
+    <svg viewBox="0 0 560 320" xmlns="http://www.w3.org/2000/svg" style={{ width: "100%", display: "block" }}>
+      <rect width="560" height="320" fill="#0a0f1a" rx="16"/>
+      <rect width="140" height="320" fill="#111827"/>
       {[0,1,2,3,4,5].map(i => (
         <g key={i}>
-          <rect x="12" y={56 + i*34} width="106" height="24" rx="6" fill={i===3 ? "#fef2f2" : "transparent"}/>
-          <rect x="22" y={63 + i*34} width="8" height="8" rx="2" fill={i===3 ? RED : "#d1d5db"}/>
-          <rect x="36" y={65 + i*34} width={[48,56,60,52,44,58][i]} height="6" rx="2" fill={i===3 ? RED : "#9ca3af"} opacity={i===3 ? 1 : 0.6}/>
+          <rect x="12" y={60 + i*36} width="116" height="22" rx="6" fill={i===3?"#0ea5e9":"transparent"} opacity={i===3?.15:0}/>
+          <rect x="20" y={67 + i*36} width="8" height="8" rx="2" fill={i===3?"#0ea5e9":"#334155"}/>
+          <rect x="34" y={69 + i*36} width={[48,56,60,52,44,58][i]} height="5" rx="2" fill={i===3?"#0ea5e9":"#475569"} opacity={i===3?1:.7}/>
         </g>
       ))}
-      <rect x="142" y="16" width="80" height="9" rx="3" fill="#111827" opacity=".8"/>
-      {/* KPI cards */}
+      <rect x="156" y="16" width="80" height="9" rx="4" fill="#f1f5f9" opacity=".9"/>
       {[
-        {label:"Disponibles",val:"24",color:"#374151"},
-        {label:"Fichas OK",val:"11",color:"#16a34a"},
-        {label:"Por mejorar",val:"9",color:RED},
-        {label:"+90 días",val:"4",color:"#d97706"},
-      ].map((k,i) => (
+        { label: "Disponibles", val: "24", color: "#cbd5e1" },
+        { label: "Fichas OK", val: "11", color: "#10b981" },
+        { label: "Mejorar", val: "9", color: "#f59e0b" },
+        { label: "+90 días", val: "4", color: "#ef4444" },
+      ].map((k, i) => (
         <g key={i}>
-          <rect x={142 + i*92} y="40" width="84" height="60" rx="8" fill="#fff"/>
-          <rect x={142 + i*92} y="40" width="84" height="3" rx="2" fill={k.color}/>
-          <rect x={150 + i*92} y="52" width="44" height="5" rx="2" fill="#e5e7eb"/>
-          <text x={152 + i*92} y="80" fontFamily="Georgia,serif" fontSize="20" fontWeight="700" fill={k.color}>{k.val}</text>
+          <rect x={156 + i*98} y="36" width="88" height="60" rx="8" fill="#111827"/>
+          <rect x={156 + i*98} y="36" width="88" height="2.5" rx="1.5" fill={k.color}/>
+          <rect x={164 + i*98} y="46" width="44" height="4" rx="2" fill="#334155"/>
+          <text x={164 + i*98} y="80" fontFamily="Georgia,serif" fontSize="20" fontWeight="700" fill={k.color}>{k.val}</text>
         </g>
       ))}
-      {/* property grid */}
       {[0,1,2,3,4,5].map(i => (
         <g key={i}>
-          <rect x={142 + (i%3)*124} y={116 + Math.floor(i/3)*90} width="114" height="80" rx="8" fill="#e5e7eb"/>
-          <rect x={142 + (i%3)*124} y={116 + Math.floor(i/3)*90} width="114" height="52" rx="8" fill="#d1d5db"/>
-          <rect x={148 + (i%3)*124} y={172 + Math.floor(i/3)*90} width="70" height="5" rx="2" fill="#374151" opacity=".6"/>
-          <rect x={148 + (i%3)*124} y={181 + Math.floor(i/3)*90} width="50" height="4" rx="2" fill="#9ca3af"/>
-          {i === 2 && <rect x={218} y={120} width="30" height="12" rx="4" fill={RED}/>}
-          {i === 2 && <rect x={221} y={124} width="24" height="4" rx="2" fill="#fff"/>}
-          {i === 4 && <rect x={342} y={210} width="36" height="12" rx="4" fill="#d97706"/>}
-          {i === 4 && <rect x={345} y={214} width="30" height="4" rx="2" fill="#fff"/>}
+          <rect x={156 + (i%3)*136} y={112 + Math.floor(i/3)*100} width="126" height="88" rx="8" fill="#111827"/>
+          <rect x={156 + (i%3)*136} y={112 + Math.floor(i/3)*100} width="126" height="56" rx="8" fill="#1e293b"/>
+          <rect x={164 + (i%3)*136} y={172 + Math.floor(i/3)*100} width="75" height="5" rx="2" fill="#cbd5e1" opacity=".7"/>
+          <rect x={164 + (i%3)*136} y={182 + Math.floor(i/3)*100} width="52" height="4" rx="2" fill="#475569"/>
+          {i === 2 && <rect x={248} y={116} width="28" height="14" rx="4" fill="#ef4444" opacity=".8"/>}
+          {i === 4 && <rect x={384} y={216} width="38" height="14" rx="4" fill="#f59e0b" opacity=".8"/>}
         </g>
       ))}
     </svg>
   );
 }
 
-// ── Main Landing ─────────────────────────────────────────────────────────────
-
+// ── Main ──────────────────────────────────────────────────────────────────────
 export default function Landing() {
   const router = useRouter();
 
   return (
-    <div style={{ background: "#f9fafb", minHeight: "100vh", fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", color: DARK, overflowX: "hidden" }}>
+    <div style={{ background: C.ink, minHeight: "100vh", fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", color: C.white, overflowX: "hidden" }}>
       <Head>
         <title>InmoCoach — Medí tu actividad. Mejorá tu cartera. Cerrá más.</title>
         <meta name="description" content="InmoCoach mide tu actividad comercial en Google Calendar, analiza tus fichas en Tokko Broker y te da feedback real con IA cada semana." />
@@ -171,143 +199,385 @@ export default function Landing() {
       </Head>
 
       <style>{`
-        *{box-sizing:border-box}
-        @keyframes fadeUp { from { opacity:0; transform:translateY(18px); } to { opacity:1; transform:translateY(0); } }
-        .f1{animation:fadeUp .55s ease forwards;animation-delay:.05s;opacity:0}
-        .f2{animation:fadeUp .55s ease forwards;animation-delay:.15s;opacity:0}
-        .f3{animation:fadeUp .55s ease forwards;animation-delay:.25s;opacity:0}
-        .f4{animation:fadeUp .55s ease forwards;animation-delay:.35s;opacity:0}
-        .ic-card{background:#fff;border:0.5px solid #e5e7eb;border-radius:14px;transition:box-shadow .2s,border-color .2s}
-        .ic-card:hover{box-shadow:0 4px 20px rgba(0,0,0,0.07);border-color:#d1d5db}
-        .ic-screen{background:#fff;border:0.5px solid #e5e7eb;border-radius:14px;overflow:hidden;box-shadow:0 8px 40px rgba(0,0,0,0.09)}
-        @media(max-width:900px){.ic-2col{grid-template-columns:1fr!important}.ic-hide-mobile{display:none!important}.ic-nav-links{display:none!important}}
-        @media(max-width:640px){.ic-3col{grid-template-columns:1fr!important}}
-        a{text-decoration:none}
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        a { text-decoration: none; }
+
+        /* ── Animaciones ── */
+        @keyframes fadeUp {
+          from { opacity: 0; transform: translateY(24px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes slideRight {
+          from { transform: scaleX(0); }
+          to   { transform: scaleX(1); }
+        }
+        @keyframes pulse-ring {
+          0%   { box-shadow: 0 0 0 0 rgba(14,165,233,.4); }
+          70%  { box-shadow: 0 0 0 12px rgba(14,165,233,0); }
+          100% { box-shadow: 0 0 0 0 rgba(14,165,233,0); }
+        }
+        .f1 { animation: fadeUp .6s ease forwards; animation-delay: .0s; opacity: 0; }
+        .f2 { animation: fadeUp .6s ease forwards; animation-delay: .12s; opacity: 0; }
+        .f3 { animation: fadeUp .6s ease forwards; animation-delay: .22s; opacity: 0; }
+        .f4 { animation: fadeUp .6s ease forwards; animation-delay: .32s; opacity: 0; }
+        .f5 { animation: fadeUp .6s ease forwards; animation-delay: .44s; opacity: 0; }
+
+        /* ── Botones ── */
+        .btn-primary {
+          background: ${C.sky};
+          color: ${C.white};
+          border: none;
+          border-radius: 10px;
+          padding: 13px 28px;
+          font-size: 14px;
+          font-weight: 600;
+          cursor: pointer;
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          transition: background .2s, transform .15s, box-shadow .2s;
+          letter-spacing: -.01em;
+        }
+        .btn-primary:hover {
+          background: ${C.skyDim};
+          transform: translateY(-1px);
+          box-shadow: 0 8px 32px rgba(14,165,233,.35);
+        }
+        .btn-ghost {
+          background: rgba(255,255,255,.06);
+          color: ${C.silver};
+          border: 1px solid rgba(255,255,255,.1);
+          border-radius: 10px;
+          padding: 13px 28px;
+          font-size: 14px;
+          font-weight: 500;
+          cursor: pointer;
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          transition: background .2s, border-color .2s, color .2s;
+        }
+        .btn-ghost:hover {
+          background: rgba(255,255,255,.1);
+          border-color: rgba(255,255,255,.2);
+          color: ${C.white};
+        }
+        .btn-nav {
+          background: ${C.sky};
+          color: ${C.white};
+          border: none;
+          border-radius: 8px;
+          padding: 8px 18px;
+          font-size: 13px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: background .2s;
+          animation: pulse-ring 2.5s ease infinite;
+        }
+        .btn-nav:hover { background: ${C.skyDim}; }
+
+        /* ── Cards ── */
+        .ic-card {
+          background: ${C.inkMid};
+          border: 1px solid rgba(255,255,255,.07);
+          border-radius: 16px;
+          transition: border-color .25s, transform .25s, box-shadow .25s;
+        }
+        .ic-card:hover {
+          border-color: rgba(14,165,233,.3);
+          transform: translateY(-3px);
+          box-shadow: 0 20px 60px rgba(0,0,0,.4), 0 0 0 1px rgba(14,165,233,.1);
+        }
+        .ic-screen {
+          border-radius: 16px;
+          overflow: hidden;
+          border: 1px solid rgba(255,255,255,.08);
+          box-shadow: 0 40px 120px rgba(0,0,0,.6), 0 0 0 1px rgba(14,165,233,.05);
+        }
+        .ic-screen-bar {
+          padding: 10px 14px;
+          background: #0d1117;
+          border-bottom: 1px solid rgba(255,255,255,.06);
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        }
+        .ic-dot { width: 10px; height: 10px; border-radius: 50%; }
+
+        /* ── Stat pill ── */
+        .stat-pill {
+          background: rgba(14,165,233,.08);
+          border: 1px solid rgba(14,165,233,.15);
+          border-radius: 12px;
+          padding: 24px 28px;
+          text-align: center;
+        }
+
+        /* ── Separador ── */
+        .section-label {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          font-size: 11px;
+          font-weight: 600;
+          color: ${C.sky};
+          letter-spacing: .1em;
+          text-transform: uppercase;
+          margin-bottom: 16px;
+        }
+        .section-label::before {
+          content: '';
+          display: block;
+          width: 20px;
+          height: 1px;
+          background: ${C.sky};
+        }
+
+        /* ── Gradiente sky ── */
+        .sky-text {
+          background: linear-gradient(135deg, ${C.skyDim} 0%, ${C.sky} 60%);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
+        }
+
+        /* ── Feature row ── */
+        .feature-check {
+          display: flex;
+          gap: 10px;
+          align-items: flex-start;
+          margin-bottom: 10px;
+        }
+
+        /* ── Responsive ── */
+        @media (max-width: 960px) {
+          .ic-2col { grid-template-columns: 1fr !important; }
+          .ic-hide-mobile { display: none !important; }
+          .ic-nav-links { display: none !important; }
+        }
+        @media (max-width: 640px) {
+          .ic-3col { grid-template-columns: 1fr !important; }
+          .ic-4col { grid-template-columns: 1fr 1fr !important; }
+        }
       `}</style>
 
-      {/* NAV */}
-      <nav style={{ background: "#fff", borderBottom: "0.5px solid #e5e7eb", position: "sticky", top: 0, zIndex: 50 }}>
-        <div style={{ maxWidth: 1080, margin: "0 auto", padding: "0 24px", height: 56, display: "flex", alignItems: "center", gap: 28 }}>
-          <div style={{ fontFamily: "Georgia, serif", fontWeight: 500, fontSize: 20, color: DARK, marginRight: "auto" }}>
-            Inmo<span style={{ color: RED }}>Coach</span>
+      {/* ── NAV ─────────────────────────────────────────────────────────────── */}
+      <nav style={{
+        background: "rgba(10,15,26,.85)",
+        backdropFilter: "blur(20px)",
+        WebkitBackdropFilter: "blur(20px)",
+        borderBottom: "1px solid rgba(255,255,255,.07)",
+        position: "sticky",
+        top: 0,
+        zIndex: 50,
+      }}>
+        <div style={{ maxWidth: 1100, margin: "0 auto", padding: "0 24px", height: 60, display: "flex", alignItems: "center", gap: 32 }}>
+          <div style={{ fontFamily: "Georgia, serif", fontWeight: 700, fontSize: 20, color: C.white, marginRight: "auto", letterSpacing: "-.02em" }}>
+            Inmo<span className="sky-text">Coach</span>
           </div>
           <div className="ic-nav-links" style={{ display: "flex", gap: 28 }}>
-            <a href="#como-funciona" style={{ color: "#6b7280", fontSize: 13, fontWeight: 500 }}>Cómo funciona</a>
-            <a href="#para-quien" style={{ color: "#6b7280", fontSize: 13, fontWeight: 500 }}>Para quién</a>
-            <a href="/pricing" style={{ color: "#6b7280", fontSize: 13, fontWeight: 500 }}>Precios</a>
+            {[
+              { label: "Cómo funciona", href: "#como-funciona" },
+              { label: "Para quién", href: "#para-quien" },
+              { label: "Precios", href: "/pricing" },
+            ].map(l => (
+              <a key={l.label} href={l.href} style={{ color: C.mist, fontSize: 13, fontWeight: 500, transition: "color .2s" }}
+                onMouseEnter={e => (e.currentTarget.style.color = C.white)}
+                onMouseLeave={e => (e.currentTarget.style.color = C.mist)}>
+                {l.label}
+              </a>
+            ))}
           </div>
-          <button onClick={() => router.push("/login")}
-            style={{ background: RED, color: "#fff", border: "none", borderRadius: 10, padding: "8px 20px", fontSize: 13, fontWeight: 500, cursor: "pointer" }}>
+          <button className="btn-nav" onClick={() => router.push("/login")}>
             Empezar gratis
           </button>
         </div>
       </nav>
 
-      {/* HERO */}
-      <section style={{ padding: "80px 24px 64px", textAlign: "center" }}>
-        <div style={{ maxWidth: 780, margin: "0 auto" }}>
-          <div className="f1" style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "#fef2f2", border: "0.5px solid #fecaca", borderRadius: 100, padding: "5px 16px", marginBottom: 28 }}>
-            <div style={{ width: 6, height: 6, borderRadius: "50%", background: RED }} />
-            <span style={{ fontSize: 12, fontWeight: 500, color: RED, letterSpacing: "0.05em", textTransform: "uppercase" }}>Actividad · Calidad de fichas · Coach IA</span>
+      {/* ── HERO ────────────────────────────────────────────────────────────── */}
+      <section style={{ padding: "96px 24px 80px", textAlign: "center", position: "relative", overflow: "hidden" }}>
+        {/* glow fondo */}
+        <div style={{
+          position: "absolute", top: "-10%", left: "50%", transform: "translateX(-50%)",
+          width: 800, height: 600,
+          background: "radial-gradient(ellipse at center, rgba(14,165,233,.12) 0%, transparent 70%)",
+          pointerEvents: "none",
+        }}/>
+        <div style={{ maxWidth: 820, margin: "0 auto", position: "relative" }}>
+          {/* badge */}
+          <div className="f1" style={{ display: "inline-flex", alignItems: "center", gap: 8,
+            background: "rgba(14,165,233,.1)", border: "1px solid rgba(14,165,233,.2)",
+            borderRadius: 100, padding: "6px 18px", marginBottom: 32 }}>
+            <div style={{ width: 6, height: 6, borderRadius: "50%", background: C.sky, boxShadow: `0 0 8px ${C.sky}` }}/>
+            <span style={{ fontSize: 11, fontWeight: 600, color: C.skyDim, letterSpacing: ".1em", textTransform: "uppercase" }}>
+              Actividad · Calidad de fichas · Coach IA
+            </span>
           </div>
-          <h1 className="f2" style={{ fontFamily: "Georgia, serif", fontSize: "clamp(38px, 6vw, 66px)", fontWeight: 500, lineHeight: 1.08, marginBottom: 24, color: DARK }}>
-            Medí tu actividad.<br />Mejorá tu cartera.<br /><span style={{ color: RED }}>Cerrá más.</span>
+
+          {/* headline */}
+          <h1 className="f2" style={{
+            fontFamily: "Georgia, serif",
+            fontSize: "clamp(42px, 7vw, 76px)",
+            fontWeight: 500,
+            lineHeight: 1.04,
+            marginBottom: 28,
+            color: C.white,
+            letterSpacing: "-.03em",
+          }}>
+            Medí tu actividad.<br />
+            Mejorá tu cartera.<br />
+            <span className="sky-text">Cerrá más.</span>
           </h1>
-          <p className="f3" style={{ fontSize: "clamp(15px, 2vw, 17px)", color: "#6b7280", maxWidth: 560, margin: "0 auto 40px", lineHeight: 1.75 }}>
-            InmoCoach mide tus reuniones cara a cara en Google Calendar, analiza el estado de tus fichas en Tokko Broker y te da un diagnóstico semanal con IA. Todo en un solo lugar.
+
+          {/* sub */}
+          <p className="f3" style={{
+            fontSize: "clamp(15px, 2vw, 18px)",
+            color: C.mist,
+            maxWidth: 580,
+            margin: "0 auto 44px",
+            lineHeight: 1.75,
+          }}>
+            InmoCoach conecta tu Google Calendar, analiza tu cartera en Tokko Broker
+            y te da un diagnóstico semanal con IA. La única herramienta de productividad
+            diseñada para el mercado inmobiliario argentino.
           </p>
-          <div className="f4" style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap", marginBottom: 16 }}>
-            <button onClick={() => router.push("/login")}
-              style={{ background: RED, color: "#fff", border: "none", borderRadius: 12, padding: "14px 32px", fontSize: 15, fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", gap: 8 }}>
-              Probalo 7 días gratis <ArrowRight size={15} />
+
+          {/* CTAs */}
+          <div className="f4" style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap", marginBottom: 20 }}>
+            <button className="btn-primary" onClick={() => router.push("/login")}>
+              Probalo 7 días gratis <ArrowRight size={14}/>
             </button>
-            <a href="#como-funciona"
-              style={{ background: "#fff", color: "#374151", border: "0.5px solid #e5e7eb", borderRadius: 12, padding: "14px 32px", fontSize: 15, fontWeight: 500, display: "flex", alignItems: "center" }}>
+            <a href="#como-funciona" className="btn-ghost" style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
               Ver cómo funciona
             </a>
           </div>
-          <p style={{ fontSize: 12, color: "#9ca3af" }}>Sin tarjeta de crédito · 7 días completos · Cancelás cuando querés</p>
+          <p className="f5" style={{ fontSize: 12, color: "#475569" }}>
+            Sin tarjeta de crédito · Sin contrato · Cancelás cuando querés
+          </p>
         </div>
       </section>
 
-      {/* SCREENSHOT HERO */}
-      <section style={{ padding: "0 24px 80px" }}>
-        <div style={{ maxWidth: 860, margin: "0 auto" }}>
+      {/* ── SCREENSHOT HERO ─────────────────────────────────────────────────── */}
+      <section style={{ padding: "0 24px 100px" }}>
+        <div style={{ maxWidth: 900, margin: "0 auto" }}>
           <div className="ic-screen">
-            <div style={{ padding: "8px 12px", background: "#f9fafb", borderBottom: "0.5px solid #e5e7eb", display: "flex", alignItems: "center", gap: 6 }}>
-              {["#ff5f57","#febc2e","#28c840"].map(c => <div key={c} style={{ width: 10, height: 10, borderRadius: "50%", background: c }} />)}
-              <div style={{ flex: 1, height: 6, borderRadius: 3, background: "#e5e7eb", marginLeft: 8, maxWidth: 200 }} />
+            <div className="ic-screen-bar">
+              {["#ff5f57","#febc2e","#28c840"].map(c => (
+                <div key={c} className="ic-dot" style={{ background: c }}/>
+              ))}
+              <div style={{ flex: 1, height: 6, borderRadius: 3, background: "rgba(255,255,255,.08)", marginLeft: 8, maxWidth: 220 }}/>
             </div>
-            <ScreenDashboard />
+            <ScreenDashboard/>
           </div>
         </div>
       </section>
 
-      {/* STATS */}
-      <section style={{ padding: "0 24px 80px" }}>
-        <div style={{ maxWidth: 1080, margin: "0 auto", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }} className="ic-3col">
+      {/* ── STATS ───────────────────────────────────────────────────────────── */}
+      <section style={{ padding: "0 24px 100px" }}>
+        <div style={{
+          maxWidth: 1100, margin: "0 auto",
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+          gap: 16,
+        }} className="ic-3col">
           {[
-            { num: "2 en 1", label: "Actividad comercial + calidad de cartera en un solo dashboard" },
-            { num: "15", label: "reuniones cara a cara por semana = estándar del top producer" },
-            { num: "3x", label: "más cierres logra quien mide y ajusta su semana con datos reales" },
-            { num: "IA", label: "analiza tu perfil de semana y te da la única acción que más impacta" },
+            { num: "2 en 1", desc: "Actividad comercial + calidad de cartera en un solo dashboard" },
+            { num: "15", desc: "reuniones cara a cara por semana = estándar top producer" },
+            { num: "3×", desc: "más cierres logra quien mide y ajusta su semana con datos" },
+            { num: "90 días", desc: "es el límite: fichas sin actualizar pierden posicionamiento" },
           ].map((s, i) => (
-            <div key={i} className="ic-card" style={{ padding: "22px 24px" }}>
-              <div style={{ fontFamily: "Georgia, serif", fontSize: 38, fontWeight: 500, color: RED, lineHeight: 1, marginBottom: 8 }}>{s.num}</div>
-              <p style={{ fontSize: 13, color: "#6b7280", lineHeight: 1.6, margin: 0 }}>{s.label}</p>
+            <div key={i} className="stat-pill">
+              <div style={{
+                fontFamily: "Georgia, serif",
+                fontSize: "clamp(28px,3vw,38px)",
+                fontWeight: 700,
+                color: C.sky,
+                marginBottom: 10,
+                lineHeight: 1,
+              }}>{s.num}</div>
+              <p style={{ fontSize: 13, color: C.slate, lineHeight: 1.6 }}>{s.desc}</p>
             </div>
           ))}
         </div>
       </section>
 
-      {/* PROPUESTA DE VALOR — 3 PILARES */}
-      <section id="como-funciona" style={{ padding: "80px 24px", background: "#fff", borderTop: "0.5px solid #e5e7eb", borderBottom: "0.5px solid #e5e7eb" }}>
-        <div style={{ maxWidth: 1080, margin: "0 auto" }}>
-          <div style={{ textAlign: "center", marginBottom: 56 }}>
-            <p style={{ fontSize: 11, fontWeight: 500, color: RED, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 12 }}>Lo que medimos</p>
-            <h2 style={{ fontFamily: "Georgia, serif", fontSize: "clamp(30px, 4vw, 46px)", fontWeight: 500, lineHeight: 1.1, margin: 0 }}>
-              Tres pilares de tu negocio<br /><span style={{ color: RED }}>finalmente medidos</span>
+      {/* ── CÓMO FUNCIONA ───────────────────────────────────────────────────── */}
+      <section id="como-funciona" style={{ padding: "100px 24px", borderTop: "1px solid rgba(255,255,255,.06)" }}>
+        <div style={{ maxWidth: 1100, margin: "0 auto" }}>
+          <div style={{ textAlign: "center", marginBottom: 64 }}>
+            <div className="section-label" style={{ justifyContent: "center" }}>Tres pilares</div>
+            <h2 style={{
+              fontFamily: "Georgia, serif",
+              fontSize: "clamp(30px,4vw,48px)",
+              fontWeight: 500,
+              lineHeight: 1.1,
+              color: C.white,
+              letterSpacing: "-.02em",
+            }}>
+              Todo lo que necesitás,<br />
+              <span className="sky-text">conectado y automatizado</span>
             </h2>
           </div>
-
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 20 }} className="ic-3col">
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 20 }} className="ic-3col">
             {[
               {
-                num: "01", color: RED,
+                icon: <Calendar size={22} color={C.sky}/>,
+                num: "01",
+                color: C.sky,
                 title: "Actividad comercial",
-                sub: "Google Calendar",
-                desc: "Detectamos automáticamente tus reuniones cara a cara — tasaciones, visitas, propuestas, cierres. Sin cargar nada. Calculamos tu IAC (Índice de Actividad Comercial) en tiempo real.",
-                bullets: ["Reuniones detectadas automáticamente", "IAC semanal y mensual", "Racha de productividad y rangos", "Alerta si tu racha está en riesgo"],
+                sub: "vía Google Calendar",
+                desc: "Detectamos automáticamente tus reuniones cara a cara — tasaciones, visitas, propuestas, cierres. Sin cargar nada. Calculamos tu IAC en tiempo real.",
+                bullets: ["Reuniones detectadas automáticamente","IAC semanal y mensual","Racha de productividad y rangos","Alerta si tu racha está en riesgo"],
               },
               {
-                num: "02", color: "#16a34a",
+                icon: <Building2 size={22} color="#10b981"/>,
+                num: "02",
+                color: "#10b981",
                 title: "Calidad de cartera",
-                sub: "Tokko Broker",
-                desc: "Conectamos tu Tokko y analizamos cada ficha: fotos, plano, video, tour 360° y antigüedad de publicación. Sabés exactamente cuáles fichas están perdiendo visitas por estar incompletas.",
-                bullets: ["Estado de cada propiedad publicada", "Alertas de fichas incompletas", "Propiedades sin actualizar +90 días", "Vista broker: cartera de cada agente"],
+                sub: "vía Tokko Broker",
+                desc: "Conectamos tu Tokko y analizamos cada ficha: fotos, plano, video, tour 360° y antigüedad. Sabés cuáles están perdiendo visitas por estar incompletas.",
+                bullets: ["Estado de cada propiedad publicada","Alertas de fichas incompletas","Propiedades sin actualizar +90 días","Vista broker: cartera de cada agente"],
               },
               {
-                num: "03", color: "#7c3aed",
+                icon: <Brain size={22} color="#8b5cf6"/>,
+                num: "03",
+                color: "#8b5cf6",
                 title: "Coach IA semanal",
                 sub: "Análisis personalizado",
-                desc: "Inmo Coach analiza tu actividad + el estado de tu cartera y te da un diagnóstico honesto: qué hiciste bien, dónde perdiste oportunidades y cuál es la única acción concreta para esta semana.",
-                bullets: ["Perfil de semana (productivo / reactivo / en riesgo)", "Análisis de oportunidades perdidas", "Acción concreta semanal", "Reporte por email todos los lunes"],
+                desc: "Inmo Coach analiza tu actividad + el estado de tu cartera y te da un diagnóstico honesto: qué hiciste bien, dónde perdiste y cuál es la acción concreta para esta semana.",
+                bullets: ["Perfil de semana (productivo / reactivo / en riesgo)","Análisis de oportunidades perdidas","Acción concreta semanal","Reporte por email todos los lunes"],
               },
             ].map((p, i) => (
-              <div key={i} className="ic-card" style={{ padding: 28, borderTop: `3px solid ${p.color}`, borderRadius: "0 0 14px 14px" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
-                  <div style={{ fontFamily: "Georgia, serif", fontSize: 30, fontWeight: 500, color: "#f3f4f6", lineHeight: 1 }}>{p.num}</div>
-                  <div>
-                    <div style={{ fontSize: 15, fontWeight: 500, color: DARK }}>{p.title}</div>
-                    <div style={{ fontSize: 11, color: p.color, fontWeight: 500, marginTop: 1 }}>{p.sub}</div>
+              <div key={i} className="ic-card" style={{ padding: 32 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 20 }}>
+                  <div style={{
+                    width: 48, height: 48, borderRadius: 12,
+                    background: `${p.color}18`,
+                    border: `1px solid ${p.color}30`,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    flexShrink: 0,
+                  }}>
+                    {p.icon}
                   </div>
+                  <div>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: p.color, letterSpacing: ".08em", textTransform: "uppercase", marginBottom: 3 }}>{p.sub}</div>
+                    <div style={{ fontSize: 16, fontWeight: 600, color: C.white }}>{p.title}</div>
+                  </div>
+                  <div style={{
+                    marginLeft: "auto",
+                    fontFamily: "Georgia, serif",
+                    fontSize: 28,
+                    fontWeight: 700,
+                    color: "rgba(255,255,255,.06)",
+                    lineHeight: 1,
+                  }}>{p.num}</div>
                 </div>
-                <p style={{ fontSize: 13, color: "#6b7280", lineHeight: 1.75, marginBottom: 16 }}>{p.desc}</p>
-                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <p style={{ fontSize: 13.5, color: C.slate, lineHeight: 1.75, marginBottom: 20 }}>{p.desc}</p>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                   {p.bullets.map((b, j) => (
-                    <div key={j} style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
-                      <CheckCircle size={12} style={{ color: p.color, flexShrink: 0, marginTop: 2 }} />
-                      <span style={{ fontSize: 12, color: "#374151" }}>{b}</span>
+                    <div key={j} className="feature-check">
+                      <CheckCircle size={13} style={{ color: p.color, flexShrink: 0, marginTop: 2 }}/>
+                      <span style={{ fontSize: 12.5, color: C.mist }}>{b}</span>
                     </div>
                   ))}
                 </div>
@@ -317,17 +587,27 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* SCREENS — EQUIPO */}
-      <section id="para-quien" style={{ padding: "80px 24px" }}>
-        <div style={{ maxWidth: 1080, margin: "0 auto" }}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 64, alignItems: "center" }} className="ic-2col">
+      {/* ── BROKER SECTION ──────────────────────────────────────────────────── */}
+      <section id="para-quien" style={{ padding: "100px 24px", borderTop: "1px solid rgba(255,255,255,.06)" }}>
+        <div style={{ maxWidth: 1100, margin: "0 auto" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 72, alignItems: "center" }} className="ic-2col">
             <div>
-              <p style={{ fontSize: 11, fontWeight: 500, color: RED, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 12 }}>Para brokers</p>
-              <h2 style={{ fontFamily: "Georgia, serif", fontSize: "clamp(28px, 3.5vw, 40px)", fontWeight: 500, lineHeight: 1.15, marginBottom: 16 }}>
-                Todo tu equipo.<br /><span style={{ color: RED }}>Un solo lugar.</span>
+              <div className="section-label">Para brokers</div>
+              <h2 style={{
+                fontFamily: "Georgia, serif",
+                fontSize: "clamp(28px,3.5vw,44px)",
+                fontWeight: 500,
+                lineHeight: 1.1,
+                color: C.white,
+                marginBottom: 20,
+                letterSpacing: "-.02em",
+              }}>
+                Todo tu equipo.<br />
+                <span className="sky-text">Un solo lugar.</span>
               </h2>
-              <p style={{ fontSize: 14, color: "#6b7280", lineHeight: 1.8, marginBottom: 20 }}>
-                Dashboard del equipo con ranking interno, IAC colectivo, alertas de racha en riesgo y estado de cartera por agente. Sabés quién necesita coaching antes de que los números lo digan.
+              <p style={{ fontSize: 14.5, color: C.slate, lineHeight: 1.8, marginBottom: 24 }}>
+                Dashboard del equipo con ranking interno, IAC colectivo, alertas de racha en riesgo
+                y estado de cartera por agente. Sabés quién necesita coaching antes de que los números lo digan.
               </p>
               {[
                 "Ranking semanal de actividad con tendencia",
@@ -335,39 +615,60 @@ export default function Landing() {
                 "Cartera Tokko desglosada por agente",
                 "Invitación de agentes con 1 click desde Tokko",
               ].map((f, i) => (
-                <div key={i} style={{ display: "flex", gap: 10, alignItems: "flex-start", marginBottom: 10 }}>
-                  <CheckCircle size={14} style={{ color: RED, flexShrink: 0, marginTop: 1 }} />
-                  <span style={{ fontSize: 13, color: "#374151" }}>{f}</span>
+                <div key={i} className="feature-check">
+                  <div style={{ width: 18, height: 18, borderRadius: 6, background: `${C.sky}20`, border: `1px solid ${C.sky}40`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1 }}>
+                    <CheckCircle size={10} style={{ color: C.sky }}/>
+                  </div>
+                  <span style={{ fontSize: 13.5, color: C.mist }}>{f}</span>
                 </div>
               ))}
             </div>
             <div className="ic-screen">
-              <div style={{ padding: "8px 12px", background: "#f9fafb", borderBottom: "0.5px solid #e5e7eb", display: "flex", alignItems: "center", gap: 6 }}>
-                {["#ff5f57","#febc2e","#28c840"].map(c => <div key={c} style={{ width: 10, height: 10, borderRadius: "50%", background: c }} />)}
+              <div className="ic-screen-bar">
+                {["#ff5f57","#febc2e","#28c840"].map(c => (
+                  <div key={c} className="ic-dot" style={{ background: c }}/>
+                ))}
               </div>
-              <ScreenTeam />
+              <ScreenTeam/>
             </div>
           </div>
         </div>
       </section>
 
-      {/* SCREENS — CARTERA */}
-      <section style={{ padding: "0 24px 80px", background: "#fff", borderTop: "0.5px solid #e5e7eb" }}>
-        <div style={{ maxWidth: 1080, margin: "0 auto", paddingTop: 80 }}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 64, alignItems: "center" }} className="ic-2col">
+      {/* ── AGENTE SECTION ──────────────────────────────────────────────────── */}
+      <section style={{ padding: "100px 24px", borderTop: "1px solid rgba(255,255,255,.06)", background: "rgba(255,255,255,.015)" }}>
+        <div style={{ maxWidth: 1100, margin: "0 auto" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 72, alignItems: "center" }} className="ic-2col">
             <div className="ic-screen ic-hide-mobile">
-              <div style={{ padding: "8px 12px", background: "#f9fafb", borderBottom: "0.5px solid #e5e7eb", display: "flex", alignItems: "center", gap: 6 }}>
-                {["#ff5f57","#febc2e","#28c840"].map(c => <div key={c} style={{ width: 10, height: 10, borderRadius: "50%", background: c }} />)}
+              <div className="ic-screen-bar">
+                {["#ff5f57","#febc2e","#28c840"].map(c => (
+                  <div key={c} className="ic-dot" style={{ background: c }}/>
+                ))}
               </div>
-              <ScreenCartera />
+              <ScreenCartera/>
             </div>
             <div>
-              <p style={{ fontSize: 11, fontWeight: 500, color: "#16a34a", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 12 }}>Para agentes</p>
-              <h2 style={{ fontFamily: "Georgia, serif", fontSize: "clamp(28px, 3.5vw, 40px)", fontWeight: 500, lineHeight: 1.15, marginBottom: 16 }}>
-                Tus fichas hablan.<br /><span style={{ color: RED }}>¿Las estás escuchando?</span>
+              <div className="section-label" style={{ color: "#10b981" }}>
+                <span style={{ width: 20, height: 1, background: "#10b981", display: "inline-block" }}/>
+                Para agentes
+              </div>
+              <h2 style={{
+                fontFamily: "Georgia, serif",
+                fontSize: "clamp(28px,3.5vw,44px)",
+                fontWeight: 500,
+                lineHeight: 1.1,
+                color: C.white,
+                marginBottom: 20,
+                letterSpacing: "-.02em",
+              }}>
+                Tus fichas hablan.<br />
+                <span style={{ background: "linear-gradient(135deg, #34d399 0%, #10b981 60%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>
+                  ¿Las estás escuchando?
+                </span>
               </h2>
-              <p style={{ fontSize: 14, color: "#6b7280", lineHeight: 1.8, marginBottom: 20 }}>
-                El estándar de una ficha que convierte: 15+ fotos, plano, video o tour 360° y actualizada. InmoCoach lo mide por vos y te alerta cuando una propiedad está perdiendo oportunidades.
+              <p style={{ fontSize: 14.5, color: C.slate, lineHeight: 1.8, marginBottom: 24 }}>
+                El estándar de una ficha que convierte: 15+ fotos, plano, video o tour 360° y actualizada.
+                InmoCoach lo mide por vos y te alerta cuando una propiedad está perdiendo oportunidades.
               </p>
               {[
                 "Fotos, plano, video y tour 360° por propiedad",
@@ -375,9 +676,11 @@ export default function Landing() {
                 "Propiedades publicadas hace más de 90 días sin cambios",
                 "Acceso directo a editar en Tokko desde la app",
               ].map((f, i) => (
-                <div key={i} style={{ display: "flex", gap: 10, alignItems: "flex-start", marginBottom: 10 }}>
-                  <CheckCircle size={14} style={{ color: "#16a34a", flexShrink: 0, marginTop: 1 }} />
-                  <span style={{ fontSize: 13, color: "#374151" }}>{f}</span>
+                <div key={i} className="feature-check">
+                  <div style={{ width: 18, height: 18, borderRadius: 6, background: "rgba(16,185,129,.15)", border: "1px solid rgba(16,185,129,.3)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1 }}>
+                    <CheckCircle size={10} style={{ color: "#10b981" }}/>
+                  </div>
+                  <span style={{ fontSize: 13.5, color: C.mist }}>{f}</span>
                 </div>
               ))}
             </div>
@@ -385,39 +688,63 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* PARA QUIEN — CARDS */}
-      <section style={{ padding: "80px 24px" }}>
-        <div style={{ maxWidth: 1080, margin: "0 auto" }}>
-          <div style={{ textAlign: "center", marginBottom: 48 }}>
-            <h2 style={{ fontFamily: "Georgia, serif", fontSize: "clamp(28px, 4vw, 44px)", fontWeight: 500, lineHeight: 1.1, margin: 0 }}>
-              Diseñado para <span style={{ color: RED }}>cada rol</span>
-            </h2>
+      {/* ── ROLES ───────────────────────────────────────────────────────────── */}
+      <section style={{ padding: "100px 24px", borderTop: "1px solid rgba(255,255,255,.06)" }}>
+        <div style={{ maxWidth: 1100, margin: "0 auto" }}>
+          <div style={{ textAlign: "center", marginBottom: 56 }}>
+            <div className="section-label" style={{ justifyContent: "center" }}>Diseñado para cada rol</div>
+            <h2 style={{
+              fontFamily: "Georgia, serif",
+              fontSize: "clamp(28px,4vw,46px)",
+              fontWeight: 500,
+              lineHeight: 1.1,
+              color: C.white,
+              letterSpacing: "-.02em",
+            }}>Encontrá tu lugar<br /><span className="sky-text">en InmoCoach</span></h2>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 20 }}>
             {[
               {
-                icon: "◈", color: RED, title: "Agente independiente",
+                icon: "◈", color: C.sky,
+                title: "Agente independiente",
                 desc: "Tu IAC semanal, racha de productividad, ranking global y el estado de tu cartera Tokko. El espejo que nunca tuviste.",
-                items: ["Dashboard personal", "IAC y racha", "Coach IA semanal", "Cartera Tokko"],
+                items: ["Dashboard personal","IAC y racha","Coach IA semanal","Cartera Tokko"],
               },
               {
-                icon: "⊞", color: "#7c3aed", title: "Broker con equipo",
+                icon: "⊞", color: "#8b5cf6",
+                title: "Broker con equipo",
                 desc: "Actividad individual + colectiva, cartera por agente, alertas automáticas. Hacés coaching con datos, no con sensaciones.",
-                items: ["Dashboard de equipo", "Ranking interno", "Cartera por agente", "Alertas de racha"],
+                items: ["Dashboard de equipo","Ranking interno","Cartera por agente","Alertas de racha"],
               },
               {
-                icon: "✦", color: "#d97706", title: "Team leader",
+                icon: "✦", color: "#f59e0b",
+                title: "Team leader",
                 desc: "Visibilidad de tu subequipo dentro de la organización. Sabés quién va bien y quién necesita apoyo esta semana.",
-                items: ["Vista de tu grupo", "Ranking comparativo", "Historial por agente", "Acceso a carteras"],
+                items: ["Vista de tu grupo","Ranking comparativo","Historial por agente","Acceso a carteras"],
               },
             ].map((r, i) => (
-              <div key={i} className="ic-card" style={{ padding: 28, borderTop: `3px solid ${r.color}`, borderRadius: "0 0 14px 14px" }}>
-                <div style={{ fontSize: 28, marginBottom: 12 }}>{r.icon}</div>
-                <div style={{ fontSize: 16, fontWeight: 500, color: DARK, marginBottom: 8 }}>{r.title}</div>
-                <p style={{ fontSize: 13, color: "#6b7280", lineHeight: 1.7, marginBottom: 16 }}>{r.desc}</p>
+              <div key={i} className="ic-card" style={{ padding: 28 }}>
+                <div style={{
+                  width: 44, height: 44, borderRadius: 12,
+                  background: `${r.color}15`,
+                  border: `1px solid ${r.color}25`,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  fontSize: 20, marginBottom: 16,
+                }}>
+                  {r.icon}
+                </div>
+                <div style={{ fontSize: 16, fontWeight: 600, color: C.white, marginBottom: 10 }}>{r.title}</div>
+                <p style={{ fontSize: 13.5, color: C.slate, lineHeight: 1.7, marginBottom: 20 }}>{r.desc}</p>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                   {r.items.map((item, j) => (
-                    <span key={j} style={{ fontSize: 11, fontWeight: 500, background: "#f3f4f6", color: "#374151", borderRadius: 6, padding: "3px 10px" }}>{item}</span>
+                    <span key={j} style={{
+                      fontSize: 11, fontWeight: 500,
+                      background: `${r.color}12`,
+                      color: r.color,
+                      border: `1px solid ${r.color}20`,
+                      borderRadius: 6,
+                      padding: "3px 10px",
+                    }}>{item}</span>
                   ))}
                 </div>
               </div>
@@ -426,27 +753,43 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* TESTIMONIOS */}
-      <section style={{ padding: "80px 24px", background: "#fff", borderTop: "0.5px solid #e5e7eb", borderBottom: "0.5px solid #e5e7eb" }}>
-        <div style={{ maxWidth: 1080, margin: "0 auto" }}>
-          <div style={{ textAlign: "center", marginBottom: 48 }}>
-            <p style={{ fontSize: 11, fontWeight: 500, color: RED, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 12 }}>Resultados reales</p>
-            <h2 style={{ fontFamily: "Georgia, serif", fontSize: "clamp(28px, 4vw, 44px)", fontWeight: 500, lineHeight: 1.1, margin: 0 }}>
-              Lo que dicen los que<br /><span style={{ color: RED }}>ya miden</span>
-            </h2>
+      {/* ── TESTIMONIOS ─────────────────────────────────────────────────────── */}
+      <section style={{ padding: "100px 24px", borderTop: "1px solid rgba(255,255,255,.06)", background: "rgba(255,255,255,.015)" }}>
+        <div style={{ maxWidth: 1100, margin: "0 auto" }}>
+          <div style={{ textAlign: "center", marginBottom: 56 }}>
+            <div className="section-label" style={{ justifyContent: "center" }}>Resultados reales</div>
+            <h2 style={{
+              fontFamily: "Georgia, serif",
+              fontSize: "clamp(28px,4vw,46px)",
+              fontWeight: 500,
+              lineHeight: 1.1,
+              color: C.white,
+              letterSpacing: "-.02em",
+            }}>Lo que dicen los que<br /><span className="sky-text">ya miden</span></h2>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 20 }}>
             {[
               { name: "Marcela R.", role: "Agente independiente, CABA", text: "Siempre creí que era productiva. Cuando empecé a medir me di cuenta que el 70% de mis reuniones eran administrativas. Eso cambió todo." },
               { name: "Rodrigo T.", role: "Broker con 12 agentes, GBA", text: "El dashboard del equipo es lo mejor. Ahora sé exactamente quién necesita ayuda sin esperar a fin de mes para verlo en los números." },
               { name: "Valeria M.", role: "Agente, Córdoba", text: "Tenía fichas publicadas hacía más de 6 meses sin tocar. InmoCoach me las marcó y en una semana actualicé todo. Recibí 3 consultas más en 2 días." },
             ].map((t, i) => (
               <div key={i} className="ic-card" style={{ padding: 28 }}>
-                <div style={{ color: RED, fontSize: 32, fontFamily: "Georgia, serif", lineHeight: 1, marginBottom: 14 }}>"</div>
-                <p style={{ fontSize: 14, color: "#374151", lineHeight: 1.8, marginBottom: 20 }}>{t.text}</p>
-                <div style={{ borderTop: "0.5px solid #f3f4f6", paddingTop: 14 }}>
-                  <div style={{ fontSize: 13, fontWeight: 500, color: DARK }}>{t.name}</div>
-                  <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 2 }}>{t.role}</div>
+                <div style={{ color: C.sky, fontSize: 40, fontFamily: "Georgia, serif", lineHeight: 1, marginBottom: 16, opacity: .5 }}>"</div>
+                <p style={{ fontSize: 14, color: C.mist, lineHeight: 1.8, marginBottom: 24 }}>{t.text}</p>
+                <div style={{ borderTop: "1px solid rgba(255,255,255,.07)", paddingTop: 16, display: "flex", alignItems: "center", gap: 12 }}>
+                  <div style={{
+                    width: 36, height: 36, borderRadius: "50%",
+                    background: `linear-gradient(135deg, ${C.sky}40, ${C.skyDark}60)`,
+                    border: `1px solid ${C.sky}30`,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: 13, fontWeight: 700, color: C.sky,
+                  }}>
+                    {t.name[0]}
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: C.white }}>{t.name}</div>
+                    <div style={{ fontSize: 11.5, color: C.slate, marginTop: 2 }}>{t.role}</div>
+                  </div>
                 </div>
               </div>
             ))}
@@ -454,70 +797,133 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* PRECIOS */}
-      <section style={{ padding: "80px 24px" }}>
-        <div style={{ maxWidth: 680, margin: "0 auto", textAlign: "center" }}>
-          <p style={{ fontSize: 11, fontWeight: 500, color: RED, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 12 }}>Precios</p>
-          <h2 style={{ fontFamily: "Georgia, serif", fontSize: "clamp(28px, 4vw, 44px)", fontWeight: 500, lineHeight: 1.1, marginBottom: 14 }}>
-            Empezás gratis.<br /><span style={{ color: RED }}>El precio crece con tu equipo.</span>
+      {/* ── PRECIOS ─────────────────────────────────────────────────────────── */}
+      <section style={{ padding: "100px 24px", borderTop: "1px solid rgba(255,255,255,.06)" }}>
+        <div style={{ maxWidth: 760, margin: "0 auto", textAlign: "center" }}>
+          <div className="section-label" style={{ justifyContent: "center" }}>Precios</div>
+          <h2 style={{
+            fontFamily: "Georgia, serif",
+            fontSize: "clamp(28px,4vw,46px)",
+            fontWeight: 500,
+            lineHeight: 1.1,
+            color: C.white,
+            marginBottom: 16,
+            letterSpacing: "-.02em",
+          }}>
+            Empezás gratis.<br />
+            <span className="sky-text">El precio crece con tu equipo.</span>
           </h2>
-          <p style={{ color: "#6b7280", fontSize: 14, marginBottom: 40, lineHeight: 1.75 }}>
-            7 días sin tarjeta. Individual desde <strong style={{ color: DARK }}>$10.500/mes</strong>. Equipos con descuento por volumen — cuantos más agentes, menos pagás por cada uno.
+          <p style={{ color: C.slate, fontSize: 14.5, marginBottom: 48, lineHeight: 1.75 }}>
+            7 días sin tarjeta. Individual desde <strong style={{ color: C.white }}>$10.500/mes</strong>.
+            Equipos con descuento por volumen — cuantos más agentes, menos pagás por cada uno.
           </p>
-          <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap", marginBottom: 40 }}>
-            <button onClick={() => router.push("/pricing")}
-              style={{ background: RED, color: "#fff", border: "none", borderRadius: 12, padding: "13px 32px", fontSize: 14, fontWeight: 500, cursor: "pointer" }}>
-              Ver precios y simulador →
-            </button>
-            <button onClick={() => router.push("/login")}
-              style={{ background: "#fff", color: "#374151", border: "0.5px solid #e5e7eb", borderRadius: 12, padding: "13px 32px", fontSize: 14, fontWeight: 500, cursor: "pointer" }}>
-              Empezar gratis 7 días
-            </button>
-          </div>
-          <div style={{ display: "flex", gap: 32, justifyContent: "center", flexWrap: "wrap" }}>
+          {/* pricing grid */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12, marginBottom: 48 }} className="ic-4col">
             {[
               { range: "1 agente", price: "$10.500", label: "Individual" },
               { range: "5–9 agentes", price: "$8.400", label: "−20%" },
               { range: "10–19 agentes", price: "$7.350", label: "−30%" },
               { range: "20+ agentes", price: "$6.300", label: "−40%" },
             ].map((t, i) => (
-              <div key={i} style={{ textAlign: "center" }}>
-                <div style={{ fontFamily: "Georgia, serif", fontSize: 22, fontWeight: 500, color: RED }}>{t.price}</div>
-                <div style={{ fontSize: 11, fontWeight: 500, color: "#9ca3af", marginTop: 2 }}>{t.range}</div>
-                <div style={{ fontSize: 11, color: "#d1d5db", marginTop: 1 }}>{t.label}</div>
+              <div key={i} className="ic-card" style={{ padding: "20px 12px" }}>
+                <div style={{
+                  fontFamily: "Georgia, serif",
+                  fontSize: "clamp(18px,2vw,24px)",
+                  fontWeight: 700,
+                  color: C.sky,
+                  marginBottom: 6,
+                }}>{t.price}</div>
+                <div style={{ fontSize: 11, fontWeight: 600, color: C.mist, marginBottom: 4 }}>{t.range}</div>
+                <div style={{
+                  display: "inline-block",
+                  fontSize: 10, fontWeight: 700,
+                  background: i === 0 ? "rgba(14,165,233,.15)" : "rgba(16,185,129,.15)",
+                  color: i === 0 ? C.sky : "#10b981",
+                  border: `1px solid ${i === 0 ? "rgba(14,165,233,.2)" : "rgba(16,185,129,.2)"}`,
+                  borderRadius: 6, padding: "2px 8px",
+                }}>{t.label}</div>
               </div>
             ))}
           </div>
-        </div>
-      </section>
-
-      {/* CTA FINAL */}
-      <section style={{ padding: "80px 24px", background: DARK }}>
-        <div style={{ maxWidth: 600, margin: "0 auto", textAlign: "center" }}>
-          <h2 style={{ fontFamily: "Georgia, serif", fontSize: "clamp(28px, 5vw, 48px)", fontWeight: 500, lineHeight: 1.1, color: "#fff", marginBottom: 16 }}>
-            El próximo lunes vas a saber<br /><span style={{ color: RED }}>exactamente cómo estás</span>
-          </h2>
-          <p style={{ fontSize: 15, color: "rgba(255,255,255,0.5)", marginBottom: 36, lineHeight: 1.75 }}>
-            Conectás tu Google Calendar hoy. El lunes siguiente recibís tu primer análisis de actividad, con el estado de tu cartera incluido.
-          </p>
-          <button onClick={() => router.push("/login")}
-            style={{ background: RED, color: "#fff", border: "none", borderRadius: 12, padding: "15px 40px", fontSize: 15, fontWeight: 500, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 10 }}>
-            Empezar 7 días gratis <ArrowRight size={15} />
-          </button>
-          <p style={{ marginTop: 14, fontSize: 12, color: "rgba(255,255,255,0.25)" }}>Sin tarjeta · Sin contrato · Cancelás cuando querés</p>
-        </div>
-      </section>
-
-      {/* FOOTER */}
-      <footer style={{ background: "#fff", borderTop: "0.5px solid #e5e7eb", padding: "28px 24px" }}>
-        <div style={{ maxWidth: 1080, margin: "0 auto", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 16 }}>
-          <div style={{ fontFamily: "Georgia, serif", fontWeight: 500, fontSize: 16, color: DARK }}>Inmo<span style={{ color: RED }}>Coach</span></div>
-          <div style={{ display: "flex", gap: 20, flexWrap: "wrap" }}>
-            <a href="/privacidad" style={{ color: "#9ca3af", fontSize: 12 }}>Política de privacidad</a>
-            <a href="/terminos" style={{ color: "#9ca3af", fontSize: 12 }}>Términos de uso</a>
-            <a href="/login" style={{ color: "#9ca3af", fontSize: 12 }}>Iniciar sesión</a>
+          <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
+            <button className="btn-primary" onClick={() => router.push("/pricing")}>
+              Ver precios y simulador <ArrowRight size={14}/>
+            </button>
+            <button className="btn-ghost" onClick={() => router.push("/login")}>
+              Empezar gratis 7 días
+            </button>
           </div>
-          <p style={{ color: "#d1d5db", fontSize: 12, margin: 0 }}>© 2025 InmoCoach · inmocoach.com.ar</p>
+        </div>
+      </section>
+
+      {/* ── CTA FINAL ───────────────────────────────────────────────────────── */}
+      <section style={{ padding: "100px 24px", borderTop: "1px solid rgba(255,255,255,.06)", position: "relative", overflow: "hidden" }}>
+        {/* glow */}
+        <div style={{
+          position: "absolute", bottom: "-20%", left: "50%", transform: "translateX(-50%)",
+          width: 700, height: 500,
+          background: "radial-gradient(ellipse at center, rgba(14,165,233,.08) 0%, transparent 70%)",
+          pointerEvents: "none",
+        }}/>
+        <div style={{ maxWidth: 640, margin: "0 auto", textAlign: "center", position: "relative" }}>
+          <div style={{
+            width: 56, height: 56, borderRadius: 16,
+            background: `${C.sky}15`,
+            border: `1px solid ${C.sky}25`,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            margin: "0 auto 28px",
+          }}>
+            <TrendingUp size={24} color={C.sky}/>
+          </div>
+          <h2 style={{
+            fontFamily: "Georgia, serif",
+            fontSize: "clamp(30px,5vw,52px)",
+            fontWeight: 500,
+            lineHeight: 1.08,
+            color: C.white,
+            marginBottom: 20,
+            letterSpacing: "-.03em",
+          }}>
+            El próximo lunes vas a saber<br />
+            <span className="sky-text">exactamente cómo estás</span>
+          </h2>
+          <p style={{ fontSize: 15, color: C.slate, marginBottom: 40, lineHeight: 1.75, maxWidth: 480, margin: "0 auto 40px" }}>
+            Conectás tu Google Calendar hoy. El lunes siguiente recibís tu primer análisis
+            de actividad, con el estado de tu cartera incluido.
+          </p>
+          <button className="btn-primary" onClick={() => router.push("/login")} style={{ fontSize: 15, padding: "15px 36px" }}>
+            Empezar 7 días gratis <ArrowRight size={16}/>
+          </button>
+          <p style={{ marginTop: 16, fontSize: 12, color: "#334155" }}>
+            Sin tarjeta · Sin contrato · Cancelás cuando querés
+          </p>
+        </div>
+      </section>
+
+      {/* ── FOOTER ──────────────────────────────────────────────────────────── */}
+      <footer style={{
+        borderTop: "1px solid rgba(255,255,255,.07)",
+        padding: "32px 24px",
+        background: C.ink,
+      }}>
+        <div style={{ maxWidth: 1100, margin: "0 auto", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 20 }}>
+          <div style={{ fontFamily: "Georgia, serif", fontWeight: 700, fontSize: 16, color: C.white, letterSpacing: "-.02em" }}>
+            Inmo<span className="sky-text">Coach</span>
+          </div>
+          <div style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
+            {[
+              { label: "Política de privacidad", href: "/privacidad" },
+              { label: "Términos de uso", href: "/terminos" },
+              { label: "Iniciar sesión", href: "/login" },
+            ].map(l => (
+              <a key={l.label} href={l.href} style={{ color: C.slate, fontSize: 12, transition: "color .2s" }}
+                onMouseEnter={e => (e.currentTarget.style.color = C.mist)}
+                onMouseLeave={e => (e.currentTarget.style.color = C.slate)}>
+                {l.label}
+              </a>
+            ))}
+          </div>
+          <p style={{ color: "#334155", fontSize: 12, margin: 0 }}>© 2025 InmoCoach · inmocoach.com.ar</p>
         </div>
       </footer>
     </div>
