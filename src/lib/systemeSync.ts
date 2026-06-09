@@ -157,20 +157,28 @@ async function assignTagsToContact(
   contactId: number,
   tagNames: string[],
   tagsCache: { id: number; name: string }[],
-  key: string
+  key: string,
+  tagErrors: string[] = []
 ): Promise<void> {
   const uniqueNames = Array.from(new Set(tagNames));
   for (const name of uniqueNames) {
-    const tagId = await getOrCreateTag(name, tagsCache, key);
-    if (!tagId) continue;
-    const r = await fetchWithRetry429(`https://api.systeme.io/api/contacts/${contactId}/tags`, {
-      method: "POST",
-      headers: { "X-API-Key": key, "content-type": "application/json" },
-      body: JSON.stringify({ tagId }),
-    });
-    if (!r.ok && r.status !== 422) {
-      const body = await r.text().catch(() => "");
-      throw new Error(`Assign tag "${name}" → ${r.status}: ${body.slice(0, 100)}`);
+    try {
+      const tagId = await getOrCreateTag(name, tagsCache, key);
+      if (!tagId) {
+        tagErrors.push(`Tag "${name}": getOrCreateTag devolvió null`);
+        continue;
+      }
+      const r = await fetchWithRetry429(`https://api.systeme.io/api/contacts/${contactId}/tags`, {
+        method: "POST",
+        headers: { "X-API-Key": key, "content-type": "application/json" },
+        body: JSON.stringify({ tagId }),
+      });
+      if (!r.ok && r.status !== 422) {
+        const body = await r.text().catch(() => "");
+        tagErrors.push(`Assign "${name}" → ${r.status}: ${body.slice(0, 100)}`);
+      }
+    } catch (tagErr: unknown) {
+      tagErrors.push(`Tag "${name}" excepción: ${tagErr instanceof Error ? tagErr.message : "Error"}`);
     }
   }
 }
@@ -298,19 +306,24 @@ export async function runSync(params: {
       const emailKey = contact.email.trim().toLowerCase();
       const existingId = contactsCache.get(emailKey);
 
+      const tagErrors: string[] = [];
       if (!existingId) {
         const created = await createContact(payload, systemeKey);
         if (created) {
           contactsCache.set(emailKey, created.id);
-          await assignTagsToContact(created.id, desiredTags, tagsCache, systemeKey);
+          await assignTagsToContact(created.id, desiredTags, tagsCache, systemeKey, tagErrors);
           result.created++;
         } else {
           result.skipped++;
         }
       } else {
         await updateContact(existingId, payload, systemeKey);
-        await assignTagsToContact(existingId, desiredTags, tagsCache, systemeKey);
+        await assignTagsToContact(existingId, desiredTags, tagsCache, systemeKey, tagErrors);
         result.updated++;
+      }
+      if (tagErrors.length > 0) {
+        result.errors++;
+        errors.push(`${contact.email} tags: ${tagErrors.join(" | ")}`);
       }
     } catch (err: unknown) {
       result.errors++;
