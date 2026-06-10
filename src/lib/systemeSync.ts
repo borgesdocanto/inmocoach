@@ -210,15 +210,33 @@ async function loadContactsCache(key: string): Promise<Map<string, number>> {
 
 const INVALID_EMAIL_MSGS = ["no es válida", "not a valid email", "invalid email", "carece de un"];
 
-async function createContact(payload: Record<string, unknown>, key: string): Promise<{ id: number } | null> {
+async function createContact(
+  payload: Record<string, unknown>,
+  key: string,
+  contactsCache: Map<string, number>
+): Promise<{ id: number; isNew: boolean } | null> {
   const r = await fetchWithRetry429("https://api.systeme.io/api/contacts", {
     method: "POST",
     headers: { "X-API-Key": key, "content-type": "application/json", accept: "application/json" },
     body: JSON.stringify(payload),
   });
-  if (r.status === 201) return r.json();
+  if (r.status === 201) {
+    const d = await r.json();
+    return { id: d.id as number, isNew: true };
+  }
   const errBody = await r.text().catch(() => "");
+  // Email inválido → skip
   if (r.status === 422 && INVALID_EMAIL_MSGS.some(m => errBody.includes(m))) return null;
+  // Email ya usado → el contacto existe pero no estaba en el cache — recargar y buscar
+  if (r.status === 422 && errBody.includes("ya se ha utilizado")) {
+    const email = (payload.email as string).toLowerCase();
+    // Recargar cache completo
+    const refreshed = await loadContactsCache(key);
+    refreshed.forEach((v, k) => contactsCache.set(k, v));
+    const existingId = contactsCache.get(email);
+    if (existingId) return { id: existingId, isNew: false };
+    return null;
+  }
   throw new Error(`POST /api/contacts → ${r.status}: ${errBody.slice(0, 200)}`);
 }
 
@@ -308,11 +326,12 @@ export async function runSync(params: {
 
       const tagErrors: string[] = [];
       if (!existingId) {
-        const created = await createContact(payload, systemeKey);
+        const created = await createContact(payload, systemeKey, contactsCache);
         if (created) {
           contactsCache.set(emailKey, created.id);
           await assignTagsToContact(created.id, desiredTags, tagsCache, systemeKey, tagErrors);
-          result.created++;
+          if (created.isNew) result.created++;
+          else result.updated++;
         } else {
           result.skipped++;
         }
