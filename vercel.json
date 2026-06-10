@@ -47,10 +47,6 @@
     {
       "path": "/api/cron/loyalty-emails",
       "schedule": "30 12 * * *"
-    },
-    {
-      "path": "/api/cron/systeme-scheduler",
-      "schedule": "0 22 * * *"
     }
   ]
 }
