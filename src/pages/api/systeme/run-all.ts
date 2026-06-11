@@ -4,6 +4,8 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import { supabaseAdmin } from "../../../lib/supabase";
 
+export const config = { maxDuration: 300 }; // 5 min — sync puede tardar 90s+
+
 const CRON_SECRET = process.env.CRON_SECRET;
 const BASE_URL = process.env.NEXTAUTH_URL ?? "https://www.inmocoach.com.ar";
 

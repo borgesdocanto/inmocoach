@@ -329,6 +329,10 @@ export async function runSync(params: {
         const created = await createContact(payload, systemeKey, contactsCache);
         if (created) {
           contactsCache.set(emailKey, created.id);
+          // Si ya existía (isNew false), actualizar sus campos también
+          if (!created.isNew) {
+            await updateContact(created.id, payload, systemeKey);
+          }
           await assignTagsToContact(created.id, desiredTags, tagsCache, systemeKey, tagErrors);
           if (created.isNew) result.created++;
           else result.updated++;

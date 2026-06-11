@@ -10,6 +10,8 @@ import { getEffectiveEmail } from "../../../lib/impersonation";
 import { runSync } from "../../../lib/systemeSync";
 import { Resend } from "resend";
 
+export const config = { maxDuration: 300 }; // 5 min — sync puede tardar 90s+
+
 const resend = new Resend(process.env.RESEND_API_KEY);
 const CRON_SECRET = process.env.CRON_SECRET;
 
