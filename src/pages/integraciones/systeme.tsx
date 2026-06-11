@@ -18,6 +18,7 @@ interface SyncLog {
   errors_count: number;
   error_detail?: string;
   status: "running" | "success" | "partial" | "error";
+  trigger?: "cron" | "manual";
 }
 
 interface Config {
@@ -583,6 +584,9 @@ export default function SystemePage() {
                         </span>
                         <span style={{ fontSize: 12, color: "#374151", fontWeight: 600 }}>
                           {new Date(log.started_at).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
+                        </span>
+                        <span style={{ fontSize: 10, color: log.trigger === "manual" ? "#7c3aed" : "#9ca3af", background: log.trigger === "manual" ? "#f3e8ff" : "#f3f4f6", padding: "1px 6px", borderRadius: 8, fontWeight: 600 }}>
+                          {log.trigger === "manual" ? "manual" : "auto"}
                         </span>
                         {duration !== null && (
                           <span style={{ fontSize: 11, color: "#9ca3af" }}>{duration}s</span>

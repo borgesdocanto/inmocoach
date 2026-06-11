@@ -76,10 +76,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     supabaseAdmin.from("sync_tags_fixed").select("tag_name").eq("team_id", teamId),
   ]);
 
+  // Detectar origen: cron (Authorization header de Vercel) o manual (sesión de usuario)
+  const trigger = cronAuth ? "cron" : "manual";
+
   // Crear log con status 'running'
   const { data: log } = await supabaseAdmin
     .from("sync_logs")
-    .insert({ team_id: teamId, started_at: new Date().toISOString(), status: "running" })
+    .insert({ team_id: teamId, started_at: new Date().toISOString(), status: "running", trigger })
     .select("id")
     .single();
 
