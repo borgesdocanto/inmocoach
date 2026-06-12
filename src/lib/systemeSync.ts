@@ -66,7 +66,10 @@ async function fetchWithRetry429(url: string, opts: RequestInit, retries = 3): P
 // ── Tokko ──────────────────────────────────────────────────────────────────
 
 export async function fetchTokkoContactsToday(tokkoKey: string): Promise<TokkoContact[]> {
-  const today = new Date().toISOString().split("T")[0];
+  // Traer desde AYER en lugar de hoy: elimina gaps sin importar a qué hora corra el cron.
+  // Re-sincronizar un contacto ya sincronizado es inofensivo (upsert idempotente).
+  const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  const today = yesterday.toISOString().split("T")[0];
   const base = "https://tokkobroker.com";
   const contacts: TokkoContact[] = [];
   const seen = new Set<string>();

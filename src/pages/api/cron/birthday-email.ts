@@ -57,6 +57,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const isManual = req.headers["x-cron-secret"] === process.env.CRON_SECRET || req.query.secret === process.env.CRON_SECRET;
   if (!isVercel && !isManual) return res.status(401).json({ error: "No autorizado" });
 
+  // Disparar sync de Systeme (fire-and-forget). Este cron corre confiablemente a diario a las 12:00 UTC,
+  // a diferencia de daily-sync. El run-all sigue ejecutándose solo aunque este fetch se aborte a los 8s.
+  try {
+    const SYSTEME_BASE = process.env.NEXTAUTH_URL ?? "https://www.inmocoach.com.ar";
+    await fetch(`${SYSTEME_BASE}/api/systeme/run-all`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${process.env.CRON_SECRET}`,
+      },
+      signal: AbortSignal.timeout(8000),
+    }).catch(() => null);
+  } catch { /* abort esperado — run-all continúa solo */ }
+
   const today = new Date();
   const todayM = today.getMonth() + 1;
   const todayD = today.getDate();
