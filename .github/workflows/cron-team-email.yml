@@ -13,7 +13,7 @@ jobs:
       - name: Ejecutar team-email
         run: |
           HTTP_CODE=$(curl -s -o /tmp/resp.json -w "%{http_code}" \
-            "https://www.inmocoach.com.ar/api/github-cron/team-email" \
+            "https://www.inmocoach.com.ar/api/cron/team-email" \
             -H "Authorization: Bearer ${{ secrets.SYSTEME_CRON_TOKEN }}" \
             --max-time 290)
           echo "HTTP $HTTP_CODE"

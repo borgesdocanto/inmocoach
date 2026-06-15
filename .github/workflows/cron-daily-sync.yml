@@ -13,7 +13,7 @@ jobs:
       - name: Ejecutar daily-sync
         run: |
           HTTP_CODE=$(curl -s -o /tmp/resp.json -w "%{http_code}" \
-            "https://www.inmocoach.com.ar/api/github-cron/daily-sync" \
+            "https://www.inmocoach.com.ar/api/cron/daily-sync" \
             -H "Authorization: Bearer ${{ secrets.SYSTEME_CRON_TOKEN }}" \
             --max-time 290)
           echo "HTTP $HTTP_CODE"
