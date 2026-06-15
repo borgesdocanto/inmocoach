@@ -1,0 +1,24 @@
+name: Cron — reactivation
+
+# Diario 15:00 UTC = 12:00 ARG — Emails de reactivación
+on:
+  schedule:
+    - cron: "0 15 * * *"
+  workflow_dispatch: {}
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ejecutar reactivation
+        run: |
+          HTTP_CODE=$(curl -s -o /tmp/resp.json -w "%{http_code}" \
+            "https://www.inmocoach.com.ar/api/github-cron/reactivation" \
+            -H "Authorization: Bearer ${{ secrets.SYSTEME_CRON_TOKEN }}" \
+            --max-time 290)
+          echo "HTTP $HTTP_CODE"
+          cat /tmp/resp.json
+          if [ "$HTTP_CODE" -ne 200 ]; then
+            echo "::error::reactivation falló con HTTP $HTTP_CODE"
+            exit 1
+          fi

@@ -1,0 +1,24 @@
+name: Cron — loyalty-emails
+
+# Diario 12:30 UTC = 09:30 ARG — Emails loyalty
+on:
+  schedule:
+    - cron: "30 12 * * *"
+  workflow_dispatch: {}
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ejecutar loyalty-emails
+        run: |
+          HTTP_CODE=$(curl -s -o /tmp/resp.json -w "%{http_code}" \
+            "https://www.inmocoach.com.ar/api/github-cron/loyalty-emails" \
+            -H "Authorization: Bearer ${{ secrets.SYSTEME_CRON_TOKEN }}" \
+            --max-time 290)
+          echo "HTTP $HTTP_CODE"
+          cat /tmp/resp.json
+          if [ "$HTTP_CODE" -ne 200 ]; then
+            echo "::error::loyalty-emails falló con HTTP $HTTP_CODE"
+            exit 1
+          fi

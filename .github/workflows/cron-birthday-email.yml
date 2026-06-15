@@ -1,0 +1,24 @@
+name: Cron — birthday-email
+
+# Diario 12:00 UTC = 09:00 ARG — Emails cumpleaños/aniversario
+on:
+  schedule:
+    - cron: "0 12 * * *"
+  workflow_dispatch: {}
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ejecutar birthday-email
+        run: |
+          HTTP_CODE=$(curl -s -o /tmp/resp.json -w "%{http_code}" \
+            "https://www.inmocoach.com.ar/api/github-cron/birthday-email" \
+            -H "Authorization: Bearer ${{ secrets.SYSTEME_CRON_TOKEN }}" \
+            --max-time 290)
+          echo "HTTP $HTTP_CODE"
+          cat /tmp/resp.json
+          if [ "$HTTP_CODE" -ne 200 ]; then
+            echo "::error::birthday-email falló con HTTP $HTTP_CODE"
+            exit 1
+          fi

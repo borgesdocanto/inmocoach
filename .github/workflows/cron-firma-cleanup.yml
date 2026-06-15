@@ -1,0 +1,24 @@
+name: Cron — firma-cleanup
+
+# Diario 05:00 UTC = 02:00 ARG — Cleanup firma electrónica
+on:
+  schedule:
+    - cron: "0 5 * * *"
+  workflow_dispatch: {}
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ejecutar firma-cleanup
+        run: |
+          HTTP_CODE=$(curl -s -o /tmp/resp.json -w "%{http_code}" \
+            "https://www.inmocoach.com.ar/api/github-cron/firma-cleanup" \
+            -H "Authorization: Bearer ${{ secrets.SYSTEME_CRON_TOKEN }}" \
+            --max-time 290)
+          echo "HTTP $HTTP_CODE"
+          cat /tmp/resp.json
+          if [ "$HTTP_CODE" -ne 200 ]; then
+            echo "::error::firma-cleanup falló con HTTP $HTTP_CODE"
+            exit 1
+          fi
