@@ -19,7 +19,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const isVercel = req.headers.authorization === `Bearer ${process.env.CRON_SECRET}`;
   const isManual = req.headers["x-cron-secret"] === process.env.CRON_SECRET || req.query.secret === process.env.CRON_SECRET;
-  if (!isVercel && !isManual) {
+  // Token externo de GitHub Actions
+  let isExternal = false;
+  const authHeader = req.headers.authorization ?? "";
+  if (!isVercel && authHeader.startsWith("Bearer ")) {
+    const candidate = authHeader.slice(7);
+    const { data: tokenRow } = await supabaseAdmin
+      .from("app_config").select("value").eq("key", "systeme_cron_token")
+      .is("team_id", null).maybeSingle();
+    isExternal = !!tokenRow?.value && tokenRow.value === candidate;
+  }
+  if (!isVercel && !isManual && !isExternal) {
     const session = await getServerSession(req, res, authOptions);
     if (!session?.user?.email || !isSuperAdmin(session.user.email))
       return res.status(401).json({ error: "Unauthorized" });

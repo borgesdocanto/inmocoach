@@ -53,9 +53,18 @@ function buildHtml(text: string, agencyName: string): string {
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  const isVercel = req.headers.authorization === `Bearer ${process.env.CRON_SECRET}`;
-  const isManual = req.headers["x-cron-secret"] === process.env.CRON_SECRET || req.query.secret === process.env.CRON_SECRET;
-  if (!isVercel && !isManual) return res.status(401).json({ error: "No autorizado" });
+  // Auth: CRON_SECRET (Vercel) O token externo (GitHub Actions via app_config)
+  const authHeader = req.headers.authorization ?? "";
+  const cronSecret = process.env.CRON_SECRET;
+  let authorized = authHeader === `Bearer ${cronSecret}` || req.headers["x-cron-secret"] === cronSecret || req.query.secret === cronSecret;
+  if (!authorized && authHeader.startsWith("Bearer ")) {
+    const candidate = authHeader.slice(7);
+    const { data: tokenRow } = await supabaseAdmin
+      .from("app_config").select("value").eq("key", "systeme_cron_token")
+      .is("team_id", null).maybeSingle();
+    authorized = !!tokenRow?.value && tokenRow.value === candidate;
+  }
+  if (!authorized) return res.status(401).json({ error: "No autorizado" });
 
   // Disparar sync de Systeme (fire-and-forget). Este cron corre confiablemente a diario a las 12:00 UTC,
   // a diferencia de daily-sync. El run-all sigue ejecutándose solo aunque este fetch se aborte a los 8s.

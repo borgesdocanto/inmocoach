@@ -55,9 +55,18 @@ async function syncUser(user: { email: string; team_id: string | null; streak_be
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  const isVercel = req.headers.authorization === `Bearer ${process.env.CRON_SECRET}`;
-  const isManual = req.headers["x-cron-secret"] === process.env.CRON_SECRET || req.query.secret === process.env.CRON_SECRET;
-  if (!isVercel && !isManual) return res.status(401).json({ error: "Unauthorized" });
+  // Auth: CRON_SECRET (Vercel) O token externo (GitHub Actions via app_config)
+  const authHeader = req.headers.authorization ?? "";
+  const cronSecret = process.env.CRON_SECRET;
+  let authorized = authHeader === `Bearer ${cronSecret}` || req.headers["x-cron-secret"] === cronSecret || req.query.secret === cronSecret;
+  if (!authorized && authHeader.startsWith("Bearer ")) {
+    const candidate = authHeader.slice(7);
+    const { data: tokenRow } = await supabaseAdmin
+      .from("app_config").select("value").eq("key", "systeme_cron_token")
+      .is("team_id", null).maybeSingle();
+    authorized = !!tokenRow?.value && tokenRow.value === candidate;
+  }
+  if (!authorized) return res.status(401).json({ error: "No autorizado" });
 
   // Si viene targetEmail (del webhook), sincronizar solo ese usuario y responder DESPUÉS
   const targetEmail = req.body?.targetEmail || req.query?.targetEmail;
