@@ -95,23 +95,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   console.log(`🔄 Daily sync: ${users.length} usuarios`);
 
-  // Disparar sync de Systeme AL INICIO (fire-and-forget con timeout corto)
-  // Si lo dejamos al final, el sync de calendarios puede agotar los 300s y nunca llegar acá.
-  // El run-all sigue ejecutándose en su propia función aunque este fetch se aborte.
-  try {
-    const SYSTEME_BASE = process.env.NEXTAUTH_URL ?? "https://www.inmocoach.com.ar";
-    await fetch(`${SYSTEME_BASE}/api/systeme/run-all`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.CRON_SECRET}`,
-      },
-      signal: AbortSignal.timeout(5000), // 5s — solo para disparar; run-all sigue solo
-    }).catch(() => null);
-  } catch {
-    // El abort del timeout es esperado — run-all sigue corriendo
-  }
-
   // CRÍTICO: sincronizar ANTES de responder — Vercel mata background work post-response
   const results = { synced: 0, skipped: 0, error: 0 };
   for (let i = 0; i < users.length; i += BATCH_SIZE) {
@@ -125,6 +108,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   console.log(`✅ Daily sync completo:`, results);
+
+  // Sync de Systeme al final, esperando hasta 120s (Vercel mata proceso al responder)
+  try {
+    const SYSTEME_BASE = process.env.NEXTAUTH_URL ?? "https://www.inmocoach.com.ar";
+    await fetch(`${SYSTEME_BASE}/api/systeme/run-all`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${process.env.CRON_SECRET}`,
+      },
+      signal: AbortSignal.timeout(120000),
+    });
+  } catch (err) {
+    console.error("[daily-sync] Systeme sync error:", err);
+  }
 
   return res.status(200).json({ ok: true, total: users.length, results });
 }

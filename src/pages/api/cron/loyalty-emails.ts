@@ -7,6 +7,8 @@ import { MAIL_DEFINITIONS } from "../../../lib/autoMailTemplates";
 // Cron: todos los días 12:30 UTC = 09:30 Argentina
 // "30 12 * * *"
 
+export const config = { maxDuration: 300 }; // 5 min — incluye sync de Systeme
+
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 // Días exactos para cada mail de fidelización
@@ -54,20 +56,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const isVercel = req.headers.authorization === `Bearer ${process.env.CRON_SECRET}`;
   const isManual = req.headers["x-cron-secret"] === process.env.CRON_SECRET || req.query.secret === process.env.CRON_SECRET;
   if (!isVercel && !isManual) return res.status(401).json({ error: "No autorizado" });
-
-  // Disparar sync de Systeme (fire-and-forget). Este cron corre confiablemente a diario.
-  // run-all sigue ejecutándose solo aunque este fetch se aborte a los 8s.
-  try {
-    const SYSTEME_BASE = process.env.NEXTAUTH_URL ?? "https://www.inmocoach.com.ar";
-    await fetch(`${SYSTEME_BASE}/api/systeme/run-all`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.CRON_SECRET}`,
-      },
-      signal: AbortSignal.timeout(8000),
-    }).catch(() => null);
-  } catch { /* abort esperado — run-all continúa solo */ }
 
   const today = new Date();
   const todayNorm = new Date(today.getFullYear(), today.getMonth(), today.getDate());
@@ -159,6 +147,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
       }
     }
+  }
+
+  // Disparar sync de Systeme AL FINAL y esperar — Vercel mata el proceso al responder
+  // Si lo hacemos fire-and-forget se aborta. Aquí esperamos hasta 120s a run-all.
+  try {
+    const SYSTEME_BASE = process.env.NEXTAUTH_URL ?? "https://www.inmocoach.com.ar";
+    await fetch(`${SYSTEME_BASE}/api/systeme/run-all`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${process.env.CRON_SECRET}`,
+      },
+      signal: AbortSignal.timeout(120000),
+    });
+  } catch (err) {
+    console.error("[loyalty-emails] Systeme sync error:", err);
   }
 
   return res.json({ ok: true, sent: results.filter(r => r.status === "ok").length, results });
