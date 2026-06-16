@@ -11,7 +11,7 @@ import { supabaseAdmin } from "../../../lib/supabase";
 import { fetchTokkoContactsToday, processSingleContact, type TokkoContact } from "../../../lib/systemeSync";
 import { Resend } from "resend";
 
-export const config = { maxDuration: 60 };
+export const config = { maxDuration: 300 };
 
 const CRON_SECRET = process.env.CRON_SECRET;
 const CHUNK_SIZE = 8; // contactos por llamada (cada uno tarda ~1.5s + tags) → 12 * 2s = ~24s
@@ -81,7 +81,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.json({ ok: false, error: "team_config_missing" });
     }
   } else {
-    // No hay sync en marcha — empezar uno nuevo
+    // No hay sync en marcha — solo crear el sync_log y volver. La próxima llamada hará el fetch.
     const { data: configs } = await supabaseAdmin
       .from("sync_configs")
       .select("team_id, systeme_api_key")
@@ -93,10 +93,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.json({ ok: true, message: "Sin teams activos", source: triggerSource });
     }
 
-    // Procesar el primer team (luego iteramos los demás en próximas llamadas si hace falta)
     const cfg = configs[0];
-
-    // Crear sync_log
     const { data: log } = await supabaseAdmin
       .from("sync_logs")
       .insert({
@@ -110,43 +107,51 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     if (!log) return res.status(500).json({ error: "no se pudo crear sync_log" });
 
-    teamConfig = await loadTeamConfig(cfg.team_id, log.id);
-    if (!teamConfig) {
-      await supabaseAdmin.from("sync_logs").update({
-        status: "error", error_detail: "team config faltante",
-        finished_at: new Date().toISOString(),
-      }).eq("id", log.id);
-      return res.json({ ok: false });
-    }
-    teamConfig.systeme_api_key = cfg.systeme_api_key;
+    // SALIR INMEDIATAMENTE — la siguiente llamada va a detectar el log running sin contactos
+    // y hará el fetch de Tokko en su lugar (la 2da llamada). Así evitamos timeout.
+    return res.json({
+      ok: true,
+      pending: true,
+      message: "Sync log creado, próxima llamada hace fetch de Tokko",
+      logId: log.id,
+    });
+  }
 
-    // Cargar contactos de Tokko y poner en sync_progress
+  // Si llegamos acá hay un teamConfig (sync running). Verificar si hay contactos en cola.
+  const { count: pendingCount } = await supabaseAdmin
+    .from("sync_progress")
+    .select("id", { count: "exact", head: true })
+    .eq("log_id", teamConfig.log_id)
+    .eq("status", "pending");
+
+  const { count: doneCount } = await supabaseAdmin
+    .from("sync_progress")
+    .select("id", { count: "exact", head: true })
+    .eq("log_id", teamConfig.log_id)
+    .neq("status", "pending");
+
+  // Si no hay NINGÚN contacto (ni pendiente ni procesado), es porque acabamos de crear el log
+  // en la llamada anterior. Hacemos el fetch de Tokko ahora.
+  if ((pendingCount ?? 0) === 0 && (doneCount ?? 0) === 0) {
     try {
       const contacts = await fetchTokkoContactsToday(teamConfig.tokko_api_key);
       if (contacts.length === 0) {
         await supabaseAdmin.from("sync_logs").update({
-          status: "success", contacts_created: 0, contacts_updated: 0,
-          contacts_skipped: 0, errors_count: 0,
+          status: "success",
           finished_at: new Date().toISOString(),
-        }).eq("id", log.id);
+        }).eq("id", teamConfig.log_id);
         return res.json({ ok: true, pending: false, message: "0 contactos en Tokko" });
       }
-
-      // Insertar contactos a procesar en batches de 100 (límite de Supabase)
       const batchSize = 100;
       for (let i = 0; i < contacts.length; i += batchSize) {
         const batch = contacts.slice(i, i + batchSize).map(c => ({
           team_id: teamConfig!.team_id,
-          log_id: log.id,
+          log_id: teamConfig!.log_id,
           contact_data: c,
           status: "pending",
         }));
         await supabaseAdmin.from("sync_progress").insert(batch);
       }
-
-      // PRIMERA LLAMADA: solo preparamos la cola y respondemos inmediatamente.
-      // La próxima llamada de cron-job.org procesará el primer chunk.
-      // Esto evita exceder el timeout de 30s combinando fetch+insert+procesamiento.
       return res.json({
         ok: true,
         pending: true,
@@ -158,7 +163,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       await supabaseAdmin.from("sync_logs").update({
         status: "error", error_detail: msg,
         finished_at: new Date().toISOString(),
-      }).eq("id", log.id);
+      }).eq("id", teamConfig.log_id);
       return res.json({ ok: false, error: msg });
     }
   }
