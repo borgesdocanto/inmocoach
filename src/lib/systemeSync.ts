@@ -278,12 +278,13 @@ async function createContact(
   throw new Error(`POST /api/contacts → ${r.status}: ${errBody.slice(0, 200)}`);
 }
 
-async function updateContact(id: number, payload: Record<string, unknown>, key: string): Promise<void> {
-  await fetchWithRetry429(`https://api.systeme.io/api/contacts/${id}`, {
+async function updateContact(id: number, payload: Record<string, unknown>, key: string): Promise<{ ok: boolean; notFound: boolean }> {
+  const r = await fetchWithRetry429(`https://api.systeme.io/api/contacts/${id}`, {
     method: "PATCH",
     headers: { "X-API-Key": key, "content-type": "application/merge-patch+json", accept: "application/json" },
     body: JSON.stringify(payload),
   });
+  return { ok: r.ok, notFound: r.status === 404 };
 }
 
 // ── Función principal ──────────────────────────────────────────────────────
@@ -481,14 +482,34 @@ export async function processSingleContact(params: {
       }
       // Pequeña espera para evitar 404 en assign (Systeme tarda en indexar contactos nuevos)
       if (created.isNew) await sleep(800);
-      await assignTagsToContactWithRetry(created.id, desiredTags, tagsCache, systemeKey, tagErrors);
+      await assignTagsToContactWithRetry(
+        created.id, desiredTags, tagsCache, systemeKey, tagErrors,
+        teamId ? { teamId, email: emailKey } : undefined
+      );
       return { action: created.isNew ? "created" : "updated", tagErrors };
     } else {
       return { action: "skipped", tagErrors };
     }
   } else {
-    await updateContact(existingId, payload, systemeKey);
-    await assignTagsToContactWithRetry(existingId, desiredTags, tagsCache, systemeKey, tagErrors);
+    const upd = await updateContact(existingId, payload, systemeKey);
+    if (upd.notFound) {
+      // El contacto cacheado ya no existe en Systeme — limpiar cache y skip
+      if (teamId) {
+        try {
+          await supabaseAdmin
+            .from("systeme_contact_cache")
+            .delete()
+            .eq("team_id", teamId)
+            .eq("email", emailKey);
+        } catch { /* ignorar */ }
+      }
+      tagErrors.push(`Contacto ${emailKey} no existe en Systeme (ID ${existingId}). Cache limpiado, se recreará en próxima corrida.`);
+      return { action: "skipped", tagErrors };
+    }
+    await assignTagsToContactWithRetry(
+      existingId, desiredTags, tagsCache, systemeKey, tagErrors,
+      teamId ? { teamId, email: emailKey } : undefined
+    );
     return { action: "updated", tagErrors };
   }
 }
@@ -499,10 +520,13 @@ async function assignTagsToContactWithRetry(
   tagNames: string[],
   tagsCache: { id: number; name: string }[],
   key: string,
-  tagErrors: string[]
+  tagErrors: string[],
+  cacheCleanup?: { teamId: string; email: string }
 ): Promise<void> {
   const uniqueNames = Array.from(new Set(tagNames));
+  let contactDeletedFromSysteme = false;
   for (const name of uniqueNames) {
+    if (contactDeletedFromSysteme) break; // No reintentar más tags si el contacto no existe
     try {
       const tagId = await getOrCreateTag(name, tagsCache, key);
       if (!tagId) {
@@ -523,7 +547,21 @@ async function assignTagsToContactWithRetry(
           continue;
         }
         const body = await r.text().catch(() => "");
-        tagErrors.push(`Assign "${name}" → ${r.status}: ${body.slice(0, 80)}`);
+        // 404 persistente: el contacto ya no existe en Systeme.
+        // Borrar del cache de Supabase para que la próxima corrida lo recree.
+        if (r.status === 404 && cacheCleanup) {
+          try {
+            await supabaseAdmin
+              .from("systeme_contact_cache")
+              .delete()
+              .eq("team_id", cacheCleanup.teamId)
+              .eq("email", cacheCleanup.email);
+            tagErrors.push(`Contacto ${cacheCleanup.email} no existe en Systeme (ID ${contactId}). Cache limpiado, se recreará en próxima corrida.`);
+            contactDeletedFromSysteme = true;
+          } catch { /* ignorar */ }
+        } else {
+          tagErrors.push(`Assign "${name}" → ${r.status}: ${body.slice(0, 80)}`);
+        }
         break;
       }
       if (!success) continue;
