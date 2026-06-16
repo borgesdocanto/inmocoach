@@ -14,7 +14,7 @@ import { Resend } from "resend";
 export const config = { maxDuration: 60 };
 
 const CRON_SECRET = process.env.CRON_SECRET;
-const CHUNK_SIZE = 12; // contactos por llamada (cada uno tarda ~1.5s + tags) → 12 * 2s = ~24s
+const CHUNK_SIZE = 8; // contactos por llamada (cada uno tarda ~1.5s + tags) → 12 * 2s = ~24s
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 async function notifyError(teamId: string, message: string) {
@@ -143,6 +143,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }));
         await supabaseAdmin.from("sync_progress").insert(batch);
       }
+
+      // PRIMERA LLAMADA: solo preparamos la cola y respondemos inmediatamente.
+      // La próxima llamada de cron-job.org procesará el primer chunk.
+      // Esto evita exceder el timeout de 30s combinando fetch+insert+procesamiento.
+      return res.json({
+        ok: true,
+        pending: true,
+        message: `Cola preparada con ${contacts.length} contactos`,
+        queued: contacts.length,
+      });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Error Tokko";
       await supabaseAdmin.from("sync_logs").update({
