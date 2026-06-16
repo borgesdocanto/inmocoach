@@ -315,10 +315,13 @@ export async function runSync(params: {
         status,
       ]));
 
-      // Systeme usa slugs nativos: "first_name" y "surname" en el array fields.
-      // Tambien aceptamos firstName/lastName en el toplevel para máxima compatibilidad.
+      // Slugs nativos confirmados de Systeme:
+      // - "surname" → completa el campo Apellido ✓
+      // - Para Nombre probamos múltiples slugs ya que la doc no es clara cuál es el correcto
       const fields: { slug: string; value: string }[] = [
         { slug: "first_name", value: first_name },
+        { slug: "firstname", value: first_name },
+        { slug: "name", value: first_name },
         { slug: "surname", value: surname === "-" ? "" : surname },
         { slug: "phone_number", value: phone },
         { slug: "status", value: status },
