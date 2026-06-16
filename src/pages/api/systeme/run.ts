@@ -96,6 +96,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       systemeKey: syncConfig.systeme_api_key,
       whitelistTags: (whitelist || []).map((r: { tag_name: string }) => r.tag_name),
       fixedTags: (fixed || []).map((r: { tag_name: string }) => r.tag_name),
+      teamId,  // permite usar cache de Supabase
     });
 
     const status = result.errors > 0 && result.created + result.updated === 0

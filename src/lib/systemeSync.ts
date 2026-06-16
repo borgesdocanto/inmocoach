@@ -3,6 +3,8 @@
  * Motor de sincronización Tokko → Systeme.io
  */
 
+import { supabaseAdmin } from "./supabase";
+
 interface TokkoContact {
   id: number;
   email: string;
@@ -188,7 +190,8 @@ async function assignTagsToContact(
 
 // ── Systeme Contacts ───────────────────────────────────────────────────────
 
-async function loadContactsCache(key: string): Promise<Map<string, number>> {
+// Carga el cache de Systeme paginando la API completa (lento — solo para refresh inicial)
+async function loadContactsCacheFromSysteme(key: string): Promise<Map<string, number>> {
   const cache = new Map<string, number>();
   let startingAfter: number | null = null;
   let hasMore = true;
@@ -211,6 +214,38 @@ async function loadContactsCache(key: string): Promise<Map<string, number>> {
   return cache;
 }
 
+// Carga el cache desde Supabase (rápido — ~1 segundo vs ~70s de paginar Systeme)
+async function loadContactsCacheFromSupabase(teamId: string): Promise<Map<string, number>> {
+  const cache = new Map<string, number>();
+  // Paginar de Supabase (límite 1000 por query)
+  let from = 0;
+  const pageSize = 1000;
+  while (true) {
+    const { data, error } = await supabaseAdmin
+      .from("systeme_contact_cache")
+      .select("email, systeme_id")
+      .eq("team_id", teamId)
+      .range(from, from + pageSize - 1);
+    if (error) throw new Error(`Supabase cache error: ${error.message}`);
+    if (!data || data.length === 0) break;
+    for (const row of data) {
+      cache.set((row.email as string).toLowerCase(), row.systeme_id as number);
+    }
+    if (data.length < pageSize) break;
+    from += pageSize;
+  }
+  return cache;
+}
+
+// Persistir nuevos contactos creados en el cache de Supabase
+async function persistNewContactToCache(teamId: string, email: string, systemeId: number): Promise<void> {
+  try {
+    await supabaseAdmin
+      .from("systeme_contact_cache")
+      .upsert({ team_id: teamId, email: email.toLowerCase(), systeme_id: systemeId }, { onConflict: "team_id,email" });
+  } catch { /* no bloquear el sync por un fallo de cache */ }
+}
+
 const INVALID_EMAIL_MSGS = ["no es válida", "not a valid email", "invalid email", "carece de un"];
 
 async function createContact(
@@ -230,11 +265,11 @@ async function createContact(
   const errBody = await r.text().catch(() => "");
   // Email inválido → skip
   if (r.status === 422 && INVALID_EMAIL_MSGS.some(m => errBody.includes(m))) return null;
-  // Email ya usado → el contacto existe pero no estaba en el cache — recargar y buscar
+  // Email ya usado → el contacto existe pero no estaba en el cache — recargar TODO Systeme
+  // Caso poco frecuente (solo si el cache de Supabase está desactualizado para este email)
   if (r.status === 422 && errBody.includes("ya se ha utilizado")) {
     const email = (payload.email as string).toLowerCase();
-    // Recargar cache completo
-    const refreshed = await loadContactsCache(key);
+    const refreshed = await loadContactsCacheFromSysteme(key);
     refreshed.forEach((v, k) => contactsCache.set(k, v));
     const existingId = contactsCache.get(email);
     if (existingId) return { id: existingId, isNew: false };
@@ -259,8 +294,9 @@ export async function runSync(params: {
   whitelistTags: string[];
   fixedTags: string[];
   overrideContacts?: TokkoContact[];
+  teamId?: string;
 }): Promise<SyncResult> {
-  const { tokkoKey, systemeKey, whitelistTags, fixedTags, overrideContacts } = params;
+  const { tokkoKey, systemeKey, whitelistTags, fixedTags, overrideContacts, teamId } = params;
   const result: SyncResult = { created: 0, updated: 0, skipped: 0, errors: 0 };
   const errors: string[] = [];
 
@@ -287,8 +323,10 @@ export async function runSync(params: {
     await getOrCreateTag(tag, tagsCache, systemeKey).catch(() => null);
   }
 
-  // 4. Cache de contactos existentes
-  const contactsCache = await loadContactsCache(systemeKey);
+  // 4. Cache de contactos existentes — desde Supabase si tenemos teamId (rápido), sino desde Systeme paginado
+  const contactsCache = teamId
+    ? await loadContactsCacheFromSupabase(teamId)
+    : await loadContactsCacheFromSysteme(systemeKey);
 
   // 5. Normalizar whitelist
   const whitelistNorm = whitelistTags.map(normalizeTagName);
@@ -341,6 +379,8 @@ export async function runSync(params: {
         const created = await createContact(payload, systemeKey, contactsCache);
         if (created) {
           contactsCache.set(emailKey, created.id);
+          // Persistir en Supabase para futuros syncs rápidos
+          if (teamId) await persistNewContactToCache(teamId, emailKey, created.id);
           // Si ya existía (isNew false), actualizar sus campos también
           if (!created.isNew) {
             await updateContact(created.id, payload, systemeKey);
