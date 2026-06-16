@@ -317,9 +317,11 @@ export async function runSync(params: {
 
       // Slugs nativos de Systeme (confirmado en doc PHP oficial):
       // "first_name" → Nombre | "surname" → Apellido | "phone_number" → Teléfono
+      // Systeme rechaza valores vacíos en estos campos — solo incluir si tienen valor
+      const surnameClean = surname === "-" ? "" : surname;
       const fields: { slug: string; value: string }[] = [
-        { slug: "first_name", value: first_name },
-        { slug: "surname", value: surname === "-" ? "" : surname },
+        ...(first_name ? [{ slug: "first_name", value: first_name }] : []),
+        ...(surnameClean ? [{ slug: "surname", value: surnameClean }] : []),
         { slug: "phone_number", value: phone },
         { slug: "status", value: status },
         ...(agentName ? [{ slug: "agent_name", value: agentName }] : []),
