@@ -113,7 +113,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         systemeKey: systeme_api_key,
         whitelistTags,
         fixedTags,
-        teamId,  // permite usar cache de Supabase en lugar de paginar Systeme entero
+        teamId: team_id,  // permite usar cache de Supabase en lugar de paginar Systeme entero
       });
 
       // Determinar status
