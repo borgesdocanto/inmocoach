@@ -5,7 +5,7 @@
 
 import { supabaseAdmin } from "./supabase";
 
-interface TokkoContact {
+export interface TokkoContact {
   id: number;
   email: string;
   name: string;
@@ -408,4 +408,127 @@ export async function runSync(params: {
 
   if (errors.length > 0) result.errorDetail = errors.slice(0, 10).join("\n");
   return result;
+}
+
+
+// Procesa UN contacto individualmente — extraído para usar en el flujo por chunks.
+// Retorna {action: created|updated|skipped, tagErrors[]}
+export async function processSingleContact(params: {
+  contact: TokkoContact;
+  systemeKey: string;
+  whitelistTags: string[];
+  fixedTags: string[];
+  contactsCache: Map<string, number>;
+  tagsCache: { id: number; name: string }[];
+  teamId?: string;
+}): Promise<{ action: "created" | "updated" | "skipped"; tagErrors: string[] }> {
+  const { contact, systemeKey, whitelistTags, fixedTags, contactsCache, tagsCache, teamId } = params;
+  const tagErrors: string[] = [];
+
+  if (!contact.email?.trim()) return { action: "skipped", tagErrors };
+
+  const { first_name, surname } = splitName(contact.name ?? "");
+  const status = classifyStatus(contact.lead_status);
+  const phone = normalizePhone(contact.cellphone);
+  const agentName = contact.agent?.name ?? "";
+  const agentEmail = contact.agent?.email ?? "";
+
+  const tokkoTagNames = (contact.tags ?? []).map(t => t.name);
+  const whitelistNorm = whitelistTags.map(normalizeTagName);
+  const filteredTokkoTags = whitelistTags.length > 0
+    ? tokkoTagNames.filter(n => whitelistNorm.includes(normalizeTagName(n)))
+    : tokkoTagNames;
+
+  const desiredTags = Array.from(new Set([
+    ...fixedTags,
+    ...filteredTokkoTags,
+    ...(contact.is_owner ? ["is_owner"] : []),
+    status,
+  ]));
+
+  const surnameClean = surname === "-" ? "" : surname;
+  const fields: { slug: string; value: string }[] = [
+    ...(first_name ? [{ slug: "first_name", value: first_name }] : []),
+    ...(surnameClean ? [{ slug: "surname", value: surnameClean }] : []),
+    { slug: "phone_number", value: phone },
+    { slug: "status", value: status },
+    ...(agentName ? [{ slug: "agent_name", value: agentName }] : []),
+    ...(agentEmail ? [{ slug: "agent_email", value: agentEmail }] : []),
+  ];
+
+  const payload = {
+    email: contact.email.trim(),
+    locale: "es",
+    fields,
+  };
+
+  const emailKey = contact.email.trim().toLowerCase();
+  const existingId = contactsCache.get(emailKey);
+
+  if (!existingId) {
+    const created = await createContact(payload, systemeKey, contactsCache);
+    if (created) {
+      contactsCache.set(emailKey, created.id);
+      if (teamId) {
+        try {
+          await supabaseAdmin
+            .from("systeme_contact_cache")
+            .upsert({ team_id: teamId, email: emailKey, systeme_id: created.id }, { onConflict: "team_id,email" });
+        } catch { /* no bloquear */ }
+      }
+      if (!created.isNew) {
+        await updateContact(created.id, payload, systemeKey);
+      }
+      // Pequeña espera para evitar 404 en assign (Systeme tarda en indexar contactos nuevos)
+      if (created.isNew) await sleep(800);
+      await assignTagsToContactWithRetry(created.id, desiredTags, tagsCache, systemeKey, tagErrors);
+      return { action: created.isNew ? "created" : "updated", tagErrors };
+    } else {
+      return { action: "skipped", tagErrors };
+    }
+  } else {
+    await updateContact(existingId, payload, systemeKey);
+    await assignTagsToContactWithRetry(existingId, desiredTags, tagsCache, systemeKey, tagErrors);
+    return { action: "updated", tagErrors };
+  }
+}
+
+// Versión con retry de assignTagsToContact — Systeme a veces devuelve 404 para contactos recién creados
+async function assignTagsToContactWithRetry(
+  contactId: number,
+  tagNames: string[],
+  tagsCache: { id: number; name: string }[],
+  key: string,
+  tagErrors: string[]
+): Promise<void> {
+  const uniqueNames = Array.from(new Set(tagNames));
+  for (const name of uniqueNames) {
+    try {
+      const tagId = await getOrCreateTag(name, tagsCache, key);
+      if (!tagId) {
+        tagErrors.push(`Tag "${name}": getOrCreateTag devolvió null`);
+        continue;
+      }
+      // Reintentar hasta 3 veces si recibe 404 (consistencia eventual de Systeme)
+      let success = false;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        const r = await fetchWithRetry429(`https://api.systeme.io/api/contacts/${contactId}/tags`, {
+          method: "POST",
+          headers: { "X-API-Key": key, "content-type": "application/json" },
+          body: JSON.stringify({ tagId }),
+        });
+        if (r.ok || r.status === 422) { success = true; break; }
+        if (r.status === 404 && attempt < 2) {
+          await sleep(1500 * (attempt + 1));
+          continue;
+        }
+        const body = await r.text().catch(() => "");
+        tagErrors.push(`Assign "${name}" → ${r.status}: ${body.slice(0, 80)}`);
+        break;
+      }
+      if (!success) continue;
+    } catch (tagErr: unknown) {
+      tagErrors.push(`Tag "${name}" excepción: ${tagErr instanceof Error ? tagErr.message : "Error"}`);
+    }
+  }
 }
