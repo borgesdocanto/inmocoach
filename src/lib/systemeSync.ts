@@ -267,7 +267,8 @@ async function createContact(
   if (r.status === 422 && INVALID_EMAIL_MSGS.some(m => errBody.includes(m))) return null;
   // Email ya usado → el contacto existe pero no estaba en el cache — recargar TODO Systeme
   // Caso poco frecuente (solo si el cache de Supabase está desactualizado para este email)
-  if (r.status === 422 && errBody.includes("ya se ha utilizado")) {
+  // El mensaje puede venir en español ("ya se ha utilizado") o inglés ("has already been used")
+  if (r.status === 422 && (errBody.includes("ya se ha utilizado") || errBody.includes("already been used") || errBody.includes("already used"))) {
     const email = (payload.email as string).toLowerCase();
     const refreshed = await loadContactsCacheFromSysteme(key);
     refreshed.forEach((v, k) => contactsCache.set(k, v));
