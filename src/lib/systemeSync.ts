@@ -315,13 +315,10 @@ export async function runSync(params: {
         status,
       ]));
 
-      // Slugs nativos confirmados de Systeme:
-      // - "surname" → completa el campo Apellido ✓
-      // - Para Nombre probamos múltiples slugs ya que la doc no es clara cuál es el correcto
+      // Slugs nativos de Systeme (confirmado en doc PHP oficial):
+      // "first_name" → Nombre | "surname" → Apellido | "phone_number" → Teléfono
       const fields: { slug: string; value: string }[] = [
         { slug: "first_name", value: first_name },
-        { slug: "firstname", value: first_name },
-        { slug: "name", value: first_name },
         { slug: "surname", value: surname === "-" ? "" : surname },
         { slug: "phone_number", value: phone },
         { slug: "status", value: status },
@@ -331,8 +328,6 @@ export async function runSync(params: {
 
       const payload = {
         email: contact.email.trim(),
-        firstName: first_name,
-        lastName: surname === "-" ? "" : surname,
         locale: "es",
         fields,
       };
