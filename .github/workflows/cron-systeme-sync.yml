@@ -3,7 +3,7 @@ name: Cron — systeme-sync
 # Sincronización Tokko → Systeme.io para todos los teams activos
 on:
   schedule:
-    - cron: "30 12 * * *"
+    - cron: "0 14 * * *"
   workflow_dispatch: {}
 
 jobs:
