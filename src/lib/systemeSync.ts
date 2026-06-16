@@ -316,14 +316,21 @@ export async function runSync(params: {
       ]));
 
       const fields: { slug: string; value: string }[] = [
-        { slug: "surname", value: surname },
         { slug: "phone_number", value: phone },
         { slug: "status", value: status },
         ...(agentName ? [{ slug: "agent_name", value: agentName }] : []),
         ...(agentEmail ? [{ slug: "agent_email", value: agentEmail }] : []),
       ];
 
-      const payload = { email: contact.email.trim(), firstName: first_name, locale: "es", fields };
+      // Systeme acepta firstName y lastName en el toplevel (campos nativos del contacto).
+      // Antes mandábamos "surname" como slug custom y por eso no completaba el campo Apellido estándar.
+      const payload = {
+        email: contact.email.trim(),
+        firstName: first_name,
+        lastName: surname === "-" ? "" : surname,
+        locale: "es",
+        fields,
+      };
       const emailKey = contact.email.trim().toLowerCase();
       const existingId = contactsCache.get(emailKey);
 
