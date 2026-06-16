@@ -373,18 +373,44 @@ export async function runSync(params: {
         fields,
       };
       const emailKey = contact.email.trim().toLowerCase();
-      const existingId = contactsCache.get(emailKey);
+      let existingId = contactsCache.get(emailKey);
 
       const tagErrors: string[] = [];
+
+      // Si tenemos ID en cache, intentar update primero
+      if (existingId) {
+        const upd = await updateContact(existingId, payload, systemeKey);
+        if (upd.notFound) {
+          // Cache stale: el contacto fue borrado en Systeme (probablemente por inactividad).
+          // Limpiamos cache y caemos al flujo de creación en esta misma corrida.
+          contactsCache.delete(emailKey);
+          if (teamId) {
+            try {
+              await supabaseAdmin
+                .from("systeme_contact_cache").delete()
+                .eq("team_id", teamId).eq("email", emailKey);
+            } catch { /* ignorar */ }
+          }
+          existingId = undefined; // forzar flujo de creación
+        } else {
+          // Update OK — asignar tags
+          await assignTagsToContact(existingId, desiredTags, tagsCache, systemeKey, tagErrors);
+          result.updated++;
+        }
+      }
+
+      // Flujo de creación (cache miss o cache stale recién limpiado)
       if (!existingId) {
         const created = await createContact(payload, systemeKey, contactsCache);
         if (created) {
           contactsCache.set(emailKey, created.id);
-          // Persistir en Supabase para futuros syncs rápidos
           if (teamId) await persistNewContactToCache(teamId, emailKey, created.id);
-          // Si ya existía (isNew false), actualizar sus campos también
+          // Si Systeme lo encontró por email (isNew=false), actualizar campos
           if (!created.isNew) {
             await updateContact(created.id, payload, systemeKey);
+          } else {
+            // Recién creado: esperar para que Systeme lo indexe
+            await sleep(800);
           }
           await assignTagsToContact(created.id, desiredTags, tagsCache, systemeKey, tagErrors);
           if (created.isNew) result.created++;
@@ -392,10 +418,6 @@ export async function runSync(params: {
         } else {
           result.skipped++;
         }
-      } else {
-        await updateContact(existingId, payload, systemeKey);
-        await assignTagsToContact(existingId, desiredTags, tagsCache, systemeKey, tagErrors);
-        result.updated++;
       }
       if (tagErrors.length > 0) {
         result.errors++;
@@ -464,54 +486,64 @@ export async function processSingleContact(params: {
   };
 
   const emailKey = contact.email.trim().toLowerCase();
-  const existingId = contactsCache.get(emailKey);
+  let existingId = contactsCache.get(emailKey);
 
-  if (!existingId) {
-    const created = await createContact(payload, systemeKey, contactsCache);
-    if (created) {
-      contactsCache.set(emailKey, created.id);
-      if (teamId) {
-        try {
-          await supabaseAdmin
-            .from("systeme_contact_cache")
-            .upsert({ team_id: teamId, email: emailKey, systeme_id: created.id }, { onConflict: "team_id,email" });
-        } catch { /* no bloquear */ }
-      }
-      if (!created.isNew) {
-        await updateContact(created.id, payload, systemeKey);
-      }
-      // Pequeña espera para evitar 404 en assign (Systeme tarda en indexar contactos nuevos)
-      if (created.isNew) await sleep(800);
-      await assignTagsToContactWithRetry(
-        created.id, desiredTags, tagsCache, systemeKey, tagErrors,
-        teamId ? { teamId, email: emailKey } : undefined
-      );
-      return { action: created.isNew ? "created" : "updated", tagErrors };
-    } else {
-      return { action: "skipped", tagErrors };
-    }
-  } else {
+  // Si tenemos un ID en cache, intentar update primero
+  if (existingId) {
     const upd = await updateContact(existingId, payload, systemeKey);
     if (upd.notFound) {
-      // El contacto cacheado ya no existe en Systeme — limpiar cache y skip
+      // Cache stale: el contacto fue borrado en Systeme (probablemente por inactividad).
+      // Limpiamos cache y caemos al flujo de creación en esta misma corrida.
+      contactsCache.delete(emailKey);
       if (teamId) {
         try {
           await supabaseAdmin
-            .from("systeme_contact_cache")
-            .delete()
-            .eq("team_id", teamId)
-            .eq("email", emailKey);
+            .from("systeme_contact_cache").delete()
+            .eq("team_id", teamId).eq("email", emailKey);
         } catch { /* ignorar */ }
       }
-      tagErrors.push(`Contacto ${emailKey} no existe en Systeme (ID ${existingId}). Cache limpiado, se recreará en próxima corrida.`);
-      return { action: "skipped", tagErrors };
+      existingId = undefined; // forzar el flujo de creación abajo
+    } else {
+      // Update OK — asignar tags y terminar
+      await assignTagsToContactWithRetry(
+        existingId, desiredTags, tagsCache, systemeKey, tagErrors,
+        teamId ? { teamId, email: emailKey } : undefined
+      );
+      return { action: "updated", tagErrors };
     }
-    await assignTagsToContactWithRetry(
-      existingId, desiredTags, tagsCache, systemeKey, tagErrors,
-      teamId ? { teamId, email: emailKey } : undefined
-    );
-    return { action: "updated", tagErrors };
   }
+
+  // Flujo de creación (cache miss o cache stale recién limpiado)
+  // createContact maneja internamente el 422 "email ya usado": recarga el cache
+  // desde Systeme y devuelve el ID actual del contacto.
+  const created = await createContact(payload, systemeKey, contactsCache);
+  if (!created) {
+    return { action: "skipped", tagErrors };
+  }
+
+  contactsCache.set(emailKey, created.id);
+  if (teamId) {
+    try {
+      await supabaseAdmin
+        .from("systeme_contact_cache")
+        .upsert({ team_id: teamId, email: emailKey, systeme_id: created.id }, { onConflict: "team_id,email" });
+    } catch { /* no bloquear */ }
+  }
+
+  // Si era cache miss pero Systeme lo encontró por email (isNew=false), actualizar campos también
+  if (!created.isNew) {
+    await updateContact(created.id, payload, systemeKey);
+  } else {
+    // Recién creado: pequeña espera para que Systeme lo indexe antes de asignar tags
+    await sleep(800);
+  }
+
+  await assignTagsToContactWithRetry(
+    created.id, desiredTags, tagsCache, systemeKey, tagErrors,
+    teamId ? { teamId, email: emailKey } : undefined
+  );
+
+  return { action: created.isNew ? "created" : "updated", tagErrors };
 }
 
 // Versión con retry de assignTagsToContact — Systeme a veces devuelve 404 para contactos recién creados
