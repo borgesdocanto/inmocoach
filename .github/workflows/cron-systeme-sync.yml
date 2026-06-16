@@ -2,6 +2,7 @@ name: Cron — systeme-sync
 
 # Sincronización Tokko → Systeme.io para todos los teams activos
 on:
+  # Cron 14:00 UTC = 11:00 ARG diario
   schedule:
     - cron: "0 14 * * *"
   workflow_dispatch: {}
