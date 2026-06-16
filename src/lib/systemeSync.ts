@@ -315,15 +315,17 @@ export async function runSync(params: {
         status,
       ]));
 
+      // Systeme usa slugs nativos: "first_name" y "surname" en el array fields.
+      // Tambien aceptamos firstName/lastName en el toplevel para máxima compatibilidad.
       const fields: { slug: string; value: string }[] = [
+        { slug: "first_name", value: first_name },
+        { slug: "surname", value: surname === "-" ? "" : surname },
         { slug: "phone_number", value: phone },
         { slug: "status", value: status },
         ...(agentName ? [{ slug: "agent_name", value: agentName }] : []),
         ...(agentEmail ? [{ slug: "agent_email", value: agentEmail }] : []),
       ];
 
-      // Systeme acepta firstName y lastName en el toplevel (campos nativos del contacto).
-      // Antes mandábamos "surname" como slug custom y por eso no completaba el campo Apellido estándar.
       const payload = {
         email: contact.email.trim(),
         firstName: first_name,
