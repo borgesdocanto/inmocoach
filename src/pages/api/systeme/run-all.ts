@@ -44,6 +44,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
   if (!authorized) return res.status(401).json({ error: "Unauthorized" });
 
+  // Auto-cleanup: cerrar sync_logs que quedaron "running" hace más de 10 minutos.
+  // Esto pasa cuando Vercel mata el proceso por timeout sin que el código pueda escribir finished_at.
+  const cutoff = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+  const { data: stuck } = await supabaseAdmin
+    .from("sync_logs")
+    .update({
+      status: "error",
+      error_detail: "Proceso cortado por timeout de Vercel (cleanup automático)",
+      finished_at: new Date().toISOString(),
+    })
+    .eq("status", "running")
+    .lt("started_at", cutoff)
+    .select("id");
+  if (stuck && stuck.length > 0) {
+    console.log(`[run-all] cleanup: cerrados ${stuck.length} sync_logs colgados`);
+  }
+
   const { data: configs, error: cfgErr } = await supabaseAdmin
     .from("sync_configs")
     .select("team_id, systeme_api_key")

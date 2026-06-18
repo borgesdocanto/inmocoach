@@ -166,13 +166,23 @@ async function assignTagsToContact(
   tagErrors: string[] = []
 ): Promise<void> {
   const uniqueNames = Array.from(new Set(tagNames));
+  // Resolver tagIds en serie (porque getOrCreateTag puede modificar el cache compartido)
+  const tagIds: Array<{ name: string; tagId: number | null }> = [];
   for (const name of uniqueNames) {
     try {
       const tagId = await getOrCreateTag(name, tagsCache, key);
-      if (!tagId) {
-        tagErrors.push(`Tag "${name}": getOrCreateTag devolvió null`);
-        continue;
-      }
+      tagIds.push({ name, tagId });
+    } catch (tagErr: unknown) {
+      tagErrors.push(`Tag "${name}" excepción: ${tagErr instanceof Error ? tagErr.message : "Error"}`);
+    }
+  }
+  // Asignar todos los tags en paralelo (Systeme tolera múltiples POST simultáneos al mismo contacto)
+  await Promise.all(tagIds.map(async ({ name, tagId }) => {
+    if (!tagId) {
+      tagErrors.push(`Tag "${name}": getOrCreateTag devolvió null`);
+      return;
+    }
+    try {
       const r = await fetchWithRetry429(`https://api.systeme.io/api/contacts/${contactId}/tags`, {
         method: "POST",
         headers: { "X-API-Key": key, "content-type": "application/json" },
@@ -185,7 +195,7 @@ async function assignTagsToContact(
     } catch (tagErr: unknown) {
       tagErrors.push(`Tag "${name}" excepción: ${tagErr instanceof Error ? tagErr.message : "Error"}`);
     }
-  }
+  }));
 }
 
 // ── Systeme Contacts ───────────────────────────────────────────────────────
@@ -334,8 +344,16 @@ export async function runSync(params: {
   const whitelistNorm = whitelistTags.map(normalizeTagName);
 
   // 6. Procesar contactos
+  let processedCount = 0;
+  const startTime = Date.now();
+  console.log(`[runSync] iniciando procesamiento de ${contacts.length} contactos`);
   for (const contact of contacts) {
     if (!contact.email?.trim()) { result.skipped++; continue; }
+    processedCount++;
+    if (processedCount % 20 === 0) {
+      const elapsed = Math.round((Date.now() - startTime) / 1000);
+      console.log(`[runSync] ${processedCount}/${contacts.length} procesados — ${elapsed}s — created: ${result.created}, updated: ${result.updated}, errors: ${result.errors}`);
+    }
     try {
       const { first_name, surname } = splitName(contact.name ?? "");
       const status = classifyStatus(contact.lead_status);
@@ -430,6 +448,8 @@ export async function runSync(params: {
     }
   }
 
+  const totalElapsed = Math.round((Date.now() - startTime) / 1000);
+  console.log(`[runSync] FIN — ${totalElapsed}s — created: ${result.created}, updated: ${result.updated}, skipped: ${result.skipped}, errors: ${result.errors}`);
   if (errors.length > 0) result.errorDetail = errors.slice(0, 10).join("\n");
   return result;
 }
