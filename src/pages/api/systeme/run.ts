@@ -90,6 +90,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const logId = log?.id;
 
+  // Rango opcional desde el body (UI manda fromDate/toDate cuando el usuario lo elige)
+  const fromDate: string | undefined = req.body?.fromDate;
+  const toDate: string | undefined = req.body?.toDate;
+  const dateRange = fromDate && /^\d{4}-\d{2}-\d{2}$/.test(fromDate)
+    ? { fromDate, toDate: toDate && /^\d{4}-\d{2}-\d{2}$/.test(toDate) ? toDate : undefined }
+    : undefined;
+
   try {
     const result = await runSync({
       tokkoKey: team.tokko_api_key,
@@ -97,6 +104,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       whitelistTags: (whitelist || []).map((r: { tag_name: string }) => r.tag_name),
       fixedTags: (fixed || []).map((r: { tag_name: string }) => r.tag_name),
       teamId,  // permite usar cache de Supabase
+      dateRange,
     });
 
     const status = result.errors > 0 && result.created + result.updated === 0

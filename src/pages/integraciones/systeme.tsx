@@ -65,6 +65,13 @@ export default function SystemePage() {
   // Run manual
   const [running, setRunning] = useState(false);
   const [runMsg, setRunMsg] = useState("");
+  // Run por rango
+  const today = new Date().toISOString().split("T")[0];
+  const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+  const [rangeFrom, setRangeFrom] = useState(threeDaysAgo);
+  const [rangeTo, setRangeTo] = useState(today);
+  const [runningRange, setRunningRange] = useState(false);
+  const [rangeMsg, setRangeMsg] = useState("");
 
   useEffect(() => {
     if (status === "unauthenticated") router.replace("/login");
@@ -204,6 +211,27 @@ export default function SystemePage() {
       }
     } catch { setRunMsg("✗ Error de conexión"); }
     setRunning(false);
+  };
+
+  const handleRunRange = async () => {
+    if (!rangeFrom) { setRangeMsg("✗ Elegí una fecha desde"); return; }
+    if (rangeTo && rangeFrom > rangeTo) { setRangeMsg("✗ Desde debe ser menor o igual a Hasta"); return; }
+    setRunningRange(true); setRangeMsg("");
+    try {
+      const r = await fetch("/api/systeme/run", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fromDate: rangeFrom, toDate: rangeTo || undefined }),
+      });
+      const d = await r.json();
+      if (d.ok) {
+        setRangeMsg(`✓ Corrida completada (${rangeFrom}${rangeTo ? ` → ${rangeTo}` : ""}) — ${d.created} creados · ${d.updated} actualizados${d.errors > 0 ? ` · ${d.errors} errores` : ""}`);
+        await loadLogs();
+      } else {
+        setRangeMsg(`✗ ${d.error || "Error"}`);
+      }
+    } catch { setRangeMsg("✗ Error de conexión"); }
+    setRunningRange(false);
   };
 
   if (loading) {
@@ -524,7 +552,7 @@ export default function SystemePage() {
               <div>
                 <p style={{ fontSize: 14, fontWeight: 700, color: "#374151", margin: 0 }}>Ejecutar ahora</p>
                 <p style={{ fontSize: 12, color: "#9ca3af", margin: "2px 0 0" }}>
-                  Sincroniza los contactos de hoy sin esperar el cron de las 19hs
+                  Sincroniza los contactos modificados en los últimos 3 días sin esperar el cron
                 </p>
               </div>
               <button
@@ -542,6 +570,66 @@ export default function SystemePage() {
             {runMsg && (
               <p style={{ fontSize: 13, fontWeight: 600, marginTop: 10, color: runMsg.startsWith("✓") ? "#16a34a" : "#dc2626" }}>
                 {runMsg}
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* Sincronizar por rango */}
+        {config?.isConfigured && (
+          <div style={{
+            background: "#f9fafb", border: "1px solid #f3f4f6",
+            borderRadius: 12, padding: "16px 20px", marginBottom: 28,
+          }}>
+            <div style={{ marginBottom: 12 }}>
+              <p style={{ fontSize: 14, fontWeight: 700, color: "#374151", margin: 0 }}>Sincronizar por rango de fechas</p>
+              <p style={{ fontSize: 12, color: "#9ca3af", margin: "2px 0 0" }}>
+                Útil para recuperar gaps históricos o forzar resincronización de un período específico
+              </p>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                <label style={{ fontSize: 11, color: "#6b7280", fontWeight: 600 }}>Desde</label>
+                <input
+                  type="date"
+                  value={rangeFrom}
+                  onChange={e => setRangeFrom(e.target.value)}
+                  max={today}
+                  style={{
+                    padding: "7px 10px", borderRadius: 7, fontSize: 13,
+                    border: "1px solid #d1d5db", background: "white",
+                  }}
+                />
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                <label style={{ fontSize: 11, color: "#6b7280", fontWeight: 600 }}>Hasta (opcional)</label>
+                <input
+                  type="date"
+                  value={rangeTo}
+                  onChange={e => setRangeTo(e.target.value)}
+                  max={today}
+                  style={{
+                    padding: "7px 10px", borderRadius: 7, fontSize: 13,
+                    border: "1px solid #d1d5db", background: "white",
+                  }}
+                />
+              </div>
+              <button
+                onClick={handleRunRange}
+                disabled={runningRange}
+                style={{
+                  padding: "9px 18px", borderRadius: 8, fontSize: 13, fontWeight: 700,
+                  background: "#0ea5e9", color: "white", border: "none", cursor: "pointer",
+                  display: "flex", alignItems: "center", gap: 6, opacity: runningRange ? 0.6 : 1,
+                  marginTop: 17,
+                }}>
+                {runningRange ? <Loader2 size={13} className="animate-spin" /> : <Play size={13} />}
+                {runningRange ? "Sincronizando..." : "Sincronizar rango"}
+              </button>
+            </div>
+            {rangeMsg && (
+              <p style={{ fontSize: 13, fontWeight: 600, marginTop: 10, color: rangeMsg.startsWith("✓") ? "#16a34a" : "#dc2626" }}>
+                {rangeMsg}
               </p>
             )}
           </div>

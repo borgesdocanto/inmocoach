@@ -67,11 +67,17 @@ async function fetchWithRetry429(url: string, opts: RequestInit, retries = 3): P
 
 // ── Tokko ──────────────────────────────────────────────────────────────────
 
-export async function fetchTokkoContactsToday(tokkoKey: string): Promise<TokkoContact[]> {
-  // Traer desde AYER en lugar de hoy: elimina gaps sin importar a qué hora corra el cron.
-  // Re-sincronizar un contacto ya sincronizado es inofensivo (upsert idempotente).
-  const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
-  const today = yesterday.toISOString().split("T")[0];
+export async function fetchTokkoContactsToday(
+  tokkoKey: string,
+  options: { fromDate?: string; toDate?: string } = {}
+): Promise<TokkoContact[]> {
+  // Ventana default: últimos 3 días (overlap para resistir fallos del cron).
+  // Re-sincronizar contactos ya sincronizados es idempotente (no duplica, solo refresca).
+  // Si se pasan fromDate/toDate (YYYY-MM-DD), se usa ese rango en lugar del default.
+  const fromDate = options.fromDate ?? (() => {
+    const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
+    return threeDaysAgo.toISOString().split("T")[0];
+  })();
   const base = "https://tokkobroker.com";
   const contacts: TokkoContact[] = [];
   const seen = new Set<string>();
@@ -94,8 +100,12 @@ export async function fetchTokkoContactsToday(tokkoKey: string): Promise<TokkoCo
     }
   }
 
-  await paginate(`${base}/api/v1/contact/?key=${tokkoKey}&deleted_at__gt=${today}&format=json`);
-  await paginate(`${base}/api/v1/contact/?key=${tokkoKey}&created_at__gt=${today}&format=json`);
+  // Filtro de toDate opcional para acotar rangos pasados (ej. "del 1 al 7 de mayo")
+  const toFilter = options.toDate ? `&deleted_at__lt=${options.toDate}` : "";
+  const toFilterCreated = options.toDate ? `&created_at__lt=${options.toDate}` : "";
+
+  await paginate(`${base}/api/v1/contact/?key=${tokkoKey}&deleted_at__gt=${fromDate}${toFilter}&format=json`);
+  await paginate(`${base}/api/v1/contact/?key=${tokkoKey}&created_at__gt=${fromDate}${toFilterCreated}&format=json`);
   return contacts;
 }
 
@@ -307,8 +317,9 @@ export async function runSync(params: {
   fixedTags: string[];
   overrideContacts?: TokkoContact[];
   teamId?: string;
+  dateRange?: { fromDate: string; toDate?: string };
 }): Promise<SyncResult> {
-  const { tokkoKey, systemeKey, whitelistTags, fixedTags, overrideContacts, teamId } = params;
+  const { tokkoKey, systemeKey, whitelistTags, fixedTags, overrideContacts, teamId, dateRange } = params;
   const result: SyncResult = { created: 0, updated: 0, skipped: 0, errors: 0 };
   const errors: string[] = [];
 
@@ -318,7 +329,7 @@ export async function runSync(params: {
     contacts = overrideContacts;
   } else {
     try {
-      contacts = await fetchTokkoContactsToday(tokkoKey);
+      contacts = await fetchTokkoContactsToday(tokkoKey, dateRange);
     } catch (err: unknown) {
       result.errors++;
       result.errorDetail = `Error Tokko: ${err instanceof Error ? err.message : "Error"}`;
