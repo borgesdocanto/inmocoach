@@ -3,8 +3,8 @@
 // Body: { fromDate: "YYYY-MM-DD", toDate?: "YYYY-MM-DD" }
 // Requiere sesión de super admin O CRON_SECRET.
 import { NextApiRequest, NextApiResponse } from "next";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "../auth/[...nextauth]";
+import { getServerSession } from "next-auth";
+import { authOptions } from "../../../lib/auth";
 import { supabaseAdmin } from "../../../lib/supabase";
 import { isSuperAdmin } from "../../../lib/adminGuard";
 import { runSync } from "../../../lib/systemeSync";
