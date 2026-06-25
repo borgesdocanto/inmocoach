@@ -322,34 +322,69 @@ export async function runSync(params: {
   const { tokkoKey, systemeKey, whitelistTags, fixedTags, overrideContacts, teamId, dateRange } = params;
   const result: SyncResult = { created: 0, updated: 0, skipped: 0, errors: 0 };
   const errors: string[] = [];
+  const phaseStart = Date.now();
 
-  // 1. Traer contactos de Tokko
+  // 1. Traer contactos de Tokko (con timeout duro de 90s)
+  console.log(`[runSync] FASE 1: fetch Tokko contacts (rango: ${dateRange ? `${dateRange.fromDate}→${dateRange.toDate ?? "hoy"}` : "default 3 días"})`);
   let contacts: TokkoContact[] = [];
   if (overrideContacts) {
     contacts = overrideContacts;
   } else {
     try {
-      contacts = await fetchTokkoContactsToday(tokkoKey, dateRange);
+      contacts = await Promise.race([
+        fetchTokkoContactsToday(tokkoKey, dateRange),
+        new Promise<TokkoContact[]>((_, reject) => setTimeout(() => reject(new Error("Timeout fetch Tokko (90s)")), 90000)),
+      ]);
     } catch (err: unknown) {
+      const elapsed = Math.round((Date.now() - phaseStart) / 1000);
+      console.error(`[runSync] FASE 1 FAIL en ${elapsed}s: ${err instanceof Error ? err.message : "Error"}`);
       result.errors++;
       result.errorDetail = `Error Tokko: ${err instanceof Error ? err.message : "Error"}`;
       return result;
     }
   }
+  console.log(`[runSync] FASE 1 OK en ${Math.round((Date.now() - phaseStart) / 1000)}s — ${contacts.length} contactos de Tokko`);
   if (contacts.length === 0) return result;
 
-  // 2. Cargar tags de Systeme (cache mutable)
-  const tagsCache: { id: number; name: string }[] = await fetchAllSystemeTags(systemeKey);
+  // 2. Cargar tags de Systeme (con timeout duro de 60s)
+  const phase2Start = Date.now();
+  console.log(`[runSync] FASE 2: load tags from Systeme`);
+  let tagsCache: { id: number; name: string }[] = [];
+  try {
+    tagsCache = await Promise.race([
+      fetchAllSystemeTags(systemeKey),
+      new Promise<never>((_, reject) => setTimeout(() => reject(new Error("Timeout fetch Systeme tags (60s)")), 60000)),
+    ]);
+  } catch (err: unknown) {
+    console.error(`[runSync] FASE 2 FAIL: ${err instanceof Error ? err.message : "Error"}`);
+    result.errors++;
+    result.errorDetail = `Error cargando tags Systeme: ${err instanceof Error ? err.message : "Error"}`;
+    return result;
+  }
+  console.log(`[runSync] FASE 2 OK en ${Math.round((Date.now() - phase2Start) / 1000)}s — ${tagsCache.length} tags cargadas`);
 
   // 3. Pre-crear tags fijas
+  console.log(`[runSync] FASE 3: pre-crear ${fixedTags.length} tags fijas`);
   for (const tag of fixedTags) {
     await getOrCreateTag(tag, tagsCache, systemeKey).catch(() => null);
   }
 
-  // 4. Cache de contactos existentes — desde Supabase si tenemos teamId (rápido), sino desde Systeme paginado
-  const contactsCache = teamId
-    ? await loadContactsCacheFromSupabase(teamId)
-    : await loadContactsCacheFromSysteme(systemeKey);
+  // 4. Cache de contactos existentes (con timeout de 90s)
+  const phase4Start = Date.now();
+  console.log(`[runSync] FASE 4: load contacts cache (source: ${teamId ? "Supabase" : "Systeme paginated"})`);
+  let contactsCache: Map<string, number> = new Map();
+  try {
+    contactsCache = await Promise.race([
+      teamId ? loadContactsCacheFromSupabase(teamId) : loadContactsCacheFromSysteme(systemeKey),
+      new Promise<never>((_, reject) => setTimeout(() => reject(new Error("Timeout load cache (90s)")), 90000)),
+    ]);
+  } catch (err: unknown) {
+    console.error(`[runSync] FASE 4 FAIL: ${err instanceof Error ? err.message : "Error"}`);
+    result.errors++;
+    result.errorDetail = `Error cargando cache: ${err instanceof Error ? err.message : "Error"}`;
+    return result;
+  }
+  console.log(`[runSync] FASE 4 OK en ${Math.round((Date.now() - phase4Start) / 1000)}s — ${contactsCache.size} contactos en cache`);
 
   // 5. Normalizar whitelist
   const whitelistNorm = whitelistTags.map(normalizeTagName);
