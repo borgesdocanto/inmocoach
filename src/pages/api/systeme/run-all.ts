@@ -26,6 +26,7 @@ async function notifyError(teamId: string, message: string) {
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  console.log(`[run-all] >>> INVOCACIÓN recibida ${new Date().toISOString()}`);
   if (req.method !== "POST") return res.status(405).end();
 
   // Auth: CRON_SECRET (Vercel) O token externo (cron-job.org via app_config)
@@ -44,6 +45,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
   if (!authorized) return res.status(401).json({ error: "Unauthorized" });
 
+  console.log(`[run-all] auth OK (source: ${triggerSource}). Iniciando cleanup...`);
   // Auto-cleanup: cerrar sync_logs que quedaron "running" hace más de 10 minutos.
   // Esto pasa cuando Vercel mata el proceso por timeout sin que el código pueda escribir finished_at.
   const cutoff = new Date(Date.now() - 10 * 60 * 1000).toISOString();
@@ -70,27 +72,41 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (cfgErr) return res.status(500).json({ error: "DB error", detail: cfgErr.message });
   if (!configs || configs.length === 0) return res.json({ ok: true, ran: 0 });
 
+  console.log(`[run-all] configs query OK: ${configs.length} teams para procesar`);
   const results: { team_id: string; result: string }[] = [];
 
   for (const { team_id, systeme_api_key } of configs) {
-    // Crear log
-    const { data: log } = await supabaseAdmin
-      .from("sync_logs")
-      .insert({
-        team_id,
-        started_at: new Date().toISOString(),
-        status: "running",
-        trigger: triggerSource,
-      })
-      .select("id")
-      .single();
+    console.log(`[run-all] ↪ team ${team_id.slice(0, 8)}: creando sync_log...`);
+    // Crear log con timeout duro de 10s
+    const logInsert = await Promise.race([
+      supabaseAdmin
+        .from("sync_logs")
+        .insert({
+          team_id,
+          started_at: new Date().toISOString(),
+          status: "running",
+          trigger: triggerSource,
+        })
+        .select("id")
+        .single(),
+      new Promise<never>((_, reject) => setTimeout(() => reject(new Error("Timeout INSERT sync_log (10s)")), 10000)),
+    ]).catch((err) => ({ data: null, error: err }));
+
+    const log = logInsert.data;
+    if (!log) {
+      console.error(`[run-all] FAIL al crear sync_log para team ${team_id.slice(0, 8)}: ${logInsert.error?.message ?? "unknown"}`);
+      results.push({ team_id, result: "fail_create_log" });
+      continue;
+    }
+    console.log(`[run-all] sync_log creado (id: ${log.id.slice(0, 8)})`);
 
     try {
-      const { data: team } = await supabaseAdmin
-        .from("teams")
-        .select("tokko_api_key")
-        .eq("id", team_id)
-        .maybeSingle();
+      console.log(`[run-all] cargando team data (tokko_api_key)...`);
+      const teamQuery = await Promise.race([
+        supabaseAdmin.from("teams").select("tokko_api_key").eq("id", team_id).maybeSingle(),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error("Timeout SELECT teams (10s)")), 10000)),
+      ]);
+      const { data: team } = teamQuery as { data: { tokko_api_key?: string } | null };
 
       if (!team?.tokko_api_key) {
         await supabaseAdmin.from("sync_logs").update({
@@ -102,10 +118,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         continue;
       }
 
-      const [{ data: whitelist }, { data: fixed }] = await Promise.all([
-        supabaseAdmin.from("sync_tags_whitelist").select("tag_name").eq("team_id", team_id),
-        supabaseAdmin.from("sync_tags_fixed").select("tag_name").eq("team_id", team_id),
+      console.log(`[run-all] team data OK. Cargando whitelist + fixed tags...`);
+      const tagsQuery = await Promise.race([
+        Promise.all([
+          supabaseAdmin.from("sync_tags_whitelist").select("tag_name").eq("team_id", team_id),
+          supabaseAdmin.from("sync_tags_fixed").select("tag_name").eq("team_id", team_id),
+        ]),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error("Timeout SELECT tags (10s)")), 10000)),
       ]);
+      const [{ data: whitelist }, { data: fixed }] = tagsQuery as [
+        { data: Array<{ tag_name: string }> | null },
+        { data: Array<{ tag_name: string }> | null }
+      ];
+      console.log(`[run-all] tags cargados: ${whitelist?.length ?? 0} whitelist, ${fixed?.length ?? 0} fixed. Llamando runSync...`);
 
       const result = await runSync({
         tokkoKey: team.tokko_api_key,
