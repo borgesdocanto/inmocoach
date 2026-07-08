@@ -8,13 +8,14 @@ export default async function handler(
     const apiKey = "44b438c60bbde9a6e02e62afda4ef2e86f15aa1d";
     const searchAddress = req.query.address as string || "";
 
-    console.log("🔄 Trayendo propiedades RESERVADAS (status=3)...");
+    console.log("🔄 Trayendo propiedades con status=3 (Reservadas)...");
 
-    // Solo usar los flags especiales, sin filtro explícito de status
+    // Filtro explícito: solo status=3
     const searchData = {
-      filters: [],
+      filters: [
+        ["status", "", "3"]  // Filtro EXPLÍCITO por status=3
+      ],
       only_available: false,
-      only_reserved: "checked", // Esto trae status=3
       with_tags: [],
       without_tags: [],
       with_custom_tags: [],
@@ -34,6 +35,8 @@ export default async function handler(
     url.searchParams.append("data", JSON.stringify(searchData));
     url.searchParams.append("limit", "500");
 
+    console.log("Llamando API con filters: [['status', '', '3']]");
+
     const response = await fetch(url.toString());
     
     if (!response.ok) {
@@ -44,7 +47,11 @@ export default async function handler(
     const data = await response.json();
     let reserved = data.objects || [];
 
-    console.log(`✅ Encontradas ${reserved.length} propiedades con status=3 (reservadas)`);
+    console.log(`Respuesta: ${reserved.length} propiedades con status=3`);
+    
+    // Verificar que realmente sean status=3
+    const actualStatus3 = reserved.filter((p: any) => p.status === 3 || p.status === "3");
+    console.log(`De esas, realmente status=3: ${actualStatus3.length}`);
 
     if (searchAddress) {
       reserved = reserved.filter((p: any) => 
@@ -55,8 +62,9 @@ export default async function handler(
     res.status(200).json({
       success: true,
       count: reserved.length,
+      actual_status_3_count: actualStatus3.length,
       total_in_api: data.meta?.total_count,
-      reserved_properties: reserved.slice(0, 50).map((p: any) => ({
+      reserved_properties: reserved.slice(0, 30).map((p: any) => ({
         id: p.id,
         address: p.address,
         reference_code: p.reference_code,
