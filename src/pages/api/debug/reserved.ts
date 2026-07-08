@@ -6,11 +6,14 @@ export default async function handler(
 ) {
   try {
     const apiKey = "44b438c60bbde9a6e02e62afda4ef2e86f15aa1d";
+    const searchAddress = req.query.address as string || ""; // Para filtrar por dirección si se pasa
 
-    console.log("🔄 Trayendo propiedades RESERVADAS con /property/search/...");
+    console.log("🔄 Trayendo propiedades RESERVADAS (status=3) con /property/search/...");
 
     const searchData = {
-      filters: [],
+      filters: [
+        ["status", "", "3"] // Filtro explícito por status=3
+      ],
       only_available: false,
       only_reserved: "checked",
       with_tags: [],
@@ -32,25 +35,33 @@ export default async function handler(
     url.searchParams.append("data", JSON.stringify(searchData));
     url.searchParams.append("limit", "500");
 
-    console.log("URL:", url.toString().replace(apiKey, "***"));
+    console.log("🔄 Llamando API...");
 
     const response = await fetch(url.toString());
     
     if (!response.ok) {
-      console.error(`❌ Error ${response.status}`);
       const text = await response.text();
-      return res.status(response.status).json({ error: text });
+      return res.status(response.status).json({ error: `${response.status}: ${text}` });
     }
 
     const data = await response.json();
-    const reserved = data.objects || [];
+    let reserved = data.objects || [];
 
-    console.log(`✅ Encontradas ${reserved.length} propiedades reservadas`);
+    console.log(`✅ Encontradas ${reserved.length} propiedades con status=3`);
+
+    // Si se pasó dirección, filtrar por eso
+    if (searchAddress) {
+      reserved = reserved.filter((p: any) => 
+        p.address?.toLowerCase().includes(searchAddress.toLowerCase())
+      );
+      console.log(`🔍 Filtradas por "${searchAddress}": ${reserved.length}`);
+    }
 
     res.status(200).json({
       success: true,
       count: reserved.length,
-      reserved_properties: reserved.slice(0, 30).map((p: any) => ({
+      total_in_api: data.meta?.total_count,
+      reserved_properties: reserved.slice(0, 50).map((p: any) => ({
         id: p.id,
         address: p.address,
         reference_code: p.reference_code,
@@ -61,7 +72,6 @@ export default async function handler(
         photos_count: (p.photos || []).length,
         operation_type: p.type?.name,
       })),
-      total: data.meta?.total_count,
     });
   } catch (error: any) {
     console.error("Error:", error.message);
