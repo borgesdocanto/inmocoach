@@ -30,7 +30,7 @@ export default async function handler(
     const trelloKey = process.env.TRELLO_API_KEY;
     const trelloToken = process.env.TRELLO_TOKEN;
     const trelloBoardId = process.env.TRELLO_BOARD_ID;
-    const teamId = "bb61ed0d-96dd-4c45-ac9a-c72169bd0b93";
+    const teamId = "bb61ed0d-96dd-4c45-ac9a-c72169bd0b93"; // GALAS exclusivo
 
     if (!trelloKey || !trelloToken || !trelloBoardId) {
       return res.status(400).json({

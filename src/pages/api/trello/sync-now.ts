@@ -1,6 +1,7 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import { syncReservedToTrello } from "../../../lib/trelloSync";
 import { getSession } from "next-auth/react";
+import { supabaseAdmin } from "../../../lib/supabase";
 
 export const config = {
   maxDuration: 60,
@@ -16,10 +17,26 @@ export default async function handler(
 
   try {
     const session = await getSession({ req });
+    if (!session) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
 
-    // Solo GALAS (super admin)
-    if (!session || session.user?.email !== "leandro@galas.com.ar") {
-      return res.status(403).json({ error: "Unauthorized" });
+    // Verificar que sea owner o team_leader de GALAS
+    const { data: sub } = await supabaseAdmin
+      .from("subscriptions")
+      .select("team_id, team_role")
+      .eq("email", session.user?.email)
+      .single();
+
+    if (!sub) {
+      return res.status(403).json({ error: "User not found" });
+    }
+
+    const isGalasTeam = sub.team_id === "bb61ed0d-96dd-4c45-ac9a-c72169bd0b93";
+    const isAuthorized = (sub.team_role === "owner" || sub.team_role === "team_leader") && isGalasTeam;
+
+    if (!isAuthorized) {
+      return res.status(403).json({ error: "Forbidden" });
     }
 
     // Credenciales Trello (guardar en Vercel env o Supabase)

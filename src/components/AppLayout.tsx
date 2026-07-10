@@ -37,6 +37,7 @@ export default function AppLayout({ children, topbarExtra, greeting }: AppLayout
   const [firmaAlerta, setFirmaAlerta] = useState(0);
   const [impersonating, setImpersonating] = useState<string | null>(null);
   const [impersonatedUser, setImpersonatedUser] = useState<{ name: string; email: string; avatar: string | null } | null>(null);
+  const [isGalas, setIsGalas] = useState(false);
 
   useEffect(() => {
     if (status !== "authenticated") return;
@@ -64,7 +65,9 @@ export default function AppLayout({ children, topbarExtra, greeting }: AppLayout
         .then(r => r.json())
         .then(d => {
           const role = d.subscription?.teamRole;
+          const teamId = d.subscription?.teamId;
           setIsOwner(role === "owner" || role === "team_leader");
+          setIsGalas(teamId === "bb61ed0d-96dd-4c45-ac9a-c72169bd0b93");
           if (role === "owner" || role === "team_leader") {
             fetch("/api/systeme/config")
               .then(r => r.ok ? r.json() : null)
@@ -135,6 +138,7 @@ export default function AppLayout({ children, topbarExtra, greeting }: AppLayout
         { label: "Mi cuenta", href: "/cuenta", active: path === "/cuenta" },
         { label: "Integraciones", href: "/tokko-setup", active: path === "/tokko-setup" || path.startsWith("/integraciones") },
         ...(hasSystemeSync && isOwner ? [{ label: "↳ Systeme.io", href: "/integraciones/systeme", active: path === "/integraciones/systeme" }] : []),
+        ...(isGalas && isOwner ? [{ label: "↳ Trello (Reservas)", href: "/integraciones/trello", active: path === "/integraciones/trello" }] : []),
         { label: "Ranking", href: "/config/ranking", active: path === "/config/ranking" },
         ...(isOwner ? [{ label: "Mails", href: "/config/mails", active: path === "/config/mails" }] : []),
         { label: "Mails de fidelización", href: "/config/mails-automaticos", active: path === "/config/mails-automaticos" },

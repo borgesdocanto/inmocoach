@@ -42,15 +42,25 @@ export default function TrelloPage() {
   useEffect(() => {
     const checkGalas = async () => {
       try {
-        const r = await fetch("/api/admin/check-galas");
-        if (r.ok) {
+        const r = await fetch("/api/subscription");
+        if (!r.ok) throw new Error("No subscription");
+        
+        const data = await r.json();
+        const teamId = data.subscription?.teamId;
+        const role = data.subscription?.teamRole;
+        
+        // Solo owner o team_leader de GALAS
+        const isGalasTeam = teamId === "bb61ed0d-96dd-4c45-ac9a-c72169bd0b93";
+        const isAuthorized = (role === "owner" || role === "team_leader") && isGalasTeam;
+        
+        if (isAuthorized) {
           setIsGalas(true);
           loadLogs();
         } else {
-          router.replace("/dashboard");
+          router.replace("/");
         }
       } catch {
-        router.replace("/dashboard");
+        router.replace("/");
       }
       setLoading(false);
     };

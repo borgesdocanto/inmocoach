@@ -12,12 +12,31 @@ export default async function handler(
 
   try {
     const session = await getSession({ req });
-
-    if (!session || session.user?.email !== "leandro@galas.com.ar") {
-      return res.status(403).json({ error: "Unauthorized" });
+    if (!session) {
+      return res.status(401).json({ error: "Unauthorized" });
     }
 
-    const teamId = "bb61ed0d-96dd-4c45-ac9a-c72169bd0b93";
+    // Traer info del usuario
+    const { data: sub } = await supabaseAdmin
+      .from("subscriptions")
+      .select("team_id, team_role")
+      .eq("email", session.user?.email)
+      .single();
+
+    if (!sub) {
+      return res.status(403).json({ error: "User not found" });
+    }
+
+    const teamId = sub.team_id;
+    const role = sub.team_role;
+
+    // Solo owner o team_leader de GALAS
+    const isGalasTeam = teamId === "bb61ed0d-96dd-4c45-ac9a-c72169bd0b93";
+    const isAuthorized = (role === "owner" || role === "team_leader") && isGalasTeam;
+
+    if (!isAuthorized) {
+      return res.status(403).json({ error: "Forbidden" });
+    }
 
     const { data: logs } = await supabaseAdmin
       .from("trello_sync_log")
