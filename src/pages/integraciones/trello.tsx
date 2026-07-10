@@ -114,6 +114,35 @@ export default function TrelloPage() {
     setSyncing(false);
   };
 
+  const [updatingExisting, setUpdatingExisting] = React.useState(false);
+
+  const handleUpdateExisting = async () => {
+    setUpdatingExisting(true);
+    setSyncMsg("");
+    try {
+      const r = await fetch("/api/trello/sync-update-existing", {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-email": session?.user?.email || "",
+        },
+      });
+      const data = await r.json();
+      if (r.ok) {
+        setSyncMsg(
+          `✅ Actualizado: ${data.descriptionUpdated} descripciones, ${data.checklistsAdded} checklists agregados`
+        );
+        loadLogs();
+      } else {
+        setSyncMsg(`❌ ${data.error}`);
+      }
+    } catch (e: any) {
+      setSyncMsg(`❌ ${e.message}`);
+    }
+    setUpdatingExisting(false);
+  };
+
   if (loading || !isGalas) {
     return (
       <AppLayout>
