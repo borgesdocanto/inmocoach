@@ -33,33 +33,33 @@ export default function TokkoSetup() {
   useEffect(() => {
     if (status !== "authenticated") return;
     
-    // Verificar que sea GALAS owner/team_leader
-    fetch("/api/subscription")
-      .then(r => r.json())
-      .then(d => {
-        const teamId = d.subscription?.teamId;
-        const role = d.subscription?.teamRole;
+    const load = async () => {
+      try {
+        // Verificar que sea owner o team_leader de CUALQUIER team
+        const subResp = await fetch("/api/subscription");
+        const subData = await subResp.json();
+        const role = subData.subscription?.teamRole;
         
-        const isGalasTeam = teamId === "bb61ed0d-96dd-4c45-ac9a-c72169bd0b93";
-        const isAuthorized = (role === "owner" || role === "team_leader") && isGalasTeam;
-        
-        if (!isAuthorized) {
+        if (role !== "owner" && role !== "team_leader") {
           router.replace("/");
           return;
         }
         
         // Si está autorizado, traer configuración Tokko
-        return fetch("/api/teams/tokko-config")
-          .then(r => r.ok ? r.json() : null)
-          .then(d => {
-            if (d) { setHasKey(d.hasKey); setKeyPreview(d.keyPreview); }
-            setLoading(false);
-          })
-          .catch(() => setLoading(false));
-      })
-      .catch(() => {
+        const configResp = await fetch("/api/teams/tokko-config");
+        const configData = configResp.ok ? await configResp.json() : null;
+        
+        if (configData) {
+          setHasKey(configData.hasKey);
+          setKeyPreview(configData.keyPreview);
+        }
         setLoading(false);
-      });
+      } catch {
+        setLoading(false);
+      }
+    };
+    
+    load();
   }, [status, router]);
 
   const handleSave = async () => {

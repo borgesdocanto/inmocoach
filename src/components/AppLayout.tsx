@@ -131,9 +131,10 @@ export default function AppLayout({ children, topbarExtra, greeting }: AppLayout
     ...(isOwner ? [{
       label: "Configuración",
       icon: "⚙",
-      active: path === "/cuenta" || path.startsWith("/config"),
+      active: path === "/cuenta" || path.startsWith("/config") || path === "/tokko-setup",
       children: [
         { label: "Mi cuenta", href: "/cuenta", active: path === "/cuenta" },
+        { label: "Tokko", href: "/tokko-setup", active: path === "/tokko-setup" },
         { label: "Ranking", href: "/config/ranking", active: path === "/config/ranking" },
         { label: "Mails", href: "/config/mails", active: path === "/config/mails" },
         { label: "Mails de fidelización", href: "/config/mails-automaticos", active: path === "/config/mails-automaticos" },
@@ -142,11 +143,10 @@ export default function AppLayout({ children, topbarExtra, greeting }: AppLayout
     ...(isGalas && isOwner ? [{
       label: "Integraciones",
       icon: "🔗",
-      active: path === "/tokko-setup" || path.startsWith("/integraciones"),
+      active: path.startsWith("/integraciones"),
       children: [
-        { label: "Tokko", href: "/tokko-setup", active: path === "/tokko-setup" },
-        ...(hasSystemeSync ? [{ label: "↳ Systeme.io", href: "/integraciones/systeme", active: path === "/integraciones/systeme" }] : []),
-        { label: "↳ Trello (Reservas)", href: "/integraciones/trello", active: path === "/integraciones/trello" },
+        ...(hasSystemeSync ? [{ label: "Systeme.io", href: "/integraciones/systeme", active: path === "/integraciones/systeme" }] : []),
+        { label: "Trello (Reservas)", href: "/integraciones/trello", active: path === "/integraciones/trello" },
       ],
     }] : []),
   ];
