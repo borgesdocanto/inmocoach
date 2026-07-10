@@ -1,8 +1,6 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import { supabaseAdmin } from "../../../lib/supabase";
 import { getSession } from "next-auth/react";
-import { isSuperAdmin } from "../../../lib/adminGuard";
-
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
@@ -12,17 +10,36 @@ export default async function handler(
   }
 
   try {
-    const session = await getSession({ req });
-    if (!session?.user?.email || !isSuperAdmin(session.user.email)) {
-      return res.status(403).json({ error: "Admin only" });
+    // Obtener email (sesión o header)
+    let userEmail = null;
+    try {
+      const session = await getSession({ req });
+      userEmail = session?.user?.email;
+    } catch (e) {
+      userEmail = req.headers["x-user-email"] as string;
     }
 
-    // Obtener Tokko API key
+    if (!userEmail) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    // Verificar GALAS owner/team_leader
     const { data: sub } = await supabaseAdmin
       .from("subscriptions")
-      .select("team_id")
-      .eq("email", session.user.email)
+      .select("team_id, team_role")
+      .eq("email", userEmail)
       .single();
+
+    if (!sub) {
+      return res.status(403).json({ error: "User not found" });
+    }
+
+    const isGalasTeam = sub.team_id === "bb61ed0d-96dd-4c45-ac9a-c72169bd0b93";
+    const isAuthorized = (sub.team_role === "owner" || sub.team_role === "team_leader") && isGalasTeam;
+
+    if (!isAuthorized) {
+      return res.status(403).json({ error: "Forbidden - Not GALAS owner/team_leader" });
+    }
 
     const { data: team } = await supabaseAdmin
       .from("teams")
