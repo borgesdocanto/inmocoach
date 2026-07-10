@@ -207,7 +207,7 @@ async function addMembersToCard(
   updateUrl.searchParams.append("key", key);
   updateUrl.searchParams.append("token", token);
 
-  const newMemberIds = [...currentMemberIds, ...memberIds];
+  const newMemberIds = Array.from(currentMemberIds).concat(memberIds);
   const updateResponse = await fetch(updateUrl.toString(), {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
