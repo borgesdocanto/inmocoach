@@ -8,23 +8,33 @@ export default async function handler(
     const apiKey = "44b438c60bbde9a6e02e62afda4ef2e86f15aa1d";
     const searchAddress = req.query.address as string || "";
 
-    console.log("🔄 Trayendo propiedades RESERVADAS (status=3) con payload correcto...");
+    console.log("🔄 Trayendo propiedades RESERVADAS con nuevo payload...");
 
-    // Payload EXACTO del foro de Tokko - usando "undefined" como STRING
+    // Payload EXACTO encontrado
     const searchData = {
-      with_custom_tags: [],
-      current_localization_id: 0,
-      current_localization_type: "country",
-      price_from: 0,
-      price_to: 999999999,
-      operation_types: [1, 2, 3],
-      property_types: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 18, 19, 20, 21, 22, 23, 24],
-      currency: "ANY",
       filters: [],
-      only_available: "undefined",      // STRING, no boolean
-      only_reserved: "checked",          // STRING
-      only_to_be_cotized: "undefined",   // STRING, no boolean
-      only_not_available: "undefined",   // STRING, no boolean
+      only_available: "undefined",
+      only_reserved: "checked",
+      only_to_be_cotized: "undefined",
+      only_not_available: "undefined",
+      with_tags: [],
+      without_tags: [],
+      with_custom_tags: [],
+      with_or_custom_tags: [],
+      without_custom_tags: [],
+      listing_edition_review: "undefined",
+      division_filters: [],
+      state_filters: [],
+      current_localization_id: "0",
+      current_localization_type: "",
+      network: [660],
+      exclude_my_properties: false,
+      price_from: "0",
+      price_to: "9999999999",
+      operation_types: [],
+      property_types: [],
+      currency: "USD",
+      bounding_box: [],
     };
 
     const url = new URL("https://www.tokkobroker.com/api/v1/property/search/");
@@ -34,7 +44,7 @@ export default async function handler(
     url.searchParams.append("data", JSON.stringify(searchData));
     url.searchParams.append("limit", "500");
 
-    console.log("🔄 Llamando API con payload documentado en foro de Tokko...");
+    console.log("🔄 Llamando API con nuevo payload...");
 
     const response = await fetch(url.toString());
     
