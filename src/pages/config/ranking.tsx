@@ -42,22 +42,38 @@ export default function RankingConfigPage() {
 
   useEffect(() => {
     if (status !== "authenticated") return;
-    Promise.all([
-      fetch("/api/teams/settings").then(r => r.ok ? r.json() : null),
-      fetch("/api/teams/agency").then(r => r.ok ? r.json() : null),
-    ]).then(([settings, agency]) => {
-      if (settings) {
-        setShowBroker(settings.showBroker ?? true);
-        setShowTeamLeaders(settings.showTeamLeaders ?? true);
-        setAnonymizeGlobal(settings.anonymizeGlobal ?? false);
-      }
-      if (agency?.agencyName) {
-        setAgencyName(agency.agencyName);
-        setAgencyInput(agency.agencyName);
-      }
-      setLoading(false);
-    });
-  }, [status]);
+    
+    // Verificar que sea owner o team_leader
+    fetch("/api/subscription")
+      .then(r => r.json())
+      .then(d => {
+        const role = d.subscription?.teamRole;
+        if (role !== "owner" && role !== "team_leader") {
+          router.replace("/");
+          return;
+        }
+        
+        return Promise.all([
+          fetch("/api/teams/settings").then(r => r.ok ? r.json() : null),
+          fetch("/api/teams/agency").then(r => r.ok ? r.json() : null),
+        ]);
+      })
+      .then(([settings, agency]) => {
+        if (settings) {
+          setShowBroker(settings.showBroker ?? true);
+          setShowTeamLeaders(settings.showTeamLeaders ?? true);
+          setAnonymizeGlobal(settings.anonymizeGlobal ?? false);
+        }
+        if (agency?.agencyName) {
+          setAgencyName(agency.agencyName);
+          setAgencyInput(agency.agencyName);
+        }
+        setLoading(false);
+      })
+      .catch(() => {
+        setLoading(false);
+      });
+  }, [status, router]);
 
   const saveSetting = async (key: string, value: boolean) => {
     setSaving(true);

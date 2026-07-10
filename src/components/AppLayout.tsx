@@ -26,9 +26,7 @@ export default function AppLayout({ children, topbarExtra, greeting }: AppLayout
   const router = useRouter();
   const { data: session, status } = useSession();
   const [mobileMenu, setMobileMenu] = useState(false);
-  const [configOpen, setConfigOpen] = useState(
-    router.pathname.startsWith("/tokko") || router.pathname.startsWith("/config") || router.pathname === "/cuenta" || router.pathname.startsWith("/integraciones")
-  );
+  const [configOpen, setConfigOpen] = useState(false);
   const [isOwner, setIsOwner] = useState(false);
   const [hasSystemeSync, setHasSystemeSync] = useState(false);
   const [agencyLogo, setAgencyLogo] = useState<string | null>(null);
@@ -130,22 +128,27 @@ export default function AppLayout({ children, topbarExtra, greeting }: AppLayout
         active: path.startsWith("/equipo"),
       } as NavItem,
     ] : []),
-    {
+    ...(isOwner ? [{
       label: "Configuración",
       icon: "⚙",
-      active: path.startsWith("/tokko") || path.startsWith("/config") || path === "/cuenta" || path.startsWith("/integraciones"),
+      active: path === "/cuenta" || path.startsWith("/config"),
       children: [
         { label: "Mi cuenta", href: "/cuenta", active: path === "/cuenta" },
-        ...(isGalas && isOwner ? [
-          { label: "Integraciones", href: "/tokko-setup", active: path === "/tokko-setup" || path.startsWith("/integraciones") },
-          ...(hasSystemeSync ? [{ label: "↳ Systeme.io", href: "/integraciones/systeme", active: path === "/integraciones/systeme" }] : []),
-          { label: "↳ Trello (Reservas)", href: "/integraciones/trello", active: path === "/integraciones/trello" },
-        ] : []),
         { label: "Ranking", href: "/config/ranking", active: path === "/config/ranking" },
-        ...(isOwner ? [{ label: "Mails", href: "/config/mails", active: path === "/config/mails" }] : []),
+        { label: "Mails", href: "/config/mails", active: path === "/config/mails" },
         { label: "Mails de fidelización", href: "/config/mails-automaticos", active: path === "/config/mails-automaticos" },
       ],
-    },
+    }] : []),
+    ...(isGalas && isOwner ? [{
+      label: "Integraciones",
+      icon: "🔗",
+      active: path === "/tokko-setup" || path.startsWith("/integraciones"),
+      children: [
+        { label: "Tokko", href: "/tokko-setup", active: path === "/tokko-setup" },
+        ...(hasSystemeSync ? [{ label: "↳ Systeme.io", href: "/integraciones/systeme", active: path === "/integraciones/systeme" }] : []),
+        { label: "↳ Trello (Reservas)", href: "/integraciones/trello", active: path === "/integraciones/trello" },
+      ],
+    }] : []),
   ];
 
   const NavItemRow = ({ item, mobile = false }: { item: NavItem; mobile?: boolean }) => {

@@ -52,11 +52,26 @@ export default function MailsAutomaticosPage() {
 
   useEffect(() => {
     if (status !== "authenticated") return;
-    fetch("/api/auto-mails")
-      .then(r => r.ok ? r.json() : null)
-      .then(d => { if (d?.templates) setTemplates(d.templates); setLoading(false); })
-      .catch(() => setLoading(false));
-  }, [status]);
+    
+    // Verificar que sea owner o team_leader
+    fetch("/api/subscription")
+      .then(r => r.json())
+      .then(d => {
+        const role = d.subscription?.teamRole;
+        if (role !== "owner" && role !== "team_leader") {
+          router.replace("/");
+          return;
+        }
+        
+        fetch("/api/auto-mails")
+          .then(r => r.ok ? r.json() : null)
+          .then(d => { if (d?.templates) setTemplates(d.templates); setLoading(false); })
+          .catch(() => setLoading(false));
+      })
+      .catch(() => {
+        setLoading(false);
+      });
+  }, [status, router]);
 
   const openEdit = (t: MailTemplate) => {
     setEditSubject(t.subject);
