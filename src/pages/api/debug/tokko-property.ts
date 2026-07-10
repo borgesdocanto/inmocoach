@@ -50,16 +50,10 @@ export default async function handler(
     }
 
     // Obtener Tokko API key
-    const { data: sub } = await supabaseAdmin
-      .from("subscriptions")
-      .select("team_id")
-      .eq("email", session.user.email)
-      .single();
-
     const { data: team } = await supabaseAdmin
       .from("teams")
       .select("tokko_api_key")
-      .eq("id", sub?.team_id || "")
+      .eq("id", sub.team_id)
       .single();
 
     if (!team?.tokko_api_key) {
