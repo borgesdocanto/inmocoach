@@ -11,6 +11,9 @@ interface ReservedProperty {
   photos: Array<{ image: string }>;
   type?: { name: string };
   operations?: Array<{ amount: number; currency: string }>;
+  internal_data?: {
+    key_agent_user?: { name: string; email: string };
+  };
 }
 
 interface TrelloCard {
