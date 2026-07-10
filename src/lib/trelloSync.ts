@@ -328,6 +328,18 @@ Duración de la reserva: 15 días
 }
 
 // Sincronización completa e idempotente
+async function getDefaultMembers(teamId: string): Promise<string[]> {
+  const { data } = await supabaseAdmin
+    .from("trello_default_members")
+    .select("emails")
+    .eq("team_id", teamId)
+    .single();
+
+  return (
+    data?.emails || ["leandro@galas.com.ar", "luciana@galas.com.ar"]
+  );
+}
+
 export async function syncReservedToTrello(
   teamId: string,
   trelloKey: string,

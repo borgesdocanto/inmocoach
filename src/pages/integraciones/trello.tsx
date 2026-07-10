@@ -217,6 +217,16 @@ export default function TrelloPage() {
                 </>
               )}
             </button>
+            <button
+              onClick={() => {
+                loadConfig();
+                setShowConfigModal(true);
+              }}
+              className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
+              title="Configurar miembros default"
+            >
+              ⚙️ Miembros
+            </button>
           </div>
           {syncMsg && (
             <div className="mt-4 p-3 rounded text-sm" style={{ color: BRAND }}>
@@ -283,6 +293,64 @@ export default function TrelloPage() {
           )}
         </div>
       </div>
+
+      {/* Modal de Configuración */}
+      {showConfigModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-lg p-6 max-w-md w-full mx-4">
+            <h2 className="text-xl font-bold mb-4">Miembros Default de Tarjetas</h2>
+
+            <div className="mb-4 max-h-64 overflow-y-auto">
+              {configEmails.map((email, idx) => (
+                <div
+                  key={idx}
+                  className="flex items-center justify-between bg-gray-100 p-2 rounded mb-2"
+                >
+                  <span className="text-sm">{email}</span>
+                  <button
+                    onClick={() => removeEmail(email)}
+                    className="text-red-600 hover:text-red-800 text-sm font-bold"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex gap-2 mb-4">
+              <input
+                type="email"
+                placeholder="Nuevo email"
+                value={newEmail}
+                onChange={(e) => setNewEmail(e.target.value)}
+                onKeyPress={(e) => e.key === "Enter" && addEmail()}
+                className="flex-1 px-3 py-2 border rounded text-sm"
+              />
+              <button
+                onClick={addEmail}
+                className="px-3 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
+              >
+                +
+              </button>
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                onClick={saveConfig}
+                className="flex-1 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+              >
+                Guardar
+              </button>
+              <button
+                onClick={() => setShowConfigModal(false)}
+                className="flex-1 px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </AppLayout>
   );
 }

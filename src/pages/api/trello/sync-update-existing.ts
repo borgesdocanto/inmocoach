@@ -221,13 +221,24 @@ Duración de la reserva: 15 días
         console.log(`    ❌ Error actualizando descripción`);
       }
 
-      // Agregar miembros a la tarjeta
+      // Obtener miembros default de Supabase
+      const { data: configData } = await supabaseAdmin
+        .from("trello_default_members")
+        .select("emails")
+        .eq("team_id", teamId)
+        .single();
+
+      const defaultMembers = configData?.emails || [
+        "leandro@galas.com.ar",
+        "luciana@galas.com.ar",
+      ];
+
+      // Agregar miembros a la tarjeta: defaults + asesores
       const captacionEmail = property.producer?.email;
       const ventaEmail = property.internal_data?.key_agent_user?.email;
       const membersToAdd = Array.from(
         new Set([
-          "leandro@galas.com.ar",
-          "luciana@galas.com.ar",
+          ...defaultMembers,
           captacionEmail,
           ventaEmail,
         ])
