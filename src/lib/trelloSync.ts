@@ -236,6 +236,9 @@ async function createOrUpdateTrelloCard(
     ? `$${(property.operations[0].amount * 0.8).toLocaleString()} ${property.operations[0].currency}` 
     : "No especificado";
 
+  const captacionAsesor = property.producer?.name || "Sin asignar";
+  const ventaAsesor = property.internal_data?.key_agent_user?.name || property.producer?.name || "Sin asignar";
+
   const description = `
 📍 ${property.address}
 🏷️ Ref: ${property.reference_code}
@@ -249,8 +252,8 @@ Banco:
 Fianza: 
 
 **ASESOR**
-Captación: ${property.producer?.name || ""}
-Venta: ${property.producer?.name || ""}
+Captación: ${captacionAsesor}
+Venta: ${ventaAsesor}
 
 **ESCRIBANÍA**
 Teléfono: 

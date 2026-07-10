@@ -169,6 +169,9 @@ export default async function handler(
         ? `$${(property.operations[0].amount * 0.8).toLocaleString()} ${property.operations[0].currency}`
         : "No especificado";
 
+      const captacionAsesor = property.producer?.name || "Sin asignar";
+      const ventaAsesor = property.internal_data?.key_agent_user?.name || property.producer?.name || "Sin asignar";
+
       const description = `
 📍 ${property.address}
 🏷️ Ref: ${property.reference_code}
@@ -182,8 +185,8 @@ Banco:
 Fianza: 
 
 **ASESOR**
-Captación: ${property.producer?.name || ""}
-Venta: ${property.producer?.name || ""}
+Captación: ${captacionAsesor}
+Venta: ${ventaAsesor}
 
 **ESCRIBANÍA**
 Teléfono: 
@@ -216,6 +219,49 @@ Duración de la reserva: 15 días
         updated++;
       } else {
         console.log(`    ❌ Error actualizando descripción`);
+      }
+
+      // Agregar miembros a la tarjeta
+      const captacionEmail = property.producer?.email;
+      const ventaEmail = property.internal_data?.key_agent_user?.email;
+      const membersToAdd = Array.from(
+        new Set([
+          "leandro@galas.com.ar",
+          "luciana@galas.com.ar",
+          captacionEmail,
+          ventaEmail,
+        ])
+      ).filter(Boolean) as string[];
+
+      if (membersToAdd.length > 0) {
+        console.log(`    👥 Agregando ${membersToAdd.length} miembros...`);
+        
+        // Obtener mapa de email -> id de miembros del board
+        const boardMembersUrl = new URL(`https://api.trello.com/1/boards/${trelloBoardId}/members`);
+        boardMembersUrl.searchParams.append("key", trelloKey);
+        boardMembersUrl.searchParams.append("token", trelloToken);
+
+        const boardMembersResp = await fetch(boardMembersUrl.toString());
+        const boardMembers = await boardMembersResp.json();
+        const emailToId: Record<string, string> = {};
+        boardMembers.forEach((m: any) => {
+          emailToId[m.email] = m.id;
+        });
+
+        for (const email of membersToAdd) {
+          const memberId = emailToId[email];
+          if (memberId) {
+            const addMemberUrl = new URL(`https://api.trello.com/1/cards/${card.id}/idMembers`);
+            addMemberUrl.searchParams.append("key", trelloKey);
+            addMemberUrl.searchParams.append("token", trelloToken);
+            addMemberUrl.searchParams.append("value", memberId);
+
+            const addResp = await fetch(addMemberUrl.toString(), { method: "POST" });
+            if (addResp.ok) {
+              console.log(`      ✅ ${email} agregado`);
+            }
+          }
+        }
       }
 
       // 4. Agregar checklists si no existen
