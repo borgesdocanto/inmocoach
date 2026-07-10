@@ -72,10 +72,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (cfgErr) return res.status(500).json({ error: "DB error", detail: cfgErr.message });
   if (!configs || configs.length === 0) return res.json({ ok: true, ran: 0 });
 
-  console.log(`[run-all] configs query OK: ${configs.length} teams para procesar`);
+  // Integraciones: solo GALAS
+  const galas_configs = configs.filter(c => c.team_id === "bb61ed0d-96dd-4c45-ac9a-c72169bd0b93");
+
+  console.log(`[run-all] configs query OK: ${galas_configs.length} teams para procesar`);
   const results: { team_id: string; result: string }[] = [];
 
-  for (const { team_id, systeme_api_key } of configs) {
+  for (const { team_id, systeme_api_key } of galas_configs) {
     console.log(`[run-all] ↪ team ${team_id.slice(0, 8)}: creando sync_log...`);
     // Crear log con timeout duro de 10s
     const logInsert = await Promise.race([

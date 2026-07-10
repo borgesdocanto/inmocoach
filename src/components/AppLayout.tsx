@@ -136,9 +136,11 @@ export default function AppLayout({ children, topbarExtra, greeting }: AppLayout
       active: path.startsWith("/tokko") || path.startsWith("/config") || path === "/cuenta" || path.startsWith("/integraciones"),
       children: [
         { label: "Mi cuenta", href: "/cuenta", active: path === "/cuenta" },
-        { label: "Integraciones", href: "/tokko-setup", active: path === "/tokko-setup" || path.startsWith("/integraciones") },
-        ...(hasSystemeSync && isOwner ? [{ label: "↳ Systeme.io", href: "/integraciones/systeme", active: path === "/integraciones/systeme" }] : []),
-        ...(isGalas && isOwner ? [{ label: "↳ Trello (Reservas)", href: "/integraciones/trello", active: path === "/integraciones/trello" }] : []),
+        ...(isGalas && isOwner ? [
+          { label: "Integraciones", href: "/tokko-setup", active: path === "/tokko-setup" || path.startsWith("/integraciones") },
+          ...(hasSystemeSync ? [{ label: "↳ Systeme.io", href: "/integraciones/systeme", active: path === "/integraciones/systeme" }] : []),
+          { label: "↳ Trello (Reservas)", href: "/integraciones/trello", active: path === "/integraciones/trello" },
+        ] : []),
         { label: "Ranking", href: "/config/ranking", active: path === "/config/ranking" },
         ...(isOwner ? [{ label: "Mails", href: "/config/mails", active: path === "/config/mails" }] : []),
         { label: "Mails de fidelización", href: "/config/mails-automaticos", active: path === "/config/mails-automaticos" },

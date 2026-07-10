@@ -57,12 +57,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     .lt("started_at", cutoff);
 
   // Traer teams activos (o uno solo si bodyTeamId)
+  // Integraciones: solo GALAS
+  const galasTeamId = "bb61ed0d-96dd-4c45-ac9a-c72169bd0b93";
+  if (bodyTeamId && bodyTeamId !== galasTeamId) {
+    return res.status(403).json({ error: "Feature no disponible para este team" });
+  }
+
   let query = supabaseAdmin
     .from("sync_configs")
     .select("team_id, systeme_api_key")
     .eq("is_active", true)
-    .eq("is_configured", true);
-  if (bodyTeamId) query = query.eq("team_id", bodyTeamId);
+    .eq("is_configured", true)
+    .eq("team_id", galasTeamId); // Siempre filtrar a GALAS
 
   const { data: configs, error: cfgErr } = await query;
   if (cfgErr) return res.status(500).json({ error: "DB error", detail: cfgErr.message });

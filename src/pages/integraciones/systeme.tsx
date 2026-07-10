@@ -72,9 +72,35 @@ export default function SystemePage() {
   const [rangeTo, setRangeTo] = useState(today);
   const [runningRange, setRunningRange] = useState(false);
   const [rangeMsg, setRangeMsg] = useState("");
+  const [isAuthorized, setIsAuthorized] = useState(false);
 
   useEffect(() => {
     if (status === "unauthenticated") router.replace("/login");
+  }, [status, router]);
+
+  // Verificar que sea GALAS owner/team_leader antes de cargar config
+  useEffect(() => {
+    if (status !== "authenticated") return;
+    
+    fetch("/api/subscription")
+      .then(r => r.json())
+      .then(d => {
+        const teamId = d.subscription?.teamId;
+        const role = d.subscription?.teamRole;
+        
+        const isGalasTeam = teamId === "bb61ed0d-96dd-4c45-ac9a-c72169bd0b93";
+        const authorized = (role === "owner" || role === "team_leader") && isGalasTeam;
+        
+        if (!authorized) {
+          router.replace("/");
+          return;
+        }
+        
+        setIsAuthorized(true);
+      })
+      .catch(() => {
+        router.replace("/");
+      });
   }, [status, router]);
 
   const loadConfig = useCallback(async () => {

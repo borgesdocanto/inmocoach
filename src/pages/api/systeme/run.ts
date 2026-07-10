@@ -53,6 +53,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
   }
 
+  // Integraciones: solo GALAS
+  if (teamId !== "bb61ed0d-96dd-4c45-ac9a-c72169bd0b93") {
+    return res.status(403).json({ error: "Feature no disponible" });
+  }
+
   // Cargar config del team
   const { data: syncConfig } = await supabaseAdmin
     .from("sync_configs")

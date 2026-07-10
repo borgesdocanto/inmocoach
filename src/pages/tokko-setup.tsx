@@ -32,14 +32,35 @@ export default function TokkoSetup() {
 
   useEffect(() => {
     if (status !== "authenticated") return;
-    fetch("/api/teams/tokko-config")
-      .then(r => r.ok ? r.json() : null)
+    
+    // Verificar que sea GALAS owner/team_leader
+    fetch("/api/subscription")
+      .then(r => r.json())
       .then(d => {
-        if (d) { setHasKey(d.hasKey); setKeyPreview(d.keyPreview); }
-        setLoading(false);
+        const teamId = d.subscription?.teamId;
+        const role = d.subscription?.teamRole;
+        
+        const isGalasTeam = teamId === "bb61ed0d-96dd-4c45-ac9a-c72169bd0b93";
+        const isAuthorized = (role === "owner" || role === "team_leader") && isGalasTeam;
+        
+        if (!isAuthorized) {
+          router.replace("/");
+          return;
+        }
+        
+        // Si está autorizado, traer configuración Tokko
+        return fetch("/api/teams/tokko-config")
+          .then(r => r.ok ? r.json() : null)
+          .then(d => {
+            if (d) { setHasKey(d.hasKey); setKeyPreview(d.keyPreview); }
+            setLoading(false);
+          })
+          .catch(() => setLoading(false));
       })
-      .catch(() => setLoading(false));
-  }, [status]);
+      .catch(() => {
+        setLoading(false);
+      });
+  }, [status, router]);
 
   const handleSave = async () => {
     if (!apiKey.trim()) return;

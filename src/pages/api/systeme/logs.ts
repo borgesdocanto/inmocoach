@@ -22,6 +22,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(403).json({ error: "Sin permiso" });
   }
 
+  // Integraciones: solo GALAS
+  if (sub.team_id !== "bb61ed0d-96dd-4c45-ac9a-c72169bd0b93") {
+    return res.status(403).json({ error: "Feature no disponible" });
+  }
+
   const { data: logs, error } = await supabaseAdmin
     .from("sync_logs")
     .select("*")
