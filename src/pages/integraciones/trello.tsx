@@ -72,7 +72,12 @@ export default function TrelloPage() {
   const loadLogs = useCallback(async () => {
     setLogsLoading(true);
     try {
-      const r = await fetch("/api/trello/logs", { credentials: "include" });
+      const r = await fetch("/api/trello/logs", {
+        credentials: "include",
+        headers: {
+          "x-user-email": session?.user?.email || "",
+        },
+      });
       if (r.ok) {
         const data = await r.json();
         setLogs(data.logs || []);
@@ -90,7 +95,10 @@ export default function TrelloPage() {
       const r = await fetch("/api/trello/sync-now", {
         method: "POST",
         credentials: "include",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-email": session?.user?.email || "",
+        },
         body: JSON.stringify({ branchId: 62 }),
       });
       const data = await r.json();
