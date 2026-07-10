@@ -11,14 +11,14 @@ export default async function handler(
 
   try {
     // Obtener email (query param, sesión o header)
-    let userEmail = req.query.email as string;
+    let userEmail: string | undefined = req.query.email as string;
     
     if (!userEmail) {
       try {
         const session = await getSession({ req });
-        userEmail = session?.user?.email;
+        userEmail = session?.user?.email || undefined;
       } catch (e) {
-        userEmail = req.headers["x-user-email"] as string;
+        userEmail = (req.headers["x-user-email"] as string) || undefined;
       }
     }
 
