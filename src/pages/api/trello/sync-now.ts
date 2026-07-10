@@ -1,5 +1,5 @@
 import { NextApiRequest, NextApiResponse } from "next";
-import { syncReservedToTrello } from "../../lib/trelloSync";
+import { syncReservedToTrello } from "../../../lib/trelloSync";
 import { getSession } from "next-auth/react";
 
 export const config = {
