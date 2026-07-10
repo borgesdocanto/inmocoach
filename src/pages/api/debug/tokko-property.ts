@@ -86,15 +86,14 @@ export default async function handler(
       currency: "USD",
     };
 
-    const url = "https://www.tokkobroker.com/api/v1/property/search/";
-    const response = await fetch(url, {
-      method: "POST",
-      headers: {
-        "X-Token": team.tokko_api_key,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(searchData),
-    });
+    const searchUrl = new URL("https://www.tokkobroker.com/api/v1/property/search/");
+    searchUrl.searchParams.append("key", team.tokko_api_key);
+    searchUrl.searchParams.append("format", "json");
+    searchUrl.searchParams.append("lang", "es_ar");
+    searchUrl.searchParams.append("data", JSON.stringify(searchData));
+    searchUrl.searchParams.append("limit", "500");
+
+    const response = await fetch(searchUrl.toString());
     if (!response.ok) {
       return res
         .status(response.status)
