@@ -114,7 +114,7 @@ export default function TrelloPage() {
     setSyncing(false);
   };
 
-  const [updatingExisting, setUpdatingExisting] = React.useState(false);
+  const [updatingExisting, setUpdatingExisting] = useState(false);
 
   const handleUpdateExisting = async () => {
     setUpdatingExisting(true);
