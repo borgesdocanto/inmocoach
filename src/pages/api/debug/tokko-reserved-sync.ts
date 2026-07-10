@@ -10,17 +10,20 @@ export default async function handler(
   }
 
   try {
-    // Obtener email (sesión o header)
-    let userEmail = null;
-    try {
-      const session = await getSession({ req });
-      userEmail = session?.user?.email;
-    } catch (e) {
-      userEmail = req.headers["x-user-email"] as string;
+    // Obtener email (query param, sesión o header)
+    let userEmail = req.query.email as string;
+    
+    if (!userEmail) {
+      try {
+        const session = await getSession({ req });
+        userEmail = session?.user?.email;
+      } catch (e) {
+        userEmail = req.headers["x-user-email"] as string;
+      }
     }
 
     if (!userEmail) {
-      return res.status(401).json({ error: "Unauthorized" });
+      return res.status(401).json({ error: "Unauthorized - provide ?email=your@email.com" });
     }
 
     // Verificar GALAS owner/team_leader
