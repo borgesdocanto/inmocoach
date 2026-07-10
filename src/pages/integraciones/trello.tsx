@@ -115,6 +115,65 @@ export default function TrelloPage() {
   };
 
   const [updatingExisting, setUpdatingExisting] = useState(false);
+  const [showConfigModal, setShowConfigModal] = useState(false);
+  const [configEmails, setConfigEmails] = useState<string[]>([
+    "leandro@galas.com.ar",
+    "luciana@galas.com.ar",
+  ]);
+  const [newEmail, setNewEmail] = useState("");
+
+  const loadConfig = async () => {
+    try {
+      const r = await fetch("/api/trello/config-members", {
+        credentials: "include",
+        headers: { "x-user-email": session?.user?.email || "" },
+      });
+      const data = await r.json();
+      if (r.ok) {
+        setConfigEmails(data.emails || []);
+      }
+    } catch (e) {
+      console.error("Error loading config:", e);
+    }
+  };
+
+  const saveConfig = async () => {
+    try {
+      const r = await fetch("/api/trello/config-members", {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-email": session?.user?.email || "",
+        },
+        body: JSON.stringify({ emails: configEmails }),
+      });
+      const data = await r.json();
+      if (r.ok) {
+        setSyncMsg("✅ Configuración guardada");
+        setShowConfigModal(false);
+      } else {
+        setSyncMsg(`❌ ${data.error}`);
+      }
+    } catch (e: any) {
+      setSyncMsg(`❌ ${e.message}`);
+    }
+  };
+
+  const addEmail = () => {
+    if (
+      newEmail &&
+      newEmail.includes("@") &&
+      !configEmails.includes(newEmail)
+    ) {
+      setConfigEmails([...configEmails, newEmail]);
+      setNewEmail("");
+    }
+  };
+
+  const removeEmail = (email: string) => {
+    setConfigEmails(configEmails.filter((e) => e !== email));
+  };
 
   const handleUpdateExisting = async () => {
     setUpdatingExisting(true);
