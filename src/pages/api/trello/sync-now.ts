@@ -16,10 +16,15 @@ export default async function handler(
   }
 
   try {
+    console.log("🔍 [sync-now] Intentando obtener sesión...");
     const session = await getSession({ req });
+    console.log("🔍 [sync-now] Sesión:", session?.user?.email || "NO SESSION");
+    
     if (!session) {
-      return res.status(401).json({ error: "Unauthorized" });
+      console.error("❌ [sync-now] No hay sesión - cookies recibidas:", req.headers.cookie ? "SÍ" : "NO");
+      return res.status(401).json({ error: "Unauthorized - No session" });
     }
+    console.log("✅ [sync-now] Sesión OK:", session.user?.email);
 
     // Verificar que sea owner o team_leader de GALAS
     const { data: sub } = await supabaseAdmin
