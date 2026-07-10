@@ -175,23 +175,51 @@ async function addMembersToCard(
   cardId: string,
   memberEmails: string[],
   emailToId: Map<string, string>,
+  boardId: string,
   key: string,
   token: string
 ): Promise<void> {
-  const url = new URL(`https://api.trello.com/1/cards/${cardId}`);
-  url.searchParams.append("key", key);
-  url.searchParams.append("token", token);
+  const cardUrl = new URL(`https://api.trello.com/1/cards/${cardId}`);
+  cardUrl.searchParams.append("key", key);
+  cardUrl.searchParams.append("token", token);
 
   // Obtener miembros actuales
-  const getResponse = await fetch(url.toString());
+  const getResponse = await fetch(cardUrl.toString());
   if (!getResponse.ok) return;
   const card = await getResponse.json();
   const currentMemberIds = new Set(card.idMembers || []);
 
-  // Agregar nuevos miembros
+  // Procesar miembros
   const memberIds: string[] = [];
+  const notFoundEmails: string[] = [];
+
   for (const email of memberEmails) {
-    const memberId = emailToId.get(email.toLowerCase());
+    let memberId = emailToId.get(email.toLowerCase());
+
+    // Si no está en el mapa, intentar invitarlo al board primero
+    if (!memberId) {
+      console.log(`  👤 Invitando ${email} al board...`);
+      const inviteUrl = new URL(`https://api.trello.com/1/boards/${boardId}/members`);
+      inviteUrl.searchParams.append("key", key);
+      inviteUrl.searchParams.append("token", token);
+      inviteUrl.searchParams.append("email", email);
+
+      try {
+        const inviteResp = await fetch(inviteUrl.toString(), { method: "PUT" });
+        if (inviteResp.ok) {
+          const invitedMember = await inviteResp.json();
+          memberId = invitedMember.id;
+          console.log(`  ✅ ${email} invitado al board`);
+        } else {
+          notFoundEmails.push(email);
+          console.log(`  ❌ No se pudo invitar ${email} al board`);
+        }
+      } catch (e) {
+        notFoundEmails.push(email);
+        console.log(`  ❌ Error invitando ${email}: ${e}`);
+      }
+    }
+
     if (memberId && !currentMemberIds.has(memberId)) {
       memberIds.push(memberId);
     }
@@ -226,6 +254,7 @@ async function createOrUpdateTrelloCard(
   property: ReservedProperty,
   listId: string,
   emailToId: Map<string, string>,
+  boardId: string,
   key: string,
   token: string,
   existingCard?: TrelloCard
@@ -386,6 +415,7 @@ export async function syncReservedToTrello(
         property,
         existingCard?.idList || trelloBoardId,
         emailToId,
+        trelloBoardId,
         trelloKey,
         trelloToken,
         existingCard
@@ -401,7 +431,7 @@ export async function syncReservedToTrello(
         "luciana@galas.com.ar",
       ].filter(Boolean) as string[];
 
-      await addMembersToCard(cardData.id, membersToAdd, emailToId, trelloKey, trelloToken);
+      await addMembersToCard(cardData.id, membersToAdd, emailToId, trelloBoardId, trelloKey, trelloToken);
 
       // ⚠️ IMPORTANTE: Checklists se crean SOLO EN TARJETAS NUEVAS
       // Una vez creados, NUNCA se modifican en sincronizaciones posteriores

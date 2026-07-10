@@ -260,7 +260,30 @@ Duración de la reserva: 15 días
         });
 
         for (const email of membersToAdd) {
-          const memberId = emailToId[email];
+          let memberId = emailToId[email];
+
+          // Si no está en el mapa, invitarlo al board primero
+          if (!memberId) {
+            console.log(`      👤 Invitando ${email} al board...`);
+            const inviteUrl = new URL(`https://api.trello.com/1/boards/${trelloBoardId}/members`);
+            inviteUrl.searchParams.append("key", trelloKey);
+            inviteUrl.searchParams.append("token", trelloToken);
+            inviteUrl.searchParams.append("email", email);
+
+            try {
+              const inviteResp = await fetch(inviteUrl.toString(), { method: "PUT" });
+              if (inviteResp.ok) {
+                const invitedMember = await inviteResp.json();
+                memberId = invitedMember.id;
+                console.log(`      ✅ ${email} invitado al board`);
+              } else {
+                console.log(`      ❌ No se pudo invitar ${email} al board`);
+              }
+            } catch (e) {
+              console.log(`      ❌ Error invitando ${email}`);
+            }
+          }
+
           if (memberId) {
             const addMemberUrl = new URL(`https://api.trello.com/1/cards/${card.id}/idMembers`);
             addMemberUrl.searchParams.append("key", trelloKey);
@@ -269,7 +292,7 @@ Duración de la reserva: 15 días
 
             const addResp = await fetch(addMemberUrl.toString(), { method: "POST" });
             if (addResp.ok) {
-              console.log(`      ✅ ${email} agregado`);
+              console.log(`      ✅ ${email} agregado a tarjeta`);
             }
           }
         }
