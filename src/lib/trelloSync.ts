@@ -100,14 +100,14 @@ ${property.operations?.[0] ? `💰 Monto: ${property.operations[0].amount} ${pro
     // Obtener foto de portada si existe
     const coverPhotoUrl = property.photos?.[0]?.image;
 
-    const cardResponse = await fetch("https://api.trello.com/1/cards", {
+    const url = new URL("https://api.trello.com/1/cards");
+    url.searchParams.append("key", trelloKey);
+    url.searchParams.append("token", trelloToken);
+
+    const cardResponse = await fetch(url.toString(), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        ...cardData,
-        key: trelloKey,
-        token: trelloToken,
-      }),
+      body: JSON.stringify(cardData),
     });
 
     if (!cardResponse.ok) {
@@ -118,14 +118,16 @@ ${property.operations?.[0] ? `💰 Monto: ${property.operations[0].amount} ${pro
 
     // Agregar foto de portada si existe
     if (coverPhotoUrl) {
-      await fetch(`https://api.trello.com/1/cards/${card.id}/attachments`, {
+      const attachUrl = new URL(`https://api.trello.com/1/cards/${card.id}/attachments`);
+      attachUrl.searchParams.append("key", trelloKey);
+      attachUrl.searchParams.append("token", trelloToken);
+
+      await fetch(attachUrl.toString(), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           url: coverPhotoUrl,
           name: `Foto principal - ${property.reference_code}`,
-          key: trelloKey,
-          token: trelloToken,
           setCover: true,
         }),
       });
