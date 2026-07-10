@@ -42,7 +42,7 @@ export default function TrelloPage() {
   useEffect(() => {
     const checkGalas = async () => {
       try {
-        const r = await fetch("/api/subscription");
+        const r = await fetch("/api/subscription", { credentials: "include" });
         if (!r.ok) throw new Error("No subscription");
         
         const data = await r.json();
@@ -72,7 +72,7 @@ export default function TrelloPage() {
   const loadLogs = useCallback(async () => {
     setLogsLoading(true);
     try {
-      const r = await fetch("/api/trello/logs");
+      const r = await fetch("/api/trello/logs", { credentials: "include" });
       if (r.ok) {
         const data = await r.json();
         setLogs(data.logs || []);
@@ -89,6 +89,7 @@ export default function TrelloPage() {
     try {
       const r = await fetch("/api/trello/sync-now", {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ branchId: 62 }),
       });
