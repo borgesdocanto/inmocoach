@@ -268,6 +268,8 @@ Duración de la reserva: 15 días
 
   if (existingCard) {
     // Actualizar tarjeta existente
+    // ✅ SIEMPRE se actualiza: nombre, descripción, lista
+    // ❌ NUNCA se tocan: checklists, miembros históricos, comentarios
     console.log(`  📝 Actualizando tarjeta ${existingCard.id}...`);
     const url = new URL(`https://api.trello.com/1/cards/${existingCard.id}`);
     url.searchParams.append("key", key);
@@ -383,9 +385,12 @@ export async function syncReservedToTrello(
 
       await addMembersToCard(cardData.id, membersToAdd, emailToId, trelloKey, trelloToken);
 
-      // Crear checklists (solo si es tarjeta nueva, para no duplicar)
+      // ⚠️ IMPORTANTE: Checklists se crean SOLO EN TARJETAS NUEVAS
+      // Una vez creados, NUNCA se modifican en sincronizaciones posteriores
+      // Se administran manualmente desde Tokko o Trello
       if (!existingCard) {
         await createChecklistsForCard(cardData.id, trelloKey, trelloToken);
+        console.log(`  ✨ Checklists creados (solo ocurre una sola vez)`);
       }
 
       if (existingCard) {
