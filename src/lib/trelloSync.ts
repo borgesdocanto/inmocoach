@@ -64,13 +64,15 @@ export async function getReservedPropertiesBranch(
     currency: "USD",
   };
 
-  const searchUrl = new URL("https://www.tokkobroker.com/api/v1/property/search/");
-  searchUrl.searchParams.append("key", apiKey);
-  searchUrl.searchParams.append("lang", "es_ar");
-  searchUrl.searchParams.append("format", "json");
-  searchUrl.searchParams.append("data", JSON.stringify(searchData));
-
-  const response = await fetch(searchUrl.toString());
+  const url = "https://www.tokkobroker.com/api/v1/property/search/";
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "X-Token": apiKey,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(searchData),
+  });
 
   if (!response.ok) {
     throw new Error(`Tokko API error: ${response.status}`);

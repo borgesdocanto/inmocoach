@@ -87,17 +87,15 @@ export default async function handler(
     console.log("🔍 DEBUG Tokko search (SIN branch filter):");
     console.log("Payload:", JSON.stringify(searchData, null, 2));
 
-    const searchUrl = new URL(
-      "https://www.tokkobroker.com/api/v1/property/search/"
-    );
-    searchUrl.searchParams.append("key", team.tokko_api_key);
-    searchUrl.searchParams.append("lang", "es_ar");
-    searchUrl.searchParams.append("format", "json");
-    searchUrl.searchParams.append("data", JSON.stringify(searchData));
-
-    console.log("URL:", searchUrl.toString().substring(0, 150) + "...");
-
-    const response = await fetch(searchUrl.toString());
+    const url = "https://www.tokkobroker.com/api/v1/property/search/";
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "X-Token": team.tokko_api_key,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(searchData),
+    });
     const data = await response.json();
 
     console.log("Response status:", response.status);
