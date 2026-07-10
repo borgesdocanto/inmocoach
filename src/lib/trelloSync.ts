@@ -79,7 +79,7 @@ export async function getReservedPropertiesBranch(
   }
 
   const data = await response.json();
-  const properties = data.data || [];
+  const properties = data.objects || [];
   console.log(`✅ Obtenidas ${properties.length} propiedades reservadas`);
 
   return properties;

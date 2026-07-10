@@ -107,8 +107,8 @@ export default async function handler(
       message: "Sin filtro de branch_id",
       result: {
         total: data.count || 0,
-        found: data.data?.length || 0,
-        properties: data.data?.map((p: any) => ({
+        found: data.objects?.length || 0,
+        properties: data.objects?.map((p: any) => ({
           refCode: p.reference_code,
           address: p.address,
           status: p.status,

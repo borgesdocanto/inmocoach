@@ -101,7 +101,7 @@ export default async function handler(
     }
 
     const data = await response.json();
-    const property = data.data?.[0];
+    const property = data.objects?.[0];
 
     if (!property) {
       return res.status(404).json({ error: `Property ${refCode} not found` });
