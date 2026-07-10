@@ -43,22 +43,26 @@ export default function RankingConfigPage() {
   useEffect(() => {
     if (status !== "authenticated") return;
     
-    // Verificar que sea owner o team_leader
-    fetch("/api/subscription")
-      .then(r => r.json())
-      .then(d => {
-        const role = d.subscription?.teamRole;
+    const load = async () => {
+      try {
+        // Verificar que sea owner o team_leader
+        const subResp = await fetch("/api/subscription");
+        const subData = await subResp.json();
+        const role = subData.subscription?.teamRole;
+        
         if (role !== "owner" && role !== "team_leader") {
           router.replace("/");
           return;
         }
         
-        return Promise.all([
-          fetch("/api/teams/settings").then(r => r.ok ? r.json() : null),
-          fetch("/api/teams/agency").then(r => r.ok ? r.json() : null),
+        const [settingsResp, agencyResp] = await Promise.all([
+          fetch("/api/teams/settings"),
+          fetch("/api/teams/agency"),
         ]);
-      })
-      .then(([settings, agency]) => {
+        
+        const settings = settingsResp.ok ? await settingsResp.json() : null;
+        const agency = agencyResp.ok ? await agencyResp.json() : null;
+        
         if (settings) {
           setShowBroker(settings.showBroker ?? true);
           setShowTeamLeaders(settings.showTeamLeaders ?? true);
@@ -69,10 +73,12 @@ export default function RankingConfigPage() {
           setAgencyInput(agency.agencyName);
         }
         setLoading(false);
-      })
-      .catch(() => {
+      } catch {
         setLoading(false);
-      });
+      }
+    };
+    
+    load();
   }, [status, router]);
 
   const saveSetting = async (key: string, value: boolean) => {
