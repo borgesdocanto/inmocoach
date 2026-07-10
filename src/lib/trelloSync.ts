@@ -232,12 +232,38 @@ async function createOrUpdateTrelloCard(
     ? `$${property.operations[0].amount.toLocaleString()} ${property.operations[0].currency}`
     : "Precio no disponible";
 
+  const reserveValue = property.operations?.[0]?.amount 
+    ? `$${(property.operations[0].amount * 0.8).toLocaleString()} ${property.operations[0].currency}` 
+    : "No especificado";
+
   const description = `
 📍 ${property.address}
-💰 ${price}
 🏷️ Ref: ${property.reference_code}
 🏢 Tipo: ${property.type?.name || "N/A"}
-📸 Fotos: ${property.photos?.length || 0}
+
+**DATOS DE PARTES**
+Vendedora: 
+Compradora: 
+Escribanía: 
+Banco: 
+Fianza: 
+
+**ASESOR**
+Captación: ${property.producer?.name || ""}
+Venta: ${property.producer?.name || ""}
+
+**ESCRIBANÍA**
+Teléfono: 
+Mail: 
+Contacto escribanía: 
+
+**NOTAS**
+Gerente: Leandro Borges Do Canto
+Operación: Venta - Valor: ${price}
+Valor de reserva: ${reserveValue}
+Fecha estimada de firma: 
+Fecha de creación: ${new Date().toLocaleDateString('es-AR')}
+Duración de la reserva: 15 días
 `.trim();
 
   if (existingCard) {
@@ -357,6 +383,11 @@ export async function syncReservedToTrello(
 
       await addMembersToCard(cardData.id, membersToAdd, emailToId, trelloKey, trelloToken);
 
+      // Crear checklists (solo si es tarjeta nueva, para no duplicar)
+      if (!existingCard) {
+        await createChecklistsForCard(cardData.id, trelloKey, trelloToken);
+      }
+
       if (existingCard) {
         updated++;
       } else {
@@ -431,5 +462,89 @@ export async function syncReservedToTrello(
       updated: 0,
       error: error.message,
     };
+  }
+}
+
+// Crear checklists en una tarjeta
+async function createChecklistsForCard(
+  cardId: string,
+  key: string,
+  token: string
+): Promise<void> {
+  try {
+    // Checklist 1: EVOLUCIÓN DE CARPETA
+    const checklist1Url = new URL("https://api.trello.com/1/checklists");
+    checklist1Url.searchParams.append("key", key);
+    checklist1Url.searchParams.append("token", token);
+    checklist1Url.searchParams.append("idCard", cardId);
+    checklist1Url.searchParams.append("name", "EVOLUCIÓN DE CARPETA");
+
+    const response1 = await fetch(checklist1Url.toString(), {
+      method: "POST",
+    });
+
+    if (response1.ok) {
+      const checklist1 = await response1.json();
+      const items1 = [
+        "Aceptación firmada",
+        "Informes Solicitados",
+        "Informes Recibidos",
+        "Cédula Catastral Solicitada",
+        "Cédula Catastral Recibida",
+      ];
+
+      for (const item of items1) {
+        const itemUrl = new URL(
+          `https://api.trello.com/1/checklists/${checklist1.id}/checkItems`
+        );
+        itemUrl.searchParams.append("key", key);
+        itemUrl.searchParams.append("token", token);
+        itemUrl.searchParams.append("name", item);
+
+        await fetch(itemUrl.toString(), {
+          method: "POST",
+        });
+      }
+
+      console.log(`  ✅ Checklist "EVOLUCIÓN DE CARPETA" creado`);
+    }
+
+    // Checklist 2: EVOLUCIÓN CREDITICIA
+    const checklist2Url = new URL("https://api.trello.com/1/checklists");
+    checklist2Url.searchParams.append("key", key);
+    checklist2Url.searchParams.append("token", token);
+    checklist2Url.searchParams.append("idCard", cardId);
+    checklist2Url.searchParams.append("name", "EVOLUCIÓN CREDITICIA");
+
+    const response2 = await fetch(checklist2Url.toString(), {
+      method: "POST",
+    });
+
+    if (response2.ok) {
+      const checklist2 = await response2.json();
+      const items2 = [
+        "Tasador asignado",
+        "Tasación hecha",
+        "Crédito aprobado",
+        "Escribanía Asignada",
+      ];
+
+      for (const item of items2) {
+        const itemUrl = new URL(
+          `https://api.trello.com/1/checklists/${checklist2.id}/checkItems`
+        );
+        itemUrl.searchParams.append("key", key);
+        itemUrl.searchParams.append("token", token);
+        itemUrl.searchParams.append("name", item);
+
+        await fetch(itemUrl.toString(), {
+          method: "POST",
+        });
+      }
+
+      console.log(`  ✅ Checklist "EVOLUCIÓN CREDITICIA" creado`);
+    }
+  } catch (error: any) {
+    console.error("  ⚠️ Error creando checklists:", error.message);
   }
 }
