@@ -152,14 +152,11 @@ async function ensureVendidaList(
   const createUrl = new URL("https://api.trello.com/1/lists");
   createUrl.searchParams.append("key", key);
   createUrl.searchParams.append("token", token);
+  createUrl.searchParams.append("name", "Vendida");
+  createUrl.searchParams.append("idBoard", boardId);
 
   response = await fetch(createUrl.toString(), {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      name: "Vendida",
-      idBoard: boardId,
-    }),
   });
 
   if (!response.ok) throw new Error(`Trello create list: ${response.status}`);
