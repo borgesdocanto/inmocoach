@@ -7,13 +7,22 @@ interface ReservedProperty {
   status: number;
   producer?: { name: string; email: string };
   created_by?: { email: string };
+  created_at?: string;
+  deleted_at?: string;
+  surface?: number;
   branch?: { name: string };
   photos: Array<{ image: string }>;
   type?: { name: string };
-  operations?: Array<{ amount: number; currency: string }>;
+  operations?: Array<{ amount: number; currency: string; operation_type?: string }>;
   internal_data?: {
     key_agent_user?: { name: string; email: string };
     maintenance_user?: { name: string; email: string };
+    property_owners?: Array<{ 
+      name: string; 
+      phone?: string; 
+      cellphone?: string; 
+      email?: string;
+    }>;
   };
 }
 
@@ -273,34 +282,50 @@ async function createOrUpdateTrelloCard(
   // Usar maintenance_user primero (es el asesor de venta actual en Tokko), luego key_agent_user por compatibilidad
   const ventaAsesor = property.internal_data?.maintenance_user?.name || property.internal_data?.key_agent_user?.name || property.producer?.name || "Sin asignar";
 
+  // Datos de propietarios/vendedores
+  const propietariosText = property.internal_data?.property_owners
+    ?.map((o: any) => {
+      const info = [o.name];
+      if (o.phone) info.push(`Tel: ${o.phone}`);
+      if (o.cellphone) info.push(`Cel: ${o.cellphone}`);
+      return info.join(" | ");
+    })
+    .join("\n") || "No especificado";
+
+  // Fecha de reserva (usar deleted_at si existe, es cuando se marca como no disponible/reservada)
+  const fechaReserva = property.deleted_at 
+    ? new Date(property.deleted_at).toLocaleDateString('es-AR')
+    : new Date(property.created_at || Date.now()).toLocaleDateString('es-AR');
+
   const description = `
 📍 ${property.address}
 🏷️ Ref: ${property.reference_code}
-🏢 Tipo: ${property.type?.name || "N/A"}
+🏢 Tipo: ${property.type?.name || "N/A"} | Superficie: ${property.surface || "N/A"} m²
 
-**DATOS DE PARTES**
-Vendedora: 
-Compradora: 
-Escribanía: 
-Banco: 
-Fianza: 
+**DATOS DE PARTES (Vendedora)**
+${propietariosText}
+
+**COMPRADORA**
+(Completar manualmente - No disponible en Tokko hasta firma)
+
+**ESCRIBANÍA**
+(Completar manualmente)
+Teléfono: 
+Mail: 
+Contacto: 
 
 **ASESOR**
 Captación: ${captacionAsesor}
 Venta: ${ventaAsesor}
 
-**ESCRIBANÍA**
-Teléfono: 
-Mail: 
-Contacto escribanía: 
-
 **NOTAS**
 Gerente: Leandro Borges Do Canto
-Operación: Venta - Valor: ${price}
+Operación: ${property.operations?.[0]?.operation_type || "Venta"} - Valor: ${price}
 Valor de reserva: ${reserveValue}
-Fecha estimada de firma: 
-Fecha de creación: ${new Date().toLocaleDateString('es-AR')}
+Fecha de reserva: ${fechaReserva}
+Fecha estimada de firma: (completar manualmente)
 Duración de la reserva: 15 días
+Estado: RESERVADA
 `.trim();
 
   if (existingCard) {
