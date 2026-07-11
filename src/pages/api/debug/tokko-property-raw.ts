@@ -114,6 +114,8 @@ export default async function handler(
       extracted_fields: {
         producer_email: property.producer?.email,
         producer_name: property.producer?.name,
+        maintenance_user_email: property.internal_data?.maintenance_user?.email,
+        maintenance_user_name: property.internal_data?.maintenance_user?.name,
         key_agent_user_email: property.internal_data?.key_agent_user?.email,
         key_agent_user_name: property.internal_data?.key_agent_user?.name,
       },

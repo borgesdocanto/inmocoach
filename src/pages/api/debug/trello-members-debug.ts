@@ -131,7 +131,8 @@ export default async function handler(
 
     // Extraer asesores
     const captacionEmail = property.producer?.email;
-    const ventaEmail = property.internal_data?.key_agent_user?.email;
+    // Usar maintenance_user primero (asesor de venta en Tokko), luego key_agent_user por compatibilidad
+    const ventaEmail = property.internal_data?.maintenance_user?.email || property.internal_data?.key_agent_user?.email;
 
     // Armar membersToAdd como lo hace syncReservedToTrello
     const membersToAdd = Array.from(
@@ -149,7 +150,7 @@ export default async function handler(
       property_producer_email: captacionEmail,
       property_producer_name: property.producer?.name,
       property_ventaEmail: ventaEmail,
-      property_venta_name: property.internal_data?.key_agent_user?.name,
+      property_venta_name: property.internal_data?.maintenance_user?.name || property.internal_data?.key_agent_user?.name,
       membersToAdd,
       membersToAdd_count: membersToAdd.length,
     });
