@@ -23,6 +23,7 @@ interface TrelloCard {
   idBoard: string;
   idList: string;
   idMembers: string[];
+  idAttachmentCover?: string;
 }
 
 interface TrelloList {
@@ -169,6 +170,55 @@ async function ensureVendidaList(
   const newList = await response.json();
   console.log(`✅ Lista 'Vendida' creada: ${newList.id}`);
   return newList.id;
+}
+
+// Establecer imagen de portada como cover de tarjeta
+async function setCardCover(
+  cardId: string,
+  imageUrl: string,
+  key: string,
+  token: string
+): Promise<void> {
+  try {
+    // Crear attachment desde URL
+    const attachUrl = new URL(`https://api.trello.com/1/cards/${cardId}/attachments`);
+    attachUrl.searchParams.append("key", key);
+    attachUrl.searchParams.append("token", token);
+    attachUrl.searchParams.append("url", imageUrl);
+    attachUrl.searchParams.append("name", "Portada");
+
+    const attachResp = await fetch(attachUrl.toString(), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+    });
+
+    if (!attachResp.ok) {
+      console.log(`  ⚠️ No se pudo agregar attachment de imagen (${attachResp.status})`);
+      return;
+    }
+
+    const attachment = await attachResp.json();
+    console.log(`  ✅ Attachment creado: ${attachment.id}`);
+
+    // Establecer como cover
+    const coverUrl = new URL(`https://api.trello.com/1/cards/${cardId}/idAttachmentCover`);
+    coverUrl.searchParams.append("key", key);
+    coverUrl.searchParams.append("token", token);
+    coverUrl.searchParams.append("value", attachment.id);
+
+    const coverResp = await fetch(coverUrl.toString(), {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+    });
+
+    if (coverResp.ok) {
+      console.log(`  📸 Cover image establecido`);
+    } else {
+      console.log(`  ⚠️ No se pudo establecer cover (${coverResp.status})`);
+    }
+  } catch (error) {
+    console.log(`  ⚠️ Error al agregar imagen de portada:`, (error as any).message);
+  }
 }
 
 // Agregar miembros a una tarjeta
@@ -329,6 +379,12 @@ Duración de la reserva: 15 días
 
     const updatedCard = await response.json();
     console.log(`  ✅ Tarjeta actualizada`);
+    
+    // Agregar imagen de portada como cover (si no la tiene ya)
+    if (property.photos?.[0]?.image && !existingCard.idAttachmentCover) {
+      await setCardCover(existingCard.id, property.photos[0].image, key, token);
+    }
+    
     return updatedCard;
   } else {
     // Crear tarjeta nueva
@@ -354,6 +410,12 @@ Duración de la reserva: 15 días
 
     const card = await response.json();
     console.log(`  ✅ Tarjeta creada: ${card.id}`);
+    
+    // Agregar imagen de portada como cover
+    if (property.photos?.[0]?.image) {
+      await setCardCover(card.id, property.photos[0].image, key, token);
+    }
+    
     return card;
   }
 }
