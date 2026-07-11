@@ -297,7 +297,12 @@ async function createOrUpdateTrelloCard(
     ? new Date(property.deleted_at).toLocaleDateString('es-AR')
     : new Date(property.created_at || Date.now()).toLocaleDateString('es-AR');
 
+  // Imagen de portada
+  const imagenPortada = property.photos?.[0]?.image || property.photos?.find((p: any) => p.is_front_cover)?.image;
+  const imagenUrl = imagenPortada ? `\n![Portada](${imagenPortada})\n` : "";
+
   const description = `
+${imagenUrl}
 📍 ${property.address}
 🏷️ Ref: ${property.reference_code}
 🏢 Tipo: ${property.type?.name || "N/A"} | Superficie: ${property.surface || "N/A"} m²
