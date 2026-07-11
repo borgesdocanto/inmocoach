@@ -94,10 +94,14 @@ export default async function handler(
 
     const searchResp = await fetch(searchUrl.toString());
     const tokkoData = await searchResp.json();
-    const property = tokkoData.objects?.[0];
+    const property = tokkoData.objects?.find((p: any) => p.reference_code === refCode);
 
     if (!property) {
-      return res.status(404).json({ error: `Property ${refCode} not found` });
+      return res.status(404).json({ 
+        error: `Property ${refCode} not found`,
+        found_count: tokkoData.objects?.length || 0,
+        first_few: tokkoData.objects?.slice(0, 3).map((p: any) => ({ ref: p.reference_code, addr: p.address }))
+      });
     }
 
     res.status(200).json({

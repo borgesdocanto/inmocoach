@@ -123,7 +123,7 @@ export default async function handler(
       });
     }
 
-    const property = tokkoData.objects?.[0];
+    const property = tokkoData.objects?.find((p: any) => p.reference_code === refCode);
 
     if (!property) {
       return res.status(404).json({ error: `Property ${refCode} not found` });
