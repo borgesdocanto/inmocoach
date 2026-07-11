@@ -247,6 +247,7 @@ export default function TrelloPage() {
                 color: "white",
                 opacity: syncing ? 0.6 : 1,
               }}
+              title="Busca nuevas propiedades reservadas en Tokko y crea tarjetas en Trello con descripción, checklists y miembros automáticamente"
             >
               {syncing ? (
                 <>
@@ -264,6 +265,7 @@ export default function TrelloPage() {
               onClick={handleUpdateExisting}
               disabled={updatingExisting}
               className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 disabled:opacity-50"
+              title="Actualiza TODAS las tarjetas existentes: rellena descripción con datos de Tokko, agrega asesores como miembros, crea checklists si no existen"
             >
               {updatingExisting ? (
                 <>
@@ -282,7 +284,7 @@ export default function TrelloPage() {
                 setShowConfigModal(true);
               }}
               className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
-              title="Configurar miembros default"
+              title="Define qué miembros (emails) se invitan por defecto a TODAS las tarjetas. Actualmente: Leandro, Luciana + asesores de cada propiedad"
             >
               ⚙️ Miembros
             </button>
