@@ -187,8 +187,8 @@ async function ensureVendidaList(
   return newList.id;
 }
 
-// Obtener o crear lista "Reservadas"
-async function ensureReservadasList(
+// Obtener lista "Nuevo Ingreso" existente
+async function getNuevoIngresoListId(
   boardId: string,
   key: string,
   token: string
@@ -198,33 +198,18 @@ async function ensureReservadasList(
   url.searchParams.append("key", key);
   url.searchParams.append("token", token);
 
-  let response = await fetch(url.toString());
+  const response = await fetch(url.toString());
   if (!response.ok) throw new Error(`Trello lists: ${response.status}`);
 
   const lists: TrelloList[] = await response.json();
-  const reservadasList = lists.find((l) => l.name === "Reservadas" && !l.closed);
+  const nuevoIngresoList = lists.find((l) => l.name === "Nuevo Ingreso" && !l.closed);
 
-  if (reservadasList) {
-    console.log(`✅ Lista 'Reservadas' encontrada: ${reservadasList.id}`);
-    return reservadasList.id;
+  if (!nuevoIngresoList) {
+    throw new Error("Lista 'Nuevo Ingreso' no encontrada en el tablero");
   }
 
-  // Crear lista "Reservadas" si no existe
-  console.log("📝 Creando lista 'Reservadas'...");
-  const createUrl = new URL("https://api.trello.com/1/lists");
-  createUrl.searchParams.append("key", key);
-  createUrl.searchParams.append("token", token);
-  createUrl.searchParams.append("name", "Reservadas");
-  createUrl.searchParams.append("idBoard", boardId);
-
-  response = await fetch(createUrl.toString(), {
-    method: "POST",
-  });
-
-  if (!response.ok) throw new Error(`Trello create list: ${response.status}`);
-  const newList = await response.json();
-  console.log(`✅ Lista 'Reservadas' creada: ${newList.id}`);
-  return newList.id;
+  console.log(`✅ Lista 'Nuevo Ingreso' encontrada: ${nuevoIngresoList.id}`);
+  return nuevoIngresoList.id;
 }
 
 // Establecer imagen de portada como cover de tarjeta
@@ -515,7 +500,7 @@ export async function syncReservedToTrello(
     const existingCards = await getBoardCards(trelloBoardId, trelloKey, trelloToken);
     const emailToId = await getBoardMembers(trelloBoardId, trelloKey, trelloToken);
     const vendidaListId = await ensureVendidaList(trelloBoardId, trelloKey, trelloToken);
-    const reservadasListId = await ensureReservadasList(trelloBoardId, trelloKey, trelloToken);
+    const nuevoIngresoListId = await getNuevoIngresoListId(trelloBoardId, trelloKey, trelloToken);
 
     console.log(`📊 ${existingCards.length} tarjetas existentes`);
 
@@ -533,7 +518,7 @@ export async function syncReservedToTrello(
 
       const cardData = await createOrUpdateTrelloCard(
         property,
-        existingCard?.idList || reservadasListId,
+        existingCard?.idList || nuevoIngresoListId,
         emailToId,
         trelloBoardId,
         trelloKey,
