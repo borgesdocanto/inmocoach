@@ -7,13 +7,22 @@ interface ReservedProperty {
   status: number;
   producer?: { name: string; email: string };
   created_by?: { email: string };
-  branch?: { name: string };
-  photos: Array<{ image: string }>;
+  created_at?: string;
+  deleted_at?: string;
+  surface?: number;
+  branch?: { id?: number; name: string };
+  photos: Array<{ image: string; is_front_cover?: boolean }>;
   type?: { name: string };
-  operations?: Array<{ amount: number; currency: string }>;
+  operations?: Array<{ amount: number; currency: string; operation_type?: string }>;
   internal_data?: {
     key_agent_user?: { name: string; email: string };
     maintenance_user?: { name: string; email: string };
+    property_owners?: Array<{
+      name: string;
+      phone?: string;
+      cellphone?: string;
+      email?: string;
+    }>;
   };
 }
 
