@@ -73,8 +73,28 @@ export default async function handler(
     // Buscar propiedad
     const searchData = {
       filters: [["reference_code", "", refCode]],
+      only_available: "undefined",
       only_reserved: "checked",
+      only_to_be_cotized: "undefined",
+      only_not_available: "undefined",
+      with_tags: [],
+      without_tags: [],
+      with_custom_tags: [],
+      with_or_custom_tags: [],
+      without_custom_tags: [],
+      listing_edition_review: "undefined",
+      division_filters: [],
+      state_filters: [],
+      current_localization_id: "0",
+      current_localization_type: "",
       network: [660],
+      exclude_my_properties: false,
+      price_from: "0",
+      price_to: "9999999999",
+      operation_types: [],
+      property_types: [],
+      currency: "USD",
+      bounding_box: [],
     };
 
     const searchUrl = new URL("https://www.tokkobroker.com/api/v1/property/search/");
@@ -85,7 +105,24 @@ export default async function handler(
     searchUrl.searchParams.append("limit", "500");
 
     const searchResp = await fetch(searchUrl.toString());
-    const tokkoData = await searchResp.json();
+    if (!searchResp.ok) {
+      return res.status(400).json({ 
+        error: `Tokko error: ${searchResp.status}`,
+        url: searchUrl.toString().substring(0, 100),
+      });
+    }
+
+    let tokkoData;
+    try {
+      tokkoData = await searchResp.json();
+    } catch (e) {
+      const text = await searchResp.text();
+      return res.status(400).json({ 
+        error: "Invalid JSON from Tokko",
+        response: text.substring(0, 200),
+      });
+    }
+
     const property = tokkoData.objects?.[0];
 
     if (!property) {
