@@ -44,8 +44,10 @@ export async function getReservedPropertiesBranch(
 ): Promise<ReservedProperty[]> {
   console.log(`🔄 Trayendo propiedades reservadas (branch ${branchId})...`);
 
+  // Nota: El filtro branch_id en Tokko no funciona correctamente
+  // Así que traemos TODAS las propiedades reservadas y filtramos en código
   const searchData = {
-    filters: [["branch_id", "", String(branchId)]],
+    filters: [],
     only_available: "undefined",
     only_reserved: "checked",
     only_to_be_cotized: "undefined",
@@ -84,8 +86,12 @@ export async function getReservedPropertiesBranch(
   }
 
   const data = await response.json();
-  const properties = data.objects || [];
-  console.log(`✅ Obtenidas ${properties.length} propiedades reservadas`);
+  let properties = data.objects || [];
+  
+  // Filtrar por rama en el código (Tokko filter no funciona para branch_id)
+  properties = properties.filter((p: any) => p.branch?.id === branchId);
+  
+  console.log(`✅ Obtenidas ${properties.length} propiedades reservadas en rama ${branchId}`);
 
   return properties;
 }
