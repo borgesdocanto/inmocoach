@@ -13,6 +13,7 @@ interface ReservedProperty {
   operations?: Array<{ amount: number; currency: string }>;
   internal_data?: {
     key_agent_user?: { name: string; email: string };
+    maintenance_user?: { name: string; email: string };
   };
 }
 
@@ -269,7 +270,8 @@ async function createOrUpdateTrelloCard(
     : "No especificado";
 
   const captacionAsesor = property.producer?.name || "Sin asignar";
-  const ventaAsesor = property.internal_data?.key_agent_user?.name || property.producer?.name || "Sin asignar";
+  // Usar maintenance_user primero (es el asesor de venta actual en Tokko), luego key_agent_user por compatibilidad
+  const ventaAsesor = property.internal_data?.maintenance_user?.name || property.internal_data?.key_agent_user?.name || property.producer?.name || "Sin asignar";
 
   const description = `
 📍 ${property.address}
@@ -424,9 +426,10 @@ export async function syncReservedToTrello(
       if (!cardData) continue;
 
       // 5. Agregar miembros a la tarjeta
+      // Usar maintenance_user primero (asesor de venta), luego key_agent_user, luego created_by por compatibilidad
       const membersToAdd = [
         property.producer?.email,
-        property.created_by?.email,
+        property.internal_data?.maintenance_user?.email || property.internal_data?.key_agent_user?.email || property.created_by?.email,
         "leandro@galas.com.ar",
         "luciana@galas.com.ar",
       ].filter(Boolean) as string[];
