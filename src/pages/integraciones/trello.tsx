@@ -86,7 +86,7 @@ export default function TrelloPage() {
       //
     }
     setLogsLoading(false);
-  }, []);
+  }, [session]);
 
   const handleSync = async () => {
     setSyncing(true);
