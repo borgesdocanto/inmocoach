@@ -45,6 +45,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
   if (!authorized) return res.status(401).json({ error: "Unauthorized" });
 
+  // Metadata de retry (viene cuando este sync es reintento automático de otro previo)
+  const retryOf: string | null = typeof req.body?.retry_of === "string" ? req.body.retry_of : null;
+  const retryCount: number = typeof req.body?.retry_count === "number" ? req.body.retry_count : 0;
+  if (retryOf) {
+    console.log(`[run-all] este sync es RETRY #${retryCount} del sync_log ${retryOf.slice(0, 8)}`);
+  }
+
   console.log(`[run-all] auth OK (source: ${triggerSource}). Iniciando cleanup...`);
   // Auto-cleanup: cerrar sync_logs que quedaron "running" hace más de 10 minutos.
   // Esto pasa cuando Vercel mata el proceso por timeout sin que el código pueda escribir finished_at.
@@ -88,7 +95,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           team_id,
           started_at: new Date().toISOString(),
           status: "running",
-          trigger: triggerSource,
+          trigger: retryOf ? "retry" : triggerSource,
+          retry_of: retryOf,
+          retry_count: retryCount,
         })
         .select("id")
         .single(),
