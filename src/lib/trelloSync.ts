@@ -363,11 +363,18 @@ async function createOrUpdateTrelloCard(
   // Usar maintenance_user primero (es el asesor de venta actual en Tokko), luego key_agent_user por compatibilidad
   const ventaAsesor = property.internal_data?.maintenance_user?.name || property.internal_data?.key_agent_user?.name || property.producer?.name || "Sin asignar";
 
-  // Extraer vendedores de property_owners
-  const vendedores = property.internal_data?.property_owners
-    ?.map((o: any) => o.name || o.email)
+  // Extraer vendedores con teléfono y mail
+  const vendedoresDetail = property.internal_data?.property_owners
+    ?.map((o: any) => {
+      const name = o.name || "N/A";
+      const phone = o.phone ? `Tel: ${o.phone}` : "";
+      const cellphone = o.cellphone ? `Cel: ${o.cellphone}` : "";
+      const email = o.email ? `Email: ${o.email}` : "";
+      const details = [phone, cellphone, email].filter(Boolean).join(" | ");
+      return details ? `${name} (${details})` : name;
+    })
     .filter(Boolean)
-    .join(", ") || "";
+    .join("\n") || "";
 
   const description = `
 📍 ${property.address}
@@ -375,7 +382,9 @@ async function createOrUpdateTrelloCard(
 🏢 Tipo: ${property.type?.name || "N/A"}
 
 **DATOS DE PARTES**
-Vendedora: ${vendedores}
+Vendedora: 
+${vendedoresDetail || "N/A"}
+
 Compradora: 
 Escribanía: 
 Banco: 
