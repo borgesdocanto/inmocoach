@@ -148,8 +148,8 @@ async function getBoardMembers(
   return emailToId;
 }
 
-// Obtener o crear lista "Vendida"
-async function ensureVendidaList(
+// Obtener o crear lista "Firmada"
+async function ensureFirmadaList(
   boardId: string,
   key: string,
   token: string
@@ -163,18 +163,18 @@ async function ensureVendidaList(
   if (!response.ok) throw new Error(`Trello lists: ${response.status}`);
 
   const lists: TrelloList[] = await response.json();
-  const vendidaList = lists.find((l) => l.name === "Vendida" && !l.closed);
+  const firmadaList = lists.find((l) => l.name === "Firmada" && !l.closed);
 
-  if (vendidaList) {
-    return vendidaList.id;
+  if (firmadaList) {
+    return firmadaList.id;
   }
 
-  // Crear lista "Vendida" si no existe
-  console.log("📝 Creando lista 'Vendida'...");
+  // Crear lista "Firmada" si no existe
+  console.log("📝 Creando lista 'Firmada'...");
   const createUrl = new URL("https://api.trello.com/1/lists");
   createUrl.searchParams.append("key", key);
   createUrl.searchParams.append("token", token);
-  createUrl.searchParams.append("name", "Vendida");
+  createUrl.searchParams.append("name", "Firmada");
   createUrl.searchParams.append("idBoard", boardId);
 
   response = await fetch(createUrl.toString(), {
@@ -183,7 +183,7 @@ async function ensureVendidaList(
 
   if (!response.ok) throw new Error(`Trello create list: ${response.status}`);
   const newList = await response.json();
-  console.log(`✅ Lista 'Vendida' creada: ${newList.id}`);
+  console.log(`✅ Lista 'Firmada' creada: ${newList.id}`);
   return newList.id;
 }
 
@@ -514,7 +514,7 @@ export async function syncReservedToTrello(
     // 2. Obtener tarjetas existentes y miembros
     const existingCards = await getBoardCards(trelloBoardId, trelloKey, trelloToken);
     const emailToId = await getBoardMembers(trelloBoardId, trelloKey, trelloToken);
-    const vendidaListId = await ensureVendidaList(trelloBoardId, trelloKey, trelloToken);
+    const firmadaListId = await ensureFirmadaList(trelloBoardId, trelloKey, trelloToken);
     const nuevoIngresoListId = await getNuevoIngresoListId(trelloBoardId, trelloKey, trelloToken);
 
     console.log(`📊 ${existingCards.length} tarjetas existentes`);
@@ -569,8 +569,8 @@ export async function syncReservedToTrello(
       }
     }
 
-    // 6. Mover tarjetas huérfanas a "Vendida"
-    let movedToVendida = 0;
+    // 6. Mover tarjetas huérfanas a "Firmada"
+    let movedToFirmada = 0;
     for (const card of existingCards) {
       // Extraer reference_code de la tarjeta (está en el nombre)
       const match = card.name.match(/^([A-Z0-9]+)\s-/);
@@ -579,8 +579,8 @@ export async function syncReservedToTrello(
       const refCode = match[1];
       const stillReserved = propertyMap.has(refCode);
 
-      if (!stillReserved && card.idList !== vendidaListId) {
-        console.log(`📦 Moviendo ${refCode} a lista Vendida...`);
+      if (!stillReserved && card.idList !== firmadaListId) {
+        console.log(`📦 Moviendo ${refCode} a lista Firmada...`);
 
         const url = new URL(`https://api.trello.com/1/cards/${card.id}`);
         url.searchParams.append("key", trelloKey);
@@ -589,11 +589,11 @@ export async function syncReservedToTrello(
         const response = await fetch(url.toString(), {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ idList: vendidaListId }),
+          body: JSON.stringify({ idList: firmadaListId }),
         });
 
         if (response.ok) {
-          movedToVendida++;
+          movedToFirmada++;
         }
       }
     }
@@ -605,11 +605,11 @@ export async function syncReservedToTrello(
       properties_found: properties.length,
       cards_created: created,
       cards_updated: updated,
-      cards_moved: movedToVendida,
+      cards_moved: movedToFirmada,
       completed_at: new Date().toISOString(),
     });
 
-    const summary = `✅ Sync completado: ${created} creadas, ${updated} actualizadas, ${movedToVendida} movidas a Vendida`;
+    const summary = `✅ Sync completado: ${created} creadas, ${updated} actualizadas, ${movedToFirmada} movidas a Firmada`;
     console.log(summary);
 
     return {
