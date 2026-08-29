@@ -74,7 +74,7 @@ export default function AgentCardPage() {
         <div className="text-center">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Agente no encontrado</h1>
           <p className="text-gray-600 mb-4">{error || 'No pudimos encontrar a este agente'}</p>
-          <a href="/agents" className="text-blue-600 hover:underline">
+          <a href="/agents" className="text-red-600 hover:underline">
             Ver todos los agentes
           </a>
         </div>
@@ -101,14 +101,14 @@ export default function AgentCardPage() {
         {profile.photo_url && <meta property="og:image" content={profile.photo_url} />}
       </Head>
 
-      <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
+      <div className="min-h-screen bg-gradient-to-b from-red-50 to-white">
         {/* Header con foto */}
         <div className="bg-white border-b border-gray-200">
           <div className="max-w-4xl mx-auto px-4 py-12">
             <div className="flex flex-col md:flex-row items-center space-y-6 md:space-y-0 md:space-x-8">
               {/* Foto */}
               <div className="flex-shrink-0">
-                <div className="relative w-40 h-40 bg-gray-200 rounded-full overflow-hidden border-4 border-blue-500 shadow-lg">
+                <div className="relative w-40 h-40 bg-gray-200 rounded-full overflow-hidden border-4 border-red-600 shadow-lg">
                   {profile.photo_url ? (
                     <Image
                       src={profile.photo_url}
@@ -141,7 +141,7 @@ export default function AgentCardPage() {
                   {profile.phone && (
                     <a
                       href={`tel:${profile.phone}`}
-                      className="inline-flex items-center space-x-2 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg"
+                      className="inline-flex items-center space-x-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg"
                     >
                       <span>📱 Llamar</span>
                     </a>
@@ -149,7 +149,7 @@ export default function AgentCardPage() {
                   {profile.email_contact && (
                     <a
                       href={`mailto:${profile.email_contact}`}
-                      className="inline-flex items-center space-x-2 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg"
+                      className="inline-flex items-center space-x-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg"
                     >
                       <span>✉️ Email</span>
                     </a>
@@ -184,7 +184,7 @@ export default function AgentCardPage() {
                       href={profile.linkedin_url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-blue-700 hover:text-blue-800 text-2xl"
+                      className="text-red-700 hover:text-red-800 text-2xl"
                       title="LinkedIn"
                     >
                       💼
@@ -239,7 +239,7 @@ export default function AgentCardPage() {
                       href={`https://propiedades.galas.com.ar/p/${prop.tokko_id}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-block bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded text-sm font-medium"
+                      className="inline-block bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded text-sm font-medium"
                     >
                       Ver detalles →
                     </a>
@@ -258,7 +258,7 @@ export default function AgentCardPage() {
               href="https://propiedades.galas.com.ar"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-block bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg font-medium text-lg"
+              className="inline-block bg-red-700 hover:bg-red-800 text-white px-8 py-3 rounded-lg font-medium text-lg"
             >
               Ver todas las propiedades
             </a>

@@ -186,7 +186,7 @@ export default function AgentProfilePage() {
             </div>
             <div>
               <label className="block">
-                <span className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded cursor-pointer inline-block">
+                <span className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded cursor-pointer inline-block">
                   {uploadingPhoto ? 'Subiendo...' : 'Cambiar foto'}
                 </span>
                 <input
@@ -207,7 +207,7 @@ export default function AgentProfilePage() {
 
           {/* URL pública */}
           {cardUrl && (
-            <div className="bg-blue-50 border border-blue-200 p-4 rounded">
+            <div className="bg-red-50 border border-blue-200 p-4 rounded">
               <p className="text-sm text-gray-600 mb-2">Tu URL pública:</p>
               <code className="block bg-white p-3 rounded border border-blue-300 text-sm font-mono break-all">
                 {cardUrl}
@@ -218,7 +218,7 @@ export default function AgentProfilePage() {
                   setSuccess('URL copiada');
                   setTimeout(() => setSuccess(''), 2000);
                 }}
-                className="mt-2 text-sm text-blue-600 hover:text-blue-700 underline"
+                className="mt-2 text-sm text-red-600 hover:text-red-700 underline"
               >
                 Copiar URL
               </button>
@@ -357,7 +357,7 @@ export default function AgentProfilePage() {
             <button
               onClick={handleSave}
               disabled={saving}
-              className="bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 text-white px-6 py-2 rounded font-medium transition"
+              className="bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white px-6 py-2 rounded font-medium transition"
             >
               {saving ? 'Guardando...' : 'Guardar cambios'}
             </button>

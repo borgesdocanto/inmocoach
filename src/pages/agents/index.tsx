@@ -84,7 +84,7 @@ export default function AgentsDirectoryPage() {
         />
       </Head>
 
-      <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
+      <div className="min-h-screen bg-gradient-to-b from-red-50 to-white">
         {/* Header */}
         <div className="bg-white border-b border-gray-200 shadow-sm">
           <div className="max-w-6xl mx-auto px-4 py-12">
@@ -116,7 +116,7 @@ export default function AgentsDirectoryPage() {
                   onClick={() => setSelectedBranch('all')}
                   className={`px-4 py-2 rounded-lg font-medium transition ${
                     selectedBranch === 'all'
-                      ? 'bg-blue-500 text-white'
+                      ? 'bg-red-600 text-white'
                       : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                   }`}
                 >
@@ -128,7 +128,7 @@ export default function AgentsDirectoryPage() {
                     onClick={() => setSelectedBranch(branch.id)}
                     className={`px-4 py-2 rounded-lg font-medium transition ${
                       selectedBranch === branch.id
-                        ? 'bg-blue-500 text-white'
+                        ? 'bg-red-600 text-white'
                         : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                     }`}
                   >
@@ -156,7 +156,7 @@ export default function AgentsDirectoryPage() {
                 >
                   <div className="bg-white rounded-lg shadow-md hover:shadow-xl transition border border-gray-200 overflow-hidden cursor-pointer h-full flex flex-col">
                     {/* Foto */}
-                    <div className="relative h-64 bg-gradient-to-br from-blue-100 to-blue-50 overflow-hidden">
+                    <div className="relative h-64 bg-gradient-to-br from-red-100 to-red-50 overflow-hidden">
                       {agent.photo_url ? (
                         <Image
                           src={agent.photo_url}
@@ -165,7 +165,7 @@ export default function AgentsDirectoryPage() {
                           className="object-cover group-hover:scale-110 transition duration-300"
                         />
                       ) : (
-                        <div className="flex items-center justify-center h-full bg-gradient-to-br from-blue-300 to-blue-500 text-white text-6xl font-bold">
+                        <div className="flex items-center justify-center h-full bg-gradient-to-br from-red-400 to-red-500 text-white text-6xl font-bold">
                           {agent.email[0].toUpperCase()}
                         </div>
                       )}
@@ -173,7 +173,7 @@ export default function AgentsDirectoryPage() {
 
                     {/* Info */}
                     <div className="p-6 flex-1 flex flex-col">
-                      <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-blue-600 transition">
+                      <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-red-600 transition">
                         {agent.email.split('@')[0]}
                       </h3>
 
@@ -189,7 +189,7 @@ export default function AgentsDirectoryPage() {
                           <a
                             href={`tel:${agent.phone}`}
                             onClick={e => e.preventDefault()}
-                            className="text-gray-600 hover:text-blue-600 transition text-lg"
+                            className="text-gray-600 hover:text-red-600 transition text-lg"
                             title="Llamar"
                           >
                             📱
@@ -199,7 +199,7 @@ export default function AgentsDirectoryPage() {
                           <a
                             href={`mailto:${agent.email_contact}`}
                             onClick={e => e.preventDefault()}
-                            className="text-gray-600 hover:text-blue-600 transition text-lg"
+                            className="text-gray-600 hover:text-red-600 transition text-lg"
                             title="Email"
                           >
                             ✉️
@@ -227,10 +227,10 @@ export default function AgentsDirectoryPage() {
         </div>
 
         {/* CTA */}
-        <div className="bg-blue-600 text-white py-12 mt-16">
+        <div className="bg-red-700 text-white py-12 mt-16">
           <div className="max-w-4xl mx-auto px-4 text-center">
             <h2 className="text-3xl font-bold mb-4">¿Buscás una propiedad?</h2>
-            <p className="text-lg mb-6 text-blue-100">
+            <p className="text-lg mb-6 text-red-100">
               Contáctate con cualquiera de nuestros agentes para encontrar tu
               próximo hogar
             </p>
@@ -238,7 +238,7 @@ export default function AgentsDirectoryPage() {
               href="https://propiedades.galas.com.ar"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-block bg-white text-blue-600 px-8 py-3 rounded-lg font-bold hover:bg-blue-50 transition"
+              className="inline-block bg-white text-red-600 px-8 py-3 rounded-lg font-bold hover:bg-red-50 transition"
             >
               Ver todas las propiedades
             </a>
