@@ -39,25 +39,28 @@ export default function AgentsDirectoryPage() {
         const data = await res.json();
         setAgents(data);
 
-        // Extraer branches únicos por branch_id
-        const branchMap = new Map<number, string>();
+        // Extraer branches únicos - usar números directamente
         const branchNames: Record<number, string> = {
           60: 'Ituzaingó',
           61: 'Castelar',
           62: 'Padua',
         };
 
+        const uniqueBranchIds = new Set<number>();
         data.forEach((agent: Agent) => {
-          if (agent.branch_id && !branchMap.has(agent.branch_id)) {
-            branchMap.set(
-              agent.branch_id,
-              branchNames[agent.branch_id] || `Sucursal ${agent.branch_id}`
-            );
+          if (agent.branch_id && branchNames[agent.branch_id]) {
+            uniqueBranchIds.add(agent.branch_id);
           }
         });
 
+        // Convertir a array ordenado por ID
         setBranches(
-          Array.from(branchMap.entries()).map(([id, name]) => ({ id: String(id), name }))
+          Array.from(uniqueBranchIds)
+            .sort()
+            .map((id: number) => ({ 
+              id: String(id),  // guardar como string para el estado
+              name: branchNames[id] 
+            }))
         );
       } catch (err) {
         setError((err as Error).message);
@@ -69,10 +72,13 @@ export default function AgentsDirectoryPage() {
     fetchAgents();
   }, []);
 
-  const filteredAgents = agents.filter(
-    agent =>
-      selectedBranch === 'all' || String(agent.branch_id) === selectedBranch
-  );
+  // Filtrar agentes: si selectedBranch es 'all', mostrar todos
+  // Si no, convertir selectedBranch a número y comparar con branch_id
+  const filteredAgents = agents.filter(agent => {
+    if (selectedBranch === 'all') return true;
+    const selectedBranchId = parseInt(selectedBranch, 10);
+    return agent.branch_id === selectedBranchId;
+  });
 
   if (loading) {
     return (
@@ -97,7 +103,7 @@ export default function AgentsDirectoryPage() {
         />
       </Head>
 
-      <div className="min-h-screen bg-gradient-to-b from-red-50 to-white">
+      <div className="min-h-screen bg-white">
         {/* Header */}
         <div className="bg-white border-b border-gray-200 shadow-sm">
           <div className="max-w-6xl mx-auto px-4 py-12">
