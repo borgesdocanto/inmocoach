@@ -215,20 +215,42 @@ export default function AgentCardPage() {
               {properties.map(prop => (
                 <a
                   key={prop.id}
-                  href={`https://propiedades.galas.com.ar/p/${prop.tokko_id}`}
+                  href={prop.propertyUrl || `https://propiedades.galas.com.ar/p/${prop.tokko_id}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="block group"
                 >
                   <div className="bg-white rounded-lg shadow-md hover:shadow-xl transition overflow-hidden border border-gray-200 h-full flex flex-col cursor-pointer">
-                    {/* Imagen placeholder */}
-                    <div className="bg-gradient-to-br from-gray-300 to-gray-400 h-48 flex items-center justify-center relative overflow-hidden group-hover:from-gray-400 group-hover:to-gray-500 transition">
-                      <div className="text-center">
-                        <div className="text-4xl mb-2">🏠</div>
-                        <span className="text-white font-medium text-sm">
-                          {prop.photos_count} fotos
-                        </span>
-                      </div>
+                    {/* Imagen o placeholder */}
+                    <div className="relative bg-gradient-to-br from-gray-300 to-gray-400 h-48 overflow-hidden group-hover:from-gray-400 group-hover:to-gray-500 transition">
+                      {prop.thumbnail ? (
+                        <img
+                          src={prop.thumbnail}
+                          alt={prop.address}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            // Si la foto falla, mostrar placeholder
+                            e.currentTarget.style.display = 'none';
+                          }}
+                        />
+                      ) : null}
+                      {!prop.thumbnail && (
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <div className="text-center">
+                            <div className="text-4xl mb-2">🏠</div>
+                            <span className="text-white font-medium text-sm">
+                              {prop.photos_count} fotos
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                      {prop.thumbnail && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition">
+                          <span className="text-white font-medium text-sm">
+                            {prop.photos_count} fotos
+                          </span>
+                        </div>
+                      )}
                     </div>
 
                     {/* Info de la propiedad */}

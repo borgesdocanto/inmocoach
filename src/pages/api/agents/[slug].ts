@@ -19,6 +19,7 @@ type AgentProfile = {
 type TokkoProperty = {
   id: string;
   tokko_id: number;
+  title: string | null;
   address: string;
   price: number | null;
   currency: string;
@@ -26,6 +27,8 @@ type TokkoProperty = {
   status: number;
   days_since_update: number;
   producer_email: string;
+  thumbnail?: string | null;
+  propertyUrl?: string;
   [key: string]: any;
 };
 
@@ -90,7 +93,7 @@ export default async function handler(
       // Buscar propiedades publicadas del agente por email
       const { data: tokkoProps, error: propsError } = await supabaseAdmin
         .from('tokko_properties')
-        .select('id, tokko_id, address, price, currency, photos_count, status, days_since_update, producer_email')
+        .select('id, tokko_id, title, address, price, currency, photos_count, status, days_since_update, producer_email, thumbnail')
         .eq('producer_email', profile.email)
         .eq('status', 2)  // Solo publicadas
         .order('days_since_update', { ascending: true });
@@ -98,7 +101,27 @@ export default async function handler(
       if (propsError) {
         console.error('Error fetching properties:', propsError);
       } else {
-        properties = tokkoProps || [];
+        // Construir URLs correctas para propiedades
+        properties = (tokkoProps || []).map(prop => {
+          // Slugify: convertir "Casa en Venta en..." a "Casa-en-Venta-en-..."
+          const slugify = (text: string) => {
+            return text
+              .toLowerCase()
+              .replace(/[áéíóú]/g, a => ({ á: 'a', é: 'e', í: 'i', ó: 'o', ú: 'u' }[a] || a))
+              .replace(/\s+/g, '-')
+              .replace(/[^a-z0-9-]/g, '')
+              .replace(/-+/g, '-')
+              .replace(/^-|-$/g, '');
+          };
+          
+          const titleForSlug = prop.title || prop.address;
+          const slug = slugify(titleForSlug);
+          const propertyUrl = slug 
+            ? `https://propiedades.galas.com.ar/p/${prop.tokko_id}-${slug}`
+            : `https://propiedades.galas.com.ar/p/${prop.tokko_id}`;
+          
+          return { ...prop, propertyUrl };
+        });
       }
     } catch (err) {
       console.error('Error in properties fetch:', err);
