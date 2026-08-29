@@ -87,7 +87,7 @@ export default async function handler(
           linkedin_url: profile?.linkedin_url || '',
           whatsapp_link: profile?.whatsapp_link || '',
           team_id: tokkoAgent.team_id,
-          branch_id: tokkoAgent.branch_id,
+          branch_id: Number(tokkoAgent.branch_id),  // Asegurar que es número
           team_role: role,
         };
       })
