@@ -212,40 +212,52 @@ export default function AgentCardPage() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {properties.map(prop => (
-                <div
+                <a
                   key={prop.id}
-                  className="bg-white rounded-lg shadow-md hover:shadow-xl transition overflow-hidden border border-gray-200"
+                  href={`https://propiedades.galas.com.ar/p/${prop.tokko_id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block group"
                 >
-                  <div className="bg-gray-300 h-48 flex items-center justify-center">
-                    {prop.photos_count > 0 ? (
-                      <span className="text-gray-600">📷 {prop.photos_count} fotos</span>
-                    ) : (
-                      <span className="text-gray-600">Sin fotos</span>
-                    )}
-                  </div>
-                  <div className="p-4">
-                    <p className="text-gray-600 text-sm mb-2">{prop.address}</p>
-                    {prop.price && (
-                      <p className="text-2xl font-bold text-gray-900 mb-3">
-                        {prop.currency === 'USD' ? '$' : '$'}{' '}
-                        {prop.price.toLocaleString()}
+                  <div className="bg-white rounded-lg shadow-md hover:shadow-xl transition overflow-hidden border border-gray-200 h-full flex flex-col cursor-pointer">
+                    {/* Imagen placeholder */}
+                    <div className="bg-gradient-to-br from-gray-300 to-gray-400 h-48 flex items-center justify-center relative overflow-hidden group-hover:from-gray-400 group-hover:to-gray-500 transition">
+                      <div className="text-center">
+                        <div className="text-4xl mb-2">🏠</div>
+                        <span className="text-white font-medium text-sm">
+                          {prop.photos_count} fotos
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Info de la propiedad */}
+                    <div className="p-4 flex-1 flex flex-col">
+                      <p className="text-gray-800 font-bold mb-2 group-hover:text-red-600 transition">
+                        {prop.address}
                       </p>
-                    )}
-                    {prop.days_since_update !== undefined && (
-                      <p className="text-xs text-gray-500 mb-3">
-                        Actualizado hace {prop.days_since_update} días
-                      </p>
-                    )}
-                    <a
-                      href={`https://propiedades.galas.com.ar/p/${prop.tokko_id}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-block bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded text-sm font-medium"
-                    >
-                      Ver detalles →
-                    </a>
+
+                      {prop.price && (
+                        <p className="text-2xl font-bold text-red-600 mb-2">
+                          {prop.currency === 'USD' ? 'USD ' : '$ '}{' '}
+                          {prop.price.toLocaleString('es-AR')}
+                        </p>
+                      )}
+
+                      {prop.days_since_update !== undefined && (
+                        <p className="text-xs text-gray-500 mb-auto">
+                          Actualizado hace {prop.days_since_update} días
+                        </p>
+                      )}
+
+                      {/* CTA Button */}
+                      <div className="mt-4 pt-4 border-t border-gray-200">
+                        <span className="inline-block bg-red-600 group-hover:bg-red-700 text-white px-3 py-2 rounded text-sm font-medium transition w-full text-center">
+                          Ver detalles →
+                        </span>
+                      </div>
+                    </div>
                   </div>
-                </div>
+                </a>
               ))}
             </div>
           )}

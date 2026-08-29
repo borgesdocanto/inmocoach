@@ -41,9 +41,9 @@ export default function AgentsDirectoryPage() {
 
         // Extraer branches únicos - usar números directamente
         const branchNames: Record<number, string> = {
-          60: 'Ituzaingó',
+          60: 'Padua',
           61: 'Castelar',
-          62: 'Padua',
+          62: 'Ituzaingó',
         };
 
         const uniqueBranchIds = new Set<number>();

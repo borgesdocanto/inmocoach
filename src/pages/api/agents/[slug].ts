@@ -18,12 +18,14 @@ type AgentProfile = {
 
 type TokkoProperty = {
   id: string;
+  tokko_id: number;
   address: string;
-  price: number;
+  price: number | null;
   currency: string;
   photos_count: number;
   status: number;
   days_since_update: number;
+  producer_email: string;
   [key: string]: any;
 };
 
@@ -82,37 +84,24 @@ export default async function handler(
       .eq('id', profile.team_id)
       .single();
 
-    // Obtener propiedades del agente desde Tokko
+    // Obtener propiedades del agente desde tokko_properties
     let properties: TokkoProperty[] = [];
     try {
-      // Necesitamos obtener el API key del equipo
-      const { data: subscription } = await supabaseAdmin
-        .from('subscriptions')
-        .select('team_id')
-        .eq('email', profile.email)
-        .single();
+      // Buscar propiedades publicadas del agente por email
+      const { data: tokkoProps, error: propsError } = await supabaseAdmin
+        .from('tokko_properties')
+        .select('id, tokko_id, address, price, currency, photos_count, status, days_since_update, producer_email')
+        .eq('producer_email', profile.email)
+        .eq('status', 2)  // Solo publicadas
+        .order('days_since_update', { ascending: true });
 
-      if (subscription) {
-        const { data: team } = await supabaseAdmin
-          .from('teams')
-          .select('tokko_api_key')
-          .eq('id', subscription.team_id)
-          .single();
-
-        if (team?.tokko_api_key) {
-          // Obtener propiedades asociadas al email del agente
-          const { data: tokkoProps } = await supabaseAdmin
-            .from('tokko_properties')
-            .select('*')
-            .eq('producer_email', profile.email)
-            .eq('status', 2)  // Solo publicadas
-            .order('days_since_update', { ascending: true });
-
-          properties = tokkoProps || [];
-        }
+      if (propsError) {
+        console.error('Error fetching properties:', propsError);
+      } else {
+        properties = tokkoProps || [];
       }
     } catch (err) {
-      console.error('Error fetching properties:', err);
+      console.error('Error in properties fetch:', err);
       // Si falla, devolvemos el perfil sin propiedades
     }
 
