@@ -107,19 +107,19 @@ export default function AgentCardPage() {
         <div className="bg-white border-b border-gray-200">
           <div className="max-w-4xl mx-auto px-4 py-12">
             <div className="flex flex-col md:flex-row items-center space-y-6 md:space-y-0 md:space-x-8">
-              {/* Foto */}
+              {/* Foto - fondo blanco, sin cortes */}
               <div className="flex-shrink-0">
-                <div className="relative w-40 h-40 bg-gray-200 rounded-full overflow-hidden border-4 border-red-600 shadow-lg">
+                <div className="relative w-40 h-40 bg-white rounded-full overflow-hidden border-4 border-red-600 shadow-lg flex items-center justify-center">
                   {profile.photo_url ? (
                     <Image
                       src={profile.photo_url}
                       alt={profile.name}
                       fill
-                      className="object-contain object-center"
+                      className="object-contain object-center p-2"
                       sizes="160px"
                     />
                   ) : (
-                    <div className="flex items-center justify-center h-full bg-gray-300 text-gray-600 text-4xl font-bold">
+                    <div className="flex items-center justify-center h-full bg-white text-red-600 text-4xl font-bold">
                       {profile.name[0].toUpperCase()}
                     </div>
                   )}
@@ -221,32 +221,30 @@ export default function AgentCardPage() {
                   className="block group"
                 >
                   <div className="bg-white rounded-lg shadow-md hover:shadow-xl transition overflow-hidden border border-gray-200 h-full flex flex-col cursor-pointer">
-                    {/* Imagen o placeholder */}
-                    <div className="relative bg-gradient-to-br from-gray-300 to-gray-400 h-48 overflow-hidden group-hover:from-gray-400 group-hover:to-gray-500 transition">
-                      {prop.thumbnail ? (
-                        <img
-                          src={prop.thumbnail}
-                          alt={prop.address}
-                          className="w-full h-full object-cover"
-                          onError={(e) => {
-                            // Si la foto falla, mostrar placeholder
-                            e.currentTarget.style.display = 'none';
-                          }}
-                        />
-                      ) : null}
-                      {!prop.thumbnail && (
-                        <div className="absolute inset-0 flex items-center justify-center">
-                          <div className="text-center">
-                            <div className="text-4xl mb-2">🏠</div>
-                            <span className="text-white font-medium text-sm">
+                    {/* Imagen o placeholder - fondo blanco, foto centrada sin cortes */}
+                    <div className="relative bg-white h-48 flex items-center justify-center overflow-hidden group-hover:bg-gray-50 transition">
+                      {prop.photoUrl ? (
+                        <>
+                          <img
+                            src={prop.photoUrl}
+                            alt={prop.address}
+                            className="h-full w-auto object-contain"
+                            onError={(e) => {
+                              // Si la foto falla, mostrar placeholder
+                              e.currentTarget.style.display = 'none';
+                            }}
+                          />
+                          {/* Overlay hover con contador */}
+                          <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition">
+                            <span className="text-white font-medium text-sm bg-black/60 px-3 py-1 rounded">
                               {prop.photos_count} fotos
                             </span>
                           </div>
-                        </div>
-                      )}
-                      {prop.thumbnail && (
-                        <div className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition">
-                          <span className="text-white font-medium text-sm">
+                        </>
+                      ) : (
+                        <div className="text-center">
+                          <div className="text-5xl mb-2">🏠</div>
+                          <span className="text-gray-500 font-medium text-sm">
                             {prop.photos_count} fotos
                           </span>
                         </div>

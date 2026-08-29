@@ -1,6 +1,50 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { supabaseAdmin } from '@/lib/supabase';
 
+// Cache simple para fotos de propiedades de Tokko (5 min TTL)
+const photoCache = new Map<string, { [key: number]: string; ts: number }>();
+const CACHE_TTL = 5 * 60 * 1000;
+
+async function getTokkoPropertyPhotos(apiKey: string, teamId: string): Promise<{ [key: number]: string }> {
+  const cacheKey = `photos:${teamId}`;
+  const cached = photoCache.get(cacheKey);
+  
+  if (cached && Date.now() - cached.ts < CACHE_TTL) {
+    // Retornar copia sin timestamp
+    const { ts, ...photos } = cached;
+    return photos;
+  }
+
+  try {
+    const photos: { [key: number]: string } = {};
+    let nextUrl: string | null = 
+      `https://www.tokkobroker.com/api/v1/property/?key=${apiKey}&format=json&lang=es_ar&limit=500`;
+    
+    while (nextUrl) {
+      const r = await fetch(nextUrl, { signal: AbortSignal.timeout(10000) });
+      if (!r.ok) throw new Error(`Tokko ${r.status}`);
+      const d: any = await r.json();
+      
+      for (const prop of d.objects || []) {
+        if (!photos[prop.id] && prop.photos?.length) {
+          const firstPhoto = prop.photos.find((p: any) => !p.is_blueprint);
+          if (firstPhoto?.thumb || firstPhoto?.url) {
+            photos[prop.id] = firstPhoto.url || firstPhoto.thumb;
+          }
+        }
+      }
+      
+      nextUrl = d.meta?.next ? `https://www.tokkobroker.com${d.meta.next}` : null;
+    }
+    
+    photoCache.set(cacheKey, { ...photos, ts: Date.now() });
+    return photos;
+  } catch (err: any) {
+    console.error('Error fetching Tokko photos:', err?.message);
+    return {};
+  }
+}
+
 type AgentProfile = {
   id: string;
   email: string;
@@ -29,6 +73,7 @@ type TokkoProperty = {
   producer_email: string;
   thumbnail?: string | null;
   propertyUrl?: string;
+  photoUrl?: string;
   [key: string]: any;
 };
 
@@ -83,9 +128,15 @@ export default async function handler(
     // Obtener datos del equipo
     const { data: teamData } = await supabaseAdmin
       .from('teams')
-      .select('name, id')
+      .select('name, id, tokko_api_key')
       .eq('id', profile.team_id)
       .single();
+
+    // Obtener fotos de Tokko (con cache)
+    let tokkoPhotos: { [key: number]: string } = {};
+    if (teamData?.tokko_api_key) {
+      tokkoPhotos = await getTokkoPropertyPhotos(teamData.tokko_api_key, profile.team_id);
+    }
 
     // Obtener propiedades del agente desde tokko_properties
     let properties: TokkoProperty[] = [];
@@ -120,7 +171,10 @@ export default async function handler(
             ? `https://propiedades.galas.com.ar/p/${prop.tokko_id}-${slug}`
             : `https://propiedades.galas.com.ar/p/${prop.tokko_id}`;
           
-          return { ...prop, propertyUrl };
+          // Obtener foto desde Tokko (primera foto)
+          const photoUrl = tokkoPhotos[prop.tokko_id];
+          
+          return { ...prop, propertyUrl, photoUrl };
         });
       }
     } catch (err) {
