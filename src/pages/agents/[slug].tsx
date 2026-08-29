@@ -115,7 +115,7 @@ export default function AgentCardPage() {
                       src={profile.photo_url}
                       alt={profile.name}
                       fill
-                      className="object-cover object-center"
+                      className="object-contain object-center"
                       sizes="160px"
                     />
                   ) : (

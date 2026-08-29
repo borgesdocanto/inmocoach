@@ -41,16 +41,20 @@ export default async function handler(
       return res.status(500).json({ error: 'Failed to fetch agents' });
     }
 
-    // Traer perfiles de agentes
+    // Traer SOLO agentes con is_visible=true
     const { data: profiles, error: profileError } = await supabaseAdmin
       .from('agent_profiles')
       .select('*')
-      .eq('team_id', GALAS_TEAM_ID);
+      .eq('team_id', GALAS_TEAM_ID)
+      .eq('is_visible', true);  // SOLO AGENTES VISIBLES
 
     if (profileError) {
       console.error('Error fetching agent_profiles:', profileError);
       return res.status(500).json({ error: 'Failed to fetch profiles' });
     }
+
+    // Obtener solo los emails de agentes visibles
+    const visibleEmails = new Set((profiles || []).map((p: any) => p.email));
 
     // Traer roles y status de subscriptions - SOLO ACTIVOS
     const { data: subscriptions, error: subError } = await supabaseAdmin
@@ -70,9 +74,9 @@ export default async function handler(
     const activeEmails = new Set((subscriptions || []).map((s: any) => s.email));
 
     // Transformar datos - combinar tokko_agents + agent_profiles + roles
-    // Filtrar solo agentes que estén activos en subscriptions
+    // Filtrar solo agentes que estén VISIBLE en agent_profiles Y ACTIVOS en subscriptions
     const agents: Agent[] = (tokkoAgents || [])
-      .filter((tokkoAgent: any) => activeEmails.has(tokkoAgent.email))  // SOLO ACTIVOS
+      .filter((tokkoAgent: any) => visibleEmails.has(tokkoAgent.email) && activeEmails.has(tokkoAgent.email))
       .map((tokkoAgent: any) => {
         const profile = profileMap.get(tokkoAgent.email);
         const role = roleMap.get(tokkoAgent.email) || 'member';
