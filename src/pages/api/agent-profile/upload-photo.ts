@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../auth/[...nextauth]';
 import { supabaseAdmin } from '@/lib/supabase';
 import { getEffectiveEmail } from '@/lib/impersonation';
+import { ensureAgentPhotosBucket } from '@/lib/storageInit';
 import { IncomingForm, File } from 'formidable';
 import fs from 'fs';
 
@@ -32,6 +33,12 @@ export default async function handler(
   const effectiveEmail = getEffectiveEmail(req, session);
 
   try {
+    // Asegurar que el bucket existe antes de intentar subir
+    const bucketReady = await ensureAgentPhotosBucket();
+    if (!bucketReady) {
+      return res.status(500).json({ error: 'Storage bucket not ready' });
+    }
+
     const form = new IncomingForm();
     const [fields, files] = await new Promise<[any, any]>((resolve, reject) => {
       form.parse(req, (err, fields, files) => {
