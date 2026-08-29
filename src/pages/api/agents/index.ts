@@ -29,12 +29,12 @@ export default async function handler(
   try {
     const GALAS_TEAM_ID = 'bb61ed0d-96dd-4c45-ac9a-c72169bd0b93';
 
-    // Traer agentes desde tokko_agents CON branch_id
+    // Traer agentes desde tokko_agents CON branch_id (agentes) O que sean owner/team_leader
     const { data: tokkoAgents, error: tokkoError } = await supabaseAdmin
       .from('tokko_agents')
       .select('*')
-      .eq('team_id', GALAS_TEAM_ID)
-      .not('branch_id', 'is', null);  // Solo agentes con branch asignado
+      .eq('team_id', GALAS_TEAM_ID);
+      // No filtrar por branch aquí - filtraremos después
 
     if (tokkoError) {
       console.error('Error fetching tokko_agents:', tokkoError);
@@ -75,8 +75,17 @@ export default async function handler(
 
     // Transformar datos - combinar tokko_agents + agent_profiles + roles
     // Filtrar solo agentes que estén VISIBLE en agent_profiles Y ACTIVOS en subscriptions
+    // Y cumplan: tengan branch_id (agentes de sucursal) O sean owner/team_leader
     const agents: Agent[] = (tokkoAgents || [])
-      .filter((tokkoAgent: any) => visibleEmails.has(tokkoAgent.email) && activeEmails.has(tokkoAgent.email))
+      .filter((tokkoAgent: any) => {
+        const isVisible = visibleEmails.has(tokkoAgent.email);
+        const isActive = activeEmails.has(tokkoAgent.email);
+        const role = roleMap.get(tokkoAgent.email) || 'member';
+        const hasBranch = tokkoAgent.branch_id !== null;
+        
+        // Mostrar si: (visible Y activo) Y (tiene branch O es owner/team_leader)
+        return isVisible && isActive && (hasBranch || role === 'owner' || role === 'team_leader');
+      })
       .map((tokkoAgent: any) => {
         const profile = profileMap.get(tokkoAgent.email);
         const role = roleMap.get(tokkoAgent.email) || 'member';
