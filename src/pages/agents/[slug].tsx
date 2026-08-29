@@ -115,7 +115,8 @@ export default function AgentCardPage() {
                       src={profile.photo_url}
                       alt={profile.name}
                       fill
-                      className="object-cover"
+                      className="object-cover object-center"
+                      sizes="160px"
                     />
                   ) : (
                     <div className="flex items-center justify-center h-full bg-gray-300 text-gray-600 text-4xl font-bold">

@@ -193,7 +193,8 @@ export default function AgentsDirectoryPage() {
                                   src={agent.photo_url}
                                   alt={agent.name}
                                   fill
-                                  className="object-cover group-hover:scale-110 transition duration-300"
+                                  className="object-cover object-center group-hover:scale-110 transition duration-300"
+                                  sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 25vw"
                                 />
                               ) : (
                                 <div className="flex items-center justify-center h-full bg-gradient-to-br from-red-400 to-red-500 text-white text-5xl font-bold">
@@ -287,7 +288,8 @@ export default function AgentsDirectoryPage() {
                                   src={agent.photo_url}
                                   alt={agent.name}
                                   fill
-                                  className="object-cover group-hover:scale-110 transition duration-300"
+                                  className="object-cover object-center group-hover:scale-110 transition duration-300"
+                                  sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
                                 />
                               ) : (
                                 <div className="flex items-center justify-center h-full bg-gradient-to-br from-red-400 to-red-600 text-white text-6xl font-bold">
