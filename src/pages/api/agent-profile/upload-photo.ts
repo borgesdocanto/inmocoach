@@ -80,11 +80,15 @@ export default async function handler(
       .from('agent-photos')
       .getPublicUrl(fileName);
 
-    const photoUrl = publicUrlData?.publicUrl;
+    let photoUrl = publicUrlData?.publicUrl;
 
+    // Si getPublicUrl no devuelve URL, construirla manualmente
     if (!photoUrl) {
-      return res.status(500).json({ error: 'Failed to get public URL' });
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://hjyyqxjzlgiywgvikzsa.supabase.co';
+      photoUrl = `${supabaseUrl}/storage/v1/object/public/agent-photos/${fileName}`;
     }
+
+    console.log('[Upload Photo] URL generada:', photoUrl);
 
     // Actualizar perfil con nueva foto
     const { error: updateError } = await supabaseAdmin

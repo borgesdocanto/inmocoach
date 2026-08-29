@@ -236,12 +236,12 @@ export default function AgentCardPage() {
                       </p>
                     )}
                     <a
-                      href={`https://propiedades.galas.com.ar/propiedad/${prop.id}`}
+                      href={`https://propiedades.galas.com.ar/p/${prop.tokko_id}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-block bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded text-sm font-medium"
                     >
-                      Ver detalles
+                      Ver detalles →
                     </a>
                   </div>
                 </div>
