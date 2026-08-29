@@ -6,6 +6,7 @@ import Head from 'next/head';
 type Agent = {
   id: string;
   email: string;
+  name: string;
   slug: string;
   photo_url: string | null;
   bio: string;
@@ -112,13 +113,13 @@ export default function AgentCardPage() {
                   {profile.photo_url ? (
                     <Image
                       src={profile.photo_url}
-                      alt={profile.email}
+                      alt={profile.name}
                       fill
                       className="object-cover"
                     />
                   ) : (
                     <div className="flex items-center justify-center h-full bg-gray-300 text-gray-600 text-4xl font-bold">
-                      {profile.email[0].toUpperCase()}
+                      {profile.name[0].toUpperCase()}
                     </div>
                   )}
                 </div>
@@ -127,7 +128,7 @@ export default function AgentCardPage() {
               {/* Info */}
               <div className="flex-1 text-center md:text-left">
                 <h1 className="text-4xl font-bold text-gray-900 mb-2">
-                  {profile.email.split('@')[0]}
+                  {profile.name}
                 </h1>
                 {team_name && (
                   <p className="text-lg text-gray-600 mb-4">{team_name}</p>

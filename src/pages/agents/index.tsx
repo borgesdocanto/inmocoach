@@ -7,6 +7,7 @@ import Link from 'next/link';
 type Agent = {
   id: string;
   email: string;
+  name: string;
   slug: string;
   photo_url: string | null;
   bio: string;
@@ -16,6 +17,8 @@ type Agent = {
   linkedin_url: string;
   whatsapp_link: string;
   team_id: string;
+  branch_id: number | null;
+  team_role: 'owner' | 'team_leader' | 'member';
 };
 
 export default function AgentsDirectoryPage() {
@@ -36,14 +39,25 @@ export default function AgentsDirectoryPage() {
         const data = await res.json();
         setAgents(data);
 
-        // Extraer branches únicos (pendiente: esto se hace mejor en el backend)
-        const uniqueBranches = Array.from(
-          new Map(
-            data.map((agent: Agent) => [agent.team_id, agent.team_id])
-          ).values()
-        ) as string[];
+        // Extraer branches únicos por branch_id
+        const branchMap = new Map<number, string>();
+        const branchNames: Record<number, string> = {
+          60: 'Ituzaingó',
+          61: 'Castelar',
+          62: 'Padua',
+        };
+
+        data.forEach((agent: Agent) => {
+          if (agent.branch_id && !branchMap.has(agent.branch_id)) {
+            branchMap.set(
+              agent.branch_id,
+              branchNames[agent.branch_id] || `Sucursal ${agent.branch_id}`
+            );
+          }
+        });
+
         setBranches(
-          uniqueBranches.map((id: string) => ({ id, name: `Sucursal ${id}` }))
+          Array.from(branchMap.entries()).map(([id, name]) => ({ id: String(id), name }))
         );
       } catch (err) {
         setError((err as Error).message);
@@ -55,11 +69,10 @@ export default function AgentsDirectoryPage() {
     fetchAgents();
   }, []);
 
-  const filteredAgents = agents;
-  // .filter(
-  //   agent =>
-  //     selectedBranch === 'all' || agent.team_id === selectedBranch
-  // );
+  const filteredAgents = agents.filter(
+    agent =>
+      selectedBranch === 'all' || String(agent.branch_id) === selectedBranch
+  );
 
   if (loading) {
     return (
@@ -139,7 +152,7 @@ export default function AgentsDirectoryPage() {
             </div>
           )}
 
-          {/* Agents Grid */}
+          {/* Agents Grid - Separar broker/team_leader al inicio */}
           {filteredAgents.length === 0 ? (
             <div className="bg-gray-50 border border-gray-200 rounded-lg p-12 text-center">
               <p className="text-gray-600 text-lg">
@@ -147,82 +160,191 @@ export default function AgentsDirectoryPage() {
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {filteredAgents.map(agent => (
-                <Link
-                  key={agent.id}
-                  href={`/agents/${agent.slug}`}
-                  className="group"
-                >
-                  <div className="bg-white rounded-lg shadow-md hover:shadow-xl transition border border-gray-200 overflow-hidden cursor-pointer h-full flex flex-col">
-                    {/* Foto */}
-                    <div className="relative h-64 bg-gradient-to-br from-red-100 to-red-50 overflow-hidden">
-                      {agent.photo_url ? (
-                        <Image
-                          src={agent.photo_url}
-                          alt={agent.email}
-                          fill
-                          className="object-cover group-hover:scale-110 transition duration-300"
-                        />
-                      ) : (
-                        <div className="flex items-center justify-center h-full bg-gradient-to-br from-red-400 to-red-500 text-white text-6xl font-bold">
-                          {agent.email[0].toUpperCase()}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Info */}
-                    <div className="p-6 flex-1 flex flex-col">
-                      <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-red-600 transition">
-                        {agent.email.split('@')[0]}
-                      </h3>
-
-                      {agent.bio && (
-                        <p className="text-gray-600 text-sm mb-4 line-clamp-3">
-                          {agent.bio}
-                        </p>
-                      )}
-
-                      {/* Contacto rápido */}
-                      <div className="mt-auto pt-4 border-t border-gray-200 flex items-center space-x-3">
-                        {agent.phone && (
-                          <a
-                            href={`tel:${agent.phone}`}
-                            onClick={e => e.preventDefault()}
-                            className="text-gray-600 hover:text-red-600 transition text-lg"
-                            title="Llamar"
-                          >
-                            📱
-                          </a>
-                        )}
-                        {agent.email_contact && (
-                          <a
-                            href={`mailto:${agent.email_contact}`}
-                            onClick={e => e.preventDefault()}
-                            className="text-gray-600 hover:text-red-600 transition text-lg"
-                            title="Email"
-                          >
-                            ✉️
-                          </a>
-                        )}
-                        {agent.whatsapp_link && (
-                          <a
-                            href={`https://wa.me/${agent.whatsapp_link}`}
-                            onClick={e => e.preventDefault()}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-gray-600 hover:text-green-600 transition text-lg"
-                            title="WhatsApp"
-                          >
-                            💬
-                          </a>
-                        )}
-                      </div>
-                    </div>
+            <>
+              {/* Broker y Team Leader */}
+              {filteredAgents.some(a => a.team_role === 'owner' || a.team_role === 'team_leader') && (
+                <div className="mb-12">
+                  <div className="mb-6">
+                    <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                      👥 Liderazgo
+                    </h2>
+                    <p className="text-gray-600">Directivos y coordinadores del equipo</p>
                   </div>
-                </Link>
-              ))}
-            </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    {filteredAgents
+                      .filter(a => a.team_role === 'owner' || a.team_role === 'team_leader')
+                      .map(agent => (
+                        <Link
+                          key={agent.id}
+                          href={`/agents/${agent.slug}`}
+                          className="group"
+                        >
+                          <div className="bg-white rounded-lg shadow-md hover:shadow-xl transition border border-red-200 overflow-hidden cursor-pointer h-full flex flex-col">
+                            {/* Foto */}
+                            <div className="relative h-48 bg-gradient-to-br from-red-100 to-red-50 overflow-hidden">
+                              {agent.photo_url ? (
+                                <Image
+                                  src={agent.photo_url}
+                                  alt={agent.name}
+                                  fill
+                                  className="object-cover group-hover:scale-110 transition duration-300"
+                                />
+                              ) : (
+                                <div className="flex items-center justify-center h-full bg-gradient-to-br from-red-400 to-red-500 text-white text-5xl font-bold">
+                                  {agent.name[0].toUpperCase()}
+                                </div>
+                              )}
+                              {/* Badge */}
+                              <div className="absolute top-3 right-3 bg-red-600 text-white px-3 py-1 rounded-full text-xs font-bold">
+                                {agent.team_role === 'owner' ? '🏢 Broker' : '👔 Coordinador'}
+                              </div>
+                            </div>
+
+                            {/* Info */}
+                            <div className="p-4 flex-1 flex flex-col">
+                              <h3 className="text-lg font-bold text-gray-900 group-hover:text-red-600 transition">
+                                {agent.name}
+                              </h3>
+
+                              {agent.bio && (
+                                <p className="text-gray-600 text-xs mt-2 line-clamp-2">
+                                  {agent.bio}
+                                </p>
+                              )}
+
+                              {/* Contacto rápido */}
+                              <div className="mt-auto pt-3 border-t border-gray-200 flex items-center space-x-3">
+                                {agent.phone && (
+                                  <a
+                                    href={`tel:${agent.phone}`}
+                                    onClick={e => e.preventDefault()}
+                                    className="text-gray-600 hover:text-red-600 transition"
+                                    title="Llamar"
+                                  >
+                                    📱
+                                  </a>
+                                )}
+                                {agent.email_contact && (
+                                  <a
+                                    href={`mailto:${agent.email_contact}`}
+                                    onClick={e => e.preventDefault()}
+                                    className="text-gray-600 hover:text-red-600 transition"
+                                    title="Email"
+                                  >
+                                    ✉️
+                                  </a>
+                                )}
+                                {agent.whatsapp_link && (
+                                  <a
+                                    href={`https://wa.me/${agent.whatsapp_link}`}
+                                    onClick={e => e.preventDefault()}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-gray-600 hover:text-green-600 transition"
+                                    title="WhatsApp"
+                                  >
+                                    💬
+                                  </a>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </Link>
+                      ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Agentes */}
+              {filteredAgents.some(a => a.team_role === 'member') && (
+                <div>
+                  <div className="mb-6">
+                    <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                      🏠 Agentes Inmobiliarios
+                    </h2>
+                    <p className="text-gray-600">Nuestro equipo de profesionales</p>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                    {filteredAgents
+                      .filter(a => a.team_role === 'member')
+                      .map(agent => (
+                        <Link
+                          key={agent.id}
+                          href={`/agents/${agent.slug}`}
+                          className="group"
+                        >
+                          <div className="bg-white rounded-lg shadow-md hover:shadow-xl transition border border-gray-200 overflow-hidden cursor-pointer h-full flex flex-col">
+                            {/* Foto */}
+                            <div className="relative h-64 bg-gradient-to-br from-red-100 to-red-50 overflow-hidden">
+                              {agent.photo_url ? (
+                                <Image
+                                  src={agent.photo_url}
+                                  alt={agent.name}
+                                  fill
+                                  className="object-cover group-hover:scale-110 transition duration-300"
+                                />
+                              ) : (
+                                <div className="flex items-center justify-center h-full bg-gradient-to-br from-red-400 to-red-600 text-white text-6xl font-bold">
+                                  {agent.name[0].toUpperCase()}
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Info */}
+                            <div className="p-6 flex-1 flex flex-col">
+                              <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-red-600 transition">
+                                {agent.name}
+                              </h3>
+
+                              {agent.bio && (
+                                <p className="text-gray-600 text-sm mb-4 line-clamp-3">
+                                  {agent.bio}
+                                </p>
+                              )}
+
+                              {/* Contacto rápido */}
+                              <div className="mt-auto pt-4 border-t border-gray-200 flex items-center space-x-3">
+                                {agent.phone && (
+                                  <a
+                                    href={`tel:${agent.phone}`}
+                                    onClick={e => e.preventDefault()}
+                                    className="text-gray-600 hover:text-red-600 transition text-lg"
+                                    title="Llamar"
+                                  >
+                                    📱
+                                  </a>
+                                )}
+                                {agent.email_contact && (
+                                  <a
+                                    href={`mailto:${agent.email_contact}`}
+                                    onClick={e => e.preventDefault()}
+                                    className="text-gray-600 hover:text-red-600 transition text-lg"
+                                    title="Email"
+                                  >
+                                    ✉️
+                                  </a>
+                                )}
+                                {agent.whatsapp_link && (
+                                  <a
+                                    href={`https://wa.me/${agent.whatsapp_link}`}
+                                    onClick={e => e.preventDefault()}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-gray-600 hover:text-green-600 transition text-lg"
+                                    title="WhatsApp"
+                                  >
+                                    💬
+                                  </a>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </Link>
+                      ))}
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </div>
 

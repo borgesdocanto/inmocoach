@@ -15,6 +15,7 @@ type Agent = {
   whatsapp_link: string;
   team_id: string;
   branch_id: number | null;
+  team_role: 'owner' | 'team_leader' | 'member';
 };
 
 export default async function handler(
@@ -29,42 +30,48 @@ export default async function handler(
     const GALAS_TEAM_ID = 'bb61ed0d-96dd-4c45-ac9a-c72169bd0b93';
 
     // Traer agentes desde tokko_agents (que tiene fotos + todas las branches)
-    const { data: tokkoAgents, error } = await supabaseAdmin
+    const { data: tokkoAgents, error: tokkoError } = await supabaseAdmin
       .from('tokko_agents')
-      .select(
-        `
-        id,
-        name,
-        email,
-        picture,
-        phone,
-        branch_id,
-        team_id,
-        agent_profiles(
-          slug,
-          photo_url,
-          bio,
-          email_contact,
-          instagram_url,
-          linkedin_url,
-          whatsapp_link,
-          is_visible
-        )
-        `
-      )
-      .eq('team_id', GALAS_TEAM_ID)
-      .order('name', { ascending: true });
+      .select('*')
+      .eq('team_id', GALAS_TEAM_ID);
 
-    if (error) {
-      console.error('Error fetching agents:', error);
+    if (tokkoError) {
+      console.error('Error fetching tokko_agents:', tokkoError);
       return res.status(500).json({ error: 'Failed to fetch agents' });
     }
 
-    // Transformar datos - combinar tokko_agents + agent_profiles
+    // Traer perfiles de agentes
+    const { data: profiles, error: profileError } = await supabaseAdmin
+      .from('agent_profiles')
+      .select('*')
+      .eq('team_id', GALAS_TEAM_ID);
+
+    if (profileError) {
+      console.error('Error fetching agent_profiles:', profileError);
+      return res.status(500).json({ error: 'Failed to fetch profiles' });
+    }
+
+    // Traer roles de subscriptions
+    const { data: subscriptions, error: subError } = await supabaseAdmin
+      .from('subscriptions')
+      .select('email, team_role')
+      .eq('team_id', GALAS_TEAM_ID);
+
+    if (subError) {
+      console.error('Error fetching subscriptions:', subError);
+      return res.status(500).json({ error: 'Failed to fetch subscriptions' });
+    }
+
+    // Crear mapas para búsquedas rápidas
+    const profileMap = new Map((profiles || []).map((p: any) => [p.email, p]));
+    const roleMap = new Map((subscriptions || []).map((s: any) => [s.email, s.team_role]));
+
+    // Transformar datos - combinar tokko_agents + agent_profiles + roles
     const agents: Agent[] = (tokkoAgents || [])
       .map((tokkoAgent: any) => {
-        const profile = tokkoAgent.agent_profiles?.[0];
-        
+        const profile = profileMap.get(tokkoAgent.email);
+        const role = roleMap.get(tokkoAgent.email) || 'member';
+
         return {
           id: tokkoAgent.id,
           email: tokkoAgent.email,
@@ -80,7 +87,17 @@ export default async function handler(
           whatsapp_link: profile?.whatsapp_link || '',
           team_id: tokkoAgent.team_id,
           branch_id: tokkoAgent.branch_id,
+          team_role: role,
         };
+      })
+      // Ordenar: owner primero, luego team_leader, luego members por nombre
+      .sort((a, b) => {
+        const roleOrder: Record<string, number> = { owner: 0, team_leader: 1, member: 2 };
+        const roleA = roleOrder[a.team_role] ?? 2;
+        const roleB = roleOrder[b.team_role] ?? 2;
+
+        if (roleA !== roleB) return roleA - roleB;
+        return a.name.localeCompare(b.name);
       });
 
     return res.status(200).json(agents);
