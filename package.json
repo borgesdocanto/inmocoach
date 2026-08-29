@@ -11,6 +11,7 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.45.4",
     "date-fns": "^3.6.0",
+    "formidable": "^3.5.4",
     "googleapis": "^140.0.1",
     "lucide-react": "^0.408.0",
     "mercadopago": "^2.0.15",
@@ -26,6 +27,7 @@
   },
   "devDependencies": {
     "@types/cookie": "^0.6.0",
+    "@types/formidable": "^3.5.1",
     "@types/node": "^22",
     "@types/react": "^19",
     "@types/react-dom": "^19",

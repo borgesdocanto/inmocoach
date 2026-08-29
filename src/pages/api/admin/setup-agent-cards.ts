@@ -1,7 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { getServerSession } from 'next-auth/next';
-import { authOptions } from '../auth/[...nextauth]';
-import { requireSuperAdmin } from '@/lib/adminGuard';
+import { authOptions } from '@/lib/auth';
+import { isSuperAdmin } from '@/lib/adminGuard';
 import { supabaseAdmin } from '@/lib/supabase';
 import { ensureAgentPhotosBucket } from '@/lib/storageInit';
 
@@ -26,9 +26,7 @@ export default async function handler(
 
   const session = await getServerSession(req, res, authOptions);
 
-  try {
-    requireSuperAdmin(session);
-  } catch (error: any) {
+  if (!isSuperAdmin(session?.user?.email)) {
     return res.status(403).json({ error: 'Forbidden' });
   }
 

@@ -1,6 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { supabaseAdmin } from '@/lib/supabase';
-import { getAgentTokkoProperties } from '@/lib/tokkoPortfolio';
 
 type AgentProfile = {
   id: string;

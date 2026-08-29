@@ -37,11 +37,11 @@ export default function AgentsDirectoryPage() {
         setAgents(data);
 
         // Extraer branches únicos (pendiente: esto se hace mejor en el backend)
-        const uniqueBranches = [
-          ...new Map(
+        const uniqueBranches = Array.from(
+          new Map(
             data.map((agent: Agent) => [agent.team_id, agent.team_id])
-          ).values(),
-        ];
+          ).values()
+        ) as string[];
         setBranches(
           uniqueBranches.map((id: string) => ({ id, name: `Sucursal ${id}` }))
         );

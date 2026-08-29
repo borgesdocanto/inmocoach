@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { getServerSession } from 'next-auth/next';
-import { authOptions } from './auth/[...nextauth]';
+import { authOptions } from '@/lib/auth';
 import { supabase, supabaseAdmin } from '@/lib/supabase';
 import { getEffectiveEmail } from '@/lib/impersonation';
 
