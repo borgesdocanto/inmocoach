@@ -29,11 +29,12 @@ export default async function handler(
   try {
     const GALAS_TEAM_ID = 'bb61ed0d-96dd-4c45-ac9a-c72169bd0b93';
 
-    // Traer agentes desde tokko_agents (que tiene fotos + todas las branches)
+    // Traer agentes desde tokko_agents (SOLO CON branch_id NOT NULL = activos)
     const { data: tokkoAgents, error: tokkoError } = await supabaseAdmin
       .from('tokko_agents')
       .select('*')
-      .eq('team_id', GALAS_TEAM_ID);
+      .eq('team_id', GALAS_TEAM_ID)
+      .not('branch_id', 'is', null);  // Solo agentes con branch asignado
 
     if (tokkoError) {
       console.error('Error fetching tokko_agents:', tokkoError);

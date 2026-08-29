@@ -4,6 +4,7 @@ import { supabaseAdmin } from '@/lib/supabase';
 type AgentProfile = {
   id: string;
   email: string;
+  name: string;
   slug: string;
   photo_url: string | null;
   bio: string;
@@ -48,7 +49,7 @@ export default async function handler(
       return res.status(400).json({ error: 'slug is required' });
     }
 
-    // Obtener perfil del agente
+    // Obtener perfil del agente desde agent_profiles
     const { data: profile, error: profileError } = await supabaseAdmin
       .from('agent_profiles')
       .select('*')
@@ -59,6 +60,20 @@ export default async function handler(
     if (profileError || !profile) {
       return res.status(404).json({ error: 'Agent not found' });
     }
+
+    // Obtener datos del agente desde Tokko para nombre y foto fallback
+    const { data: tokkoAgent } = await supabaseAdmin
+      .from('tokko_agents')
+      .select('name, picture, email')
+      .eq('email', profile.email)
+      .single();
+
+    // Combinar: perfil + datos de Tokko
+    const enrichedProfile: AgentProfile = {
+      ...profile,
+      name: profile.name || tokkoAgent?.name || profile.email.split('@')[0],
+      photo_url: profile.photo_url || tokkoAgent?.picture || null,
+    };
 
     // Obtener datos del equipo
     const { data: teamData } = await supabaseAdmin
@@ -102,7 +117,7 @@ export default async function handler(
     }
 
     return res.status(200).json({
-      profile,
+      profile: enrichedProfile,
       properties,
       team_name: teamData?.name,
     });
