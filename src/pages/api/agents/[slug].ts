@@ -21,20 +21,29 @@ async function getTokkoPropertyPhotos(apiKey: string, teamId: string): Promise<{
       `https://www.tokkobroker.com/api/v1/property/?key=${apiKey}&format=json&lang=es_ar&limit=500`;
     
     while (nextUrl) {
-      const r = await fetch(nextUrl, { signal: AbortSignal.timeout(10000) });
-      if (!r.ok) throw new Error(`Tokko ${r.status}`);
-      const d: any = await r.json();
-      
-      for (const prop of d.objects || []) {
-        if (!photos[prop.id] && prop.photos?.length) {
-          const firstPhoto = prop.photos.find((p: any) => !p.is_blueprint);
-          if (firstPhoto?.thumb || firstPhoto?.url) {
-            photos[prop.id] = firstPhoto.url || firstPhoto.thumb;
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 10000);
+      try {
+        const r = await fetch(nextUrl, { signal: controller.signal });
+        clearTimeout(timeout);
+        if (!r.ok) throw new Error(`Tokko ${r.status}`);
+        const d: any = await r.json();
+        
+        for (const prop of d.objects || []) {
+          if (!photos[prop.id] && prop.photos?.length) {
+            const firstPhoto = prop.photos.find((p: any) => !p.is_blueprint);
+            if (firstPhoto?.thumb || firstPhoto?.url) {
+              photos[prop.id] = firstPhoto.url || firstPhoto.thumb;
+            }
           }
         }
+        
+        nextUrl = d.meta?.next ? `https://www.tokkobroker.com${d.meta.next}` : null;
+      } catch (err: any) {
+        clearTimeout(timeout);
+        console.error('Error fetching page:', err?.message);
+        break;
       }
-      
-      nextUrl = d.meta?.next ? `https://www.tokkobroker.com${d.meta.next}` : null;
     }
     
     photoCache.set(cacheKey, { ...photos, ts: Date.now() });
@@ -148,11 +157,20 @@ export default async function handler(
           `https://www.tokkobroker.com/api/v1/property/?key=${teamData.tokko_api_key}&format=json&limit=500&lang=es_ar`;
         
         while (nextUrl) {
-          const r = await fetch(nextUrl, { signal: AbortSignal.timeout(10000) });
-          if (!r.ok) throw new Error(`Tokko ${r.status}`);
-          const d: any = await r.json();
-          allTokkoProps = allTokkoProps.concat(d.objects || []);
-          nextUrl = d.meta?.next ? `https://www.tokkobroker.com${d.meta.next}` : null;
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 10000);
+          try {
+            const r = await fetch(nextUrl, { signal: controller.signal });
+            clearTimeout(timeout);
+            if (!r.ok) throw new Error(`Tokko ${r.status}`);
+            const d: any = await r.json();
+            allTokkoProps = allTokkoProps.concat(d.objects || []);
+            nextUrl = d.meta?.next ? `https://www.tokkobroker.com${d.meta.next}` : null;
+          } catch (err: any) {
+            clearTimeout(timeout);
+            console.error('Error fetching properties:', err?.message);
+            break;
+          }
         }
 
         // Filtrar propiedades de este agente
