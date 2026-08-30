@@ -67,6 +67,7 @@ type AgentProfile = {
   linkedin_url: string;
   whatsapp_link: string;
   team_id: string;
+  role_title?: string | null;
 };
 
 type TokkoProperty = {

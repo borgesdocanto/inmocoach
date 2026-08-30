@@ -16,6 +16,7 @@ type Agent = {
   linkedin_url: string;
   whatsapp_link: string;
   team_id: string;
+  role_title?: string | null;
 };
 
 type Property = {
@@ -199,6 +200,11 @@ export default function AgentCardPage({ data, navigationHtml, navigationStyles, 
                 <h1 className="text-4xl font-bold text-gray-900 mb-2">
                   {profile.name}
                 </h1>
+                {profile.role_title && (
+                  <p className="text-lg text-galas-red font-semibold mb-4">
+                    {profile.role_title}
+                  </p>
+                )}
                 <p className="text-gray-700 mb-6 leading-relaxed max-w-2xl">
                   {profile.bio}
                 </p>
@@ -262,6 +268,28 @@ export default function AgentCardPage({ data, navigationHtml, navigationStyles, 
             </div>
           </div>
         </div>
+
+        {/* CTA especial para Team Leaders - Unirse al equipo */}
+        {profile.email === 'luciana@galas.com.ar' && (
+          <div className="bg-galas-light border-2 border-galas-red">
+            <div className="max-w-4xl mx-auto px-4 py-8">
+              <div className="text-center">
+                <h3 className="text-2xl font-bold text-gray-900 mb-3">
+                  ¿Te gustaría formar parte de nuestro equipo?
+                </h3>
+                <p className="text-gray-700 mb-6 max-w-2xl mx-auto">
+                  Sumate a GALAS y crecé con profesionales comprometidos en el mercado inmobiliario de la zona oeste. Tenemos oportunidades para agentes, corredores y asesores.
+                </p>
+                <a
+                  href="https://www.galas.com.ar/unite"
+                  className="inline-block bg-galas-red hover:bg-galas-dark text-white font-bold py-3 px-8 rounded-lg transition"
+                >
+                  Conocé cómo unirte →
+                </a>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Propiedades */}
         <div className="max-w-4xl mx-auto px-4 py-12">
