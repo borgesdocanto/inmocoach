@@ -61,21 +61,28 @@ export const getStaticProps: GetStaticProps<PageProps> = async () => {
     let navigationHtml = '';
     let navigationStyles = '';
     try {
-      const gamasRes = await fetch('https://www.galas.com.ar/', {
-        headers: { 'User-Agent': 'Mozilla/5.0' }
+      const galasRes = await fetch('https://www.galas.com.ar/', {
+        headers: { 'User-Agent': 'Mozilla/5.0' },
+        signal: AbortSignal.timeout(5000)
       });
-      const html = await gamasRes.text();
+      if (!galasRes.ok) throw new Error(`HTTP ${galasRes.status}`);
+      const html = await galasRes.text();
       const $ = cheerio.load(html);
 
-      // Extraer el nav (ajustar selector si es necesario)
-      const navElement = $('nav').first();
+      // Extraer el nav (intenta múltiples selectores)
+      let navElement = $('nav').first();
+      if (!navElement.html()) {
+        navElement = $('header nav').first(); // Fallback
+      }
       navigationHtml = navElement.html() || '';
 
       // Extraer estilos del <head> que se apliquen al nav
       const styleElements = $('head style');
       navigationStyles = styleElements.map((_: number, el: any) => $(el).html()).get().join('\n');
-    } catch (err) {
-      console.error('Error fetching GALAS menu:', err);
+      
+      console.log(`[agents] menú fetched: ${navigationHtml ? navigationHtml.length : 0} bytes`);
+    } catch (err: any) {
+      console.error('Error fetching GALAS menu:', err?.message || err);
       // Si falla, devolvemos empty - la página se muestra sin menú pero sin error
     }
 
@@ -173,7 +180,7 @@ export default function AgentsDirectoryPage({
                   onClick={() => setSelectedBranch('all')}
                   className={`px-4 py-2 rounded-lg font-medium transition ${
                     selectedBranch === 'all'
-                      ? 'bg-red-600 text-white'
+                      ? 'bg-galas-red text-white'
                       : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                   }`}
                 >
@@ -185,7 +192,7 @@ export default function AgentsDirectoryPage({
                     onClick={() => setSelectedBranch(branch.id)}
                     className={`px-4 py-2 rounded-lg font-medium transition ${
                       selectedBranch === branch.id
-                        ? 'bg-red-600 text-white'
+                        ? 'bg-galas-red text-white'
                         : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                     }`}
                   >
@@ -235,19 +242,19 @@ export default function AgentsDirectoryPage({
                                   sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 25vw"
                                 />
                               ) : (
-                                <div className="flex items-center justify-center h-full bg-white text-red-600 text-5xl font-bold">
+                                <div className="flex items-center justify-center h-full bg-white text-galas-red text-5xl font-bold">
                                   {agent.name[0].toUpperCase()}
                                 </div>
                               )}
                               {/* Badge */}
-                              <div className="absolute top-3 right-3 bg-red-600 text-white px-3 py-1 rounded-full text-xs font-bold">
+                              <div className="absolute top-3 right-3 bg-galas-red text-white px-3 py-1 rounded-full text-xs font-bold">
                                 {agent.team_role === 'owner' ? '🏢 Broker' : '👔 Coordinador'}
                               </div>
                             </div>
 
                             {/* Info */}
                             <div className="p-4 flex-1 flex flex-col">
-                              <h3 className="text-lg font-bold text-gray-900 group-hover:text-red-600 transition">
+                              <h3 className="text-lg font-bold text-gray-900 group-hover:text-galas-red transition">
                                 {agent.name}
                               </h3>
 
@@ -259,7 +266,7 @@ export default function AgentsDirectoryPage({
 
                               {/* Ver más información */}
                               <div className="mt-auto pt-4 border-t border-gray-200">
-                                <button className="w-full bg-red-600 hover:bg-red-700 text-white font-medium py-2 rounded transition">
+                                <button className="w-full bg-galas-red hover:bg-galas-dark text-white font-medium py-2 rounded transition">
                                   Ver más información
                                 </button>
                               </div>
@@ -301,7 +308,7 @@ export default function AgentsDirectoryPage({
                                   sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
                                 />
                               ) : (
-                                <div className="flex items-center justify-center h-full bg-white text-red-600 text-6xl font-bold">
+                                <div className="flex items-center justify-center h-full bg-white text-galas-red text-6xl font-bold">
                                   {agent.name[0].toUpperCase()}
                                 </div>
                               )}
@@ -309,7 +316,7 @@ export default function AgentsDirectoryPage({
 
                             {/* Info */}
                             <div className="p-6 flex-1 flex flex-col">
-                              <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-red-600 transition">
+                              <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-galas-red transition">
                                 {agent.name}
                               </h3>
 
@@ -321,7 +328,7 @@ export default function AgentsDirectoryPage({
 
                               {/* Ver más información */}
                               <div className="mt-auto pt-4 border-t border-gray-200">
-                                <button className="w-full bg-red-600 hover:bg-red-700 text-white font-medium py-2 rounded transition">
+                                <button className="w-full bg-galas-red hover:bg-galas-dark text-white font-medium py-2 rounded transition">
                                   Ver más información
                                 </button>
                               </div>
@@ -337,7 +344,7 @@ export default function AgentsDirectoryPage({
         </div>
 
         {/* CTA */}
-        <div className="bg-red-700 text-white py-12 mt-16">
+        <div className="bg-galas-dark text-white py-12 mt-16">
           <div className="max-w-4xl mx-auto px-4 text-center">
             <h2 className="text-3xl font-bold mb-4">¿Buscás una propiedad?</h2>
             <p className="text-lg mb-6 text-red-100">
@@ -348,7 +355,7 @@ export default function AgentsDirectoryPage({
               href="https://propiedades.galas.com.ar"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-block bg-white text-red-600 px-8 py-3 rounded-lg font-bold hover:bg-red-50 transition"
+              className="inline-block bg-white text-galas-red px-8 py-3 rounded-lg font-bold hover:bg-galas-light transition"
             >
               Ver todas las propiedades
             </a>

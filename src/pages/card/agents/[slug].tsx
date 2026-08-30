@@ -16,6 +16,7 @@ type Agent = {
   linkedin_url: string;
   whatsapp_link: string;
   team_id: string;
+  role_title?: string | null;
 };
 
 type Property = {
@@ -32,7 +33,6 @@ type Property = {
 type PageData = {
   profile: Agent;
   properties: Property[];
-  team_name?: string;
 };
 
 type PageProps = {
@@ -82,19 +82,26 @@ export const getStaticProps: GetStaticProps<PageProps> = async ({ params }) => {
     let navigationHtml = '';
     let navigationStyles = '';
     try {
-      const gamasRes = await fetch('https://www.galas.com.ar/', {
-        headers: { 'User-Agent': 'Mozilla/5.0' }
+      const galasRes = await fetch('https://www.galas.com.ar/', {
+        headers: { 'User-Agent': 'Mozilla/5.0' },
+        signal: AbortSignal.timeout(5000)
       });
-      const html = await gamasRes.text();
+      if (!galasRes.ok) throw new Error(`HTTP ${galasRes.status}`);
+      const html = await galasRes.text();
       const $ = cheerio.load(html);
 
-      const navElement = $('nav').first();
+      let navElement = $('nav').first();
+      if (!navElement.html()) {
+        navElement = $('header nav').first();
+      }
       navigationHtml = navElement.html() || '';
 
       const styleElements = $('head style');
       navigationStyles = styleElements.map((_: number, el: any) => $(el).html()).get().join('\n');
-    } catch (err) {
-      console.error('Error fetching GALAS menu:', err);
+      
+      console.log(`[agent-profile] menú fetched: ${navigationHtml ? navigationHtml.length : 0} bytes`);
+    } catch (err: any) {
+      console.error('Error fetching GALAS menu:', err?.message || err);
     }
 
     return {
@@ -126,7 +133,7 @@ export default function AgentCardPage({ data, navigationHtml, navigationStyles, 
         <div className="text-center">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Agente no encontrado</h1>
           <p className="text-gray-600 mb-4">{error || 'No pudimos encontrar a este agente'}</p>
-          <a href="/agents" className="text-red-600 hover:underline">
+          <a href="/agents" className="text-galas-red hover:underline">
             Ver todos los agentes
           </a>
         </div>
@@ -134,7 +141,7 @@ export default function AgentCardPage({ data, navigationHtml, navigationStyles, 
     );
   }
 
-  const { profile, properties, team_name } = data;
+  const { profile, properties } = data;
 
   const whatsappLink = profile.whatsapp_link
     ? `https://wa.me/${profile.whatsapp_link}`
@@ -171,7 +178,7 @@ export default function AgentCardPage({ data, navigationHtml, navigationStyles, 
             <div className="flex flex-col md:flex-row items-center space-y-6 md:space-y-0 md:space-x-8">
               {/* Foto - fondo blanco, sin cortes */}
               <div className="flex-shrink-0">
-                <div className="relative w-40 h-40 bg-white rounded-full overflow-hidden border-4 border-red-600 shadow-lg flex items-center justify-center">
+                <div className="relative w-40 h-40 bg-white rounded-full overflow-hidden border-4 border-galas-red shadow-lg flex items-center justify-center">
                   {profile.photo_url ? (
                     <Image
                       src={profile.photo_url}
@@ -181,7 +188,7 @@ export default function AgentCardPage({ data, navigationHtml, navigationStyles, 
                       sizes="160px"
                     />
                   ) : (
-                    <div className="flex items-center justify-center h-full bg-white text-red-600 text-4xl font-bold">
+                    <div className="flex items-center justify-center h-full bg-white text-galas-red text-4xl font-bold">
                       {profile.name[0].toUpperCase()}
                     </div>
                   )}
@@ -193,8 +200,10 @@ export default function AgentCardPage({ data, navigationHtml, navigationStyles, 
                 <h1 className="text-4xl font-bold text-gray-900 mb-2">
                   {profile.name}
                 </h1>
-                {team_name && (
-                  <p className="text-lg text-gray-600 mb-4">{team_name}</p>
+                {profile.role_title && (
+                  <p className="text-lg text-galas-red font-semibold mb-4">
+                    {profile.role_title}
+                  </p>
                 )}
                 <p className="text-gray-700 mb-6 leading-relaxed max-w-2xl">
                   {profile.bio}
@@ -205,7 +214,7 @@ export default function AgentCardPage({ data, navigationHtml, navigationStyles, 
                   {profile.phone && (
                     <a
                       href={`tel:${profile.phone}`}
-                      className="inline-flex items-center space-x-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg"
+                      className="inline-flex items-center space-x-2 bg-galas-red hover:bg-galas-dark text-white px-4 py-2 rounded-lg"
                     >
                       <span>📱 Llamar</span>
                     </a>
@@ -213,7 +222,7 @@ export default function AgentCardPage({ data, navigationHtml, navigationStyles, 
                   {profile.email_contact && (
                     <a
                       href={`mailto:${profile.email_contact}`}
-                      className="inline-flex items-center space-x-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg"
+                      className="inline-flex items-center space-x-2 bg-galas-red hover:bg-galas-dark text-white px-4 py-2 rounded-lg"
                     >
                       <span>✉️ Email</span>
                     </a>
@@ -248,7 +257,7 @@ export default function AgentCardPage({ data, navigationHtml, navigationStyles, 
                       href={profile.linkedin_url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-red-700 hover:text-red-800 text-2xl"
+                      className="text-galas-dark hover:text-galas-dark text-2xl"
                       title="LinkedIn"
                     >
                       💼
@@ -259,6 +268,28 @@ export default function AgentCardPage({ data, navigationHtml, navigationStyles, 
             </div>
           </div>
         </div>
+
+        {/* CTA especial para Team Leaders - Unirse al equipo */}
+        {profile.email === 'luciana@galas.com.ar' && (
+          <div className="bg-galas-light border-2 border-galas-red">
+            <div className="max-w-4xl mx-auto px-4 py-8">
+              <div className="text-center">
+                <h3 className="text-2xl font-bold text-gray-900 mb-3">
+                  ¿Te gustaría formar parte de nuestro equipo?
+                </h3>
+                <p className="text-gray-700 mb-6 max-w-2xl mx-auto">
+                  Sumate a GALAS y crecé con profesionales comprometidos en el mercado inmobiliario de la zona oeste. Tenemos oportunidades para agentes, corredores y asesores.
+                </p>
+                <a
+                  href="https://www.galas.com.ar/unite"
+                  className="inline-block bg-galas-red hover:bg-galas-dark text-white font-bold py-3 px-8 rounded-lg transition"
+                >
+                  Conocé cómo unirte →
+                </a>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Propiedades */}
         <div className="max-w-4xl mx-auto px-4 py-12">
@@ -315,26 +346,22 @@ export default function AgentCardPage({ data, navigationHtml, navigationStyles, 
 
                     {/* Info de la propiedad */}
                     <div className="p-4 flex-1 flex flex-col">
-                      <p className="text-gray-800 font-bold mb-2 group-hover:text-red-600 transition">
+                      <p className="text-gray-800 font-bold mb-2 group-hover:text-galas-red transition">
                         {prop.address}
                       </p>
 
                       {prop.price && (
-                        <p className="text-2xl font-bold text-red-600 mb-2">
+                        <p className="text-2xl font-bold text-galas-red mb-2">
                           {prop.currency === 'USD' ? 'USD ' : '$ '}{' '}
                           {prop.price.toLocaleString('es-AR')}
                         </p>
                       )}
 
-                      {prop.days_since_update !== undefined && (
-                        <p className="text-xs text-gray-500 mb-auto">
-                          Actualizado hace {prop.days_since_update} días
-                        </p>
-                      )}
+                      {/* Sin fecha de actualización */}
 
                       {/* CTA Button */}
                       <div className="mt-4 pt-4 border-t border-gray-200">
-                        <span className="inline-block bg-red-600 group-hover:bg-red-700 text-white px-3 py-2 rounded text-sm font-medium transition w-full text-center">
+                        <span className="inline-block bg-galas-red group-hover:bg-galas-dark text-white px-3 py-2 rounded text-sm font-medium transition w-full text-center">
                           Ver detalles →
                         </span>
                       </div>
@@ -354,7 +381,7 @@ export default function AgentCardPage({ data, navigationHtml, navigationStyles, 
               href="https://propiedades.galas.com.ar"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-block bg-red-700 hover:bg-red-800 text-white px-8 py-3 rounded-lg font-medium text-lg"
+              className="inline-block bg-galas-dark hover:bg-galas-dark text-white px-8 py-3 rounded-lg font-medium text-lg"
             >
               Ver todas las propiedades
             </a>
