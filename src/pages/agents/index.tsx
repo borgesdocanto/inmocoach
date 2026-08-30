@@ -221,13 +221,24 @@ export default function AgentsDirectoryPage({
                   <p className="text-gray-600">Profesionales inmobiliarios comprometidos con tu éxito</p>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                  {filteredAgents.map(agent => (
-                    <Link
-                      key={agent.id}
-                      href={`/agents/${agent.slug}`}
-                      className="group"
-                    >
-                      <div className="bg-white rounded-lg shadow-md hover:shadow-xl transition border border-gray-200 overflow-hidden cursor-pointer h-full flex flex-col">
+                  {filteredAgents
+                    .sort((a, b) => {
+                      // Líderes (owners + team_leaders) primero
+                      const aIsLeader = a.team_role === 'owner' || a.team_role === 'team_leader';
+                      const bIsLeader = b.team_role === 'owner' || b.team_role === 'team_leader';
+                      if (aIsLeader !== bIsLeader) {
+                        return aIsLeader ? -1 : 1;
+                      }
+                      // Si ambos son líderes o ambos no, ordenar alfabéticamente
+                      return a.name.localeCompare(b.name);
+                    })
+                    .map(agent => (
+                      <Link
+                        key={agent.id}
+                        href={`/agents/${agent.slug}`}
+                        className="group"
+                      >
+                        <div className="bg-white rounded-lg shadow-md hover:shadow-xl transition border border-gray-200 overflow-hidden cursor-pointer h-full flex flex-col">
                         {/* Foto */}
                         <div className="relative h-48 bg-white overflow-hidden">
                           {agent.photo_url ? (
