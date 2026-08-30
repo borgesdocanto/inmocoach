@@ -219,40 +219,11 @@ export default function AgentsDirectoryPage() {
                                 </p>
                               )}
 
-                              {/* Contacto rápido */}
-                              <div className="mt-auto pt-3 border-t border-gray-200 flex items-center space-x-3">
-                                {agent.phone && (
-                                  <a
-                                    href={`tel:${agent.phone}`}
-                                    onClick={e => e.preventDefault()}
-                                    className="text-gray-600 hover:text-red-600 transition"
-                                    title="Llamar"
-                                  >
-                                    📱
-                                  </a>
-                                )}
-                                {agent.email_contact && (
-                                  <a
-                                    href={`mailto:${agent.email_contact}`}
-                                    onClick={e => e.preventDefault()}
-                                    className="text-gray-600 hover:text-red-600 transition"
-                                    title="Email"
-                                  >
-                                    ✉️
-                                  </a>
-                                )}
-                                {agent.whatsapp_link && (
-                                  <a
-                                    href={`https://wa.me/${agent.whatsapp_link}`}
-                                    onClick={e => e.preventDefault()}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-gray-600 hover:text-green-600 transition"
-                                    title="WhatsApp"
-                                  >
-                                    💬
-                                  </a>
-                                )}
+                              {/* Ver más información */}
+                              <div className="mt-auto pt-4 border-t border-gray-200">
+                                <button className="w-full bg-red-600 hover:bg-red-700 text-white font-medium py-2 rounded transition">
+                                  Ver más información
+                                </button>
                               </div>
                             </div>
                           </div>
@@ -310,40 +281,11 @@ export default function AgentsDirectoryPage() {
                                 </p>
                               )}
 
-                              {/* Contacto rápido */}
-                              <div className="mt-auto pt-4 border-t border-gray-200 flex items-center space-x-3">
-                                {agent.phone && (
-                                  <a
-                                    href={`tel:${agent.phone}`}
-                                    onClick={e => e.preventDefault()}
-                                    className="text-gray-600 hover:text-red-600 transition text-lg"
-                                    title="Llamar"
-                                  >
-                                    📱
-                                  </a>
-                                )}
-                                {agent.email_contact && (
-                                  <a
-                                    href={`mailto:${agent.email_contact}`}
-                                    onClick={e => e.preventDefault()}
-                                    className="text-gray-600 hover:text-red-600 transition text-lg"
-                                    title="Email"
-                                  >
-                                    ✉️
-                                  </a>
-                                )}
-                                {agent.whatsapp_link && (
-                                  <a
-                                    href={`https://wa.me/${agent.whatsapp_link}`}
-                                    onClick={e => e.preventDefault()}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-gray-600 hover:text-green-600 transition text-lg"
-                                    title="WhatsApp"
-                                  >
-                                    💬
-                                  </a>
-                                )}
+                              {/* Ver más información */}
+                              <div className="mt-auto pt-4 border-t border-gray-200">
+                                <button className="w-full bg-red-600 hover:bg-red-700 text-white font-medium py-2 rounded transition">
+                                  Ver más información
+                                </button>
                               </div>
                             </div>
                           </div>
