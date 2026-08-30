@@ -91,12 +91,12 @@ export default function AgentsDirectoryPage() {
   return (
     <>
       <Head>
-        <title>Directorio de Agentes - GALAS Inmobiliaria</title>
+        <title>Directorio del Equipo - GALAS Inmobiliaria</title>
         <meta
           name="description"
-          content="Conocé a nuestros agentes inmobiliarios especialistas"
+          content="Conocé a nuestro equipo de asesores inmobiliarios"
         />
-        <meta property="og:title" content="Directorio de Agentes - GALAS" />
+        <meta property="og:title" content="Directorio del Equipo - GALAS" />
         <meta
           property="og:description"
           content="Equipo de profesionales inmobiliarios"
@@ -108,7 +108,7 @@ export default function AgentsDirectoryPage() {
         <div className="bg-white border-b border-gray-200 shadow-sm">
           <div className="max-w-6xl mx-auto px-4 py-12">
             <h1 className="text-4xl font-bold text-gray-900 mb-2">
-              Nuestros Agentes
+              Nuestro Equipo
             </h1>
             <p className="text-lg text-gray-600">
               Equipo de profesionales inmobiliarios dedicados a tu éxito
@@ -262,14 +262,14 @@ export default function AgentsDirectoryPage() {
                 </div>
               )}
 
-              {/* Agentes */}
+              {/* Asesores */}
               {filteredAgents.some(a => a.team_role === 'member') && (
                 <div>
                   <div className="mb-6">
                     <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                      🏠 Agentes Inmobiliarios
+                      🏠 Asesores Inmobiliarios
                     </h2>
-                    <p className="text-gray-600">Nuestro equipo de profesionales</p>
+                    <p className="text-gray-600">Nuestro equipo de asesores</p>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                     {filteredAgents
@@ -361,7 +361,7 @@ export default function AgentsDirectoryPage() {
           <div className="max-w-4xl mx-auto px-4 text-center">
             <h2 className="text-3xl font-bold mb-4">¿Buscás una propiedad?</h2>
             <p className="text-lg mb-6 text-red-100">
-              Contáctate con cualquiera de nuestros agentes para encontrar tu
+              Contáctate con cualquiera de nuestro equipo para encontrar tu
               próximo hogar
             </p>
             <a
