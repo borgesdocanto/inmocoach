@@ -15,32 +15,6 @@ const nextConfig = {
       },
     ],
   },
-  async rewrites() {
-    return [
-      // Rewrite solo las rutas que NO sean /api
-      {
-        source: '/:path((?!api).*)',
-        destination: '/agents/:path',
-        has: [
-          {
-            type: 'host',
-            value: 'card\\.galas\\.com\\.ar',
-          },
-        ],
-      },
-      // La raíz de card.galas.com.ar
-      {
-        source: '/',
-        destination: '/agents',
-        has: [
-          {
-            type: 'host',
-            value: 'card\\.galas\\.com\\.ar',
-          },
-        ],
-      },
-    ];
-  },
 }
 
 module.exports = nextConfig
