@@ -187,7 +187,7 @@ export default function AgentsDirectoryPage() {
                         >
                           <div className="bg-white rounded-lg shadow-md hover:shadow-xl transition border border-red-200 overflow-hidden cursor-pointer h-full flex flex-col">
                             {/* Foto */}
-                            <div className="relative h-48 bg-gradient-to-br from-red-100 to-red-50 overflow-hidden">
+                            <div className="relative h-48 bg-white overflow-hidden">
                               {agent.photo_url ? (
                                 <Image
                                   src={agent.photo_url}
@@ -197,7 +197,7 @@ export default function AgentsDirectoryPage() {
                                   sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 25vw"
                                 />
                               ) : (
-                                <div className="flex items-center justify-center h-full bg-gradient-to-br from-red-400 to-red-500 text-white text-5xl font-bold">
+                                <div className="flex items-center justify-center h-full bg-white text-red-600 text-5xl font-bold">
                                   {agent.name[0].toUpperCase()}
                                 </div>
                               )}
@@ -282,7 +282,7 @@ export default function AgentsDirectoryPage() {
                         >
                           <div className="bg-white rounded-lg shadow-md hover:shadow-xl transition border border-gray-200 overflow-hidden cursor-pointer h-full flex flex-col">
                             {/* Foto */}
-                            <div className="relative h-64 bg-gradient-to-br from-red-100 to-red-50 overflow-hidden">
+                            <div className="relative h-64 bg-white overflow-hidden">
                               {agent.photo_url ? (
                                 <Image
                                   src={agent.photo_url}
@@ -292,7 +292,7 @@ export default function AgentsDirectoryPage() {
                                   sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
                                 />
                               ) : (
-                                <div className="flex items-center justify-center h-full bg-gradient-to-br from-red-400 to-red-600 text-white text-6xl font-bold">
+                                <div className="flex items-center justify-center h-full bg-white text-red-600 text-6xl font-bold">
                                   {agent.name[0].toUpperCase()}
                                 </div>
                               )}

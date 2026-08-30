@@ -102,7 +102,7 @@ export default function AgentCardPage() {
         {profile.photo_url && <meta property="og:image" content={profile.photo_url} />}
       </Head>
 
-      <div className="min-h-screen bg-gradient-to-b from-red-50 to-white">
+      <div className="min-h-screen bg-white">
         {/* Header con foto */}
         <div className="bg-white border-b border-gray-200">
           <div className="max-w-4xl mx-auto px-4 py-12">
