@@ -1,2 +1,387 @@
-// Renderizar el directorio de agentes en card.galas.com.ar
-export { default } from '../agents';
+import { useState, useEffect } from 'react';
+import Image from 'next/image';
+import Head from 'next/head';
+import { useRouter } from 'next/router';
+import Link from 'next/link';
+
+type Agent = {
+  id: string;
+  email: string;
+  name: string;
+  slug: string;
+  photo_url: string | null;
+  bio: string;
+  phone: string;
+  email_contact: string;
+  instagram_url: string;
+  linkedin_url: string;
+  whatsapp_link: string;
+  team_id: string;
+  branch_id: number | null;
+  team_role: 'owner' | 'team_leader' | 'member';
+};
+
+export default function AgentsDirectoryPage() {
+  const router = useRouter();
+  const [agents, setAgents] = useState<Agent[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [selectedBranch, setSelectedBranch] = useState('all');
+  const [branches, setBranches] = useState<{ id: string; name: string }[]>([]);
+
+  useEffect(() => {
+    const fetchAgents = async () => {
+      try {
+        // TODO: Obtener branches del usuario actual si está autenticado
+        // Por ahora mostramos todos los agentes
+        const res = await fetch('/api/agents');
+        if (!res.ok) throw new Error('Failed to fetch agents');
+        const data = await res.json();
+        setAgents(data);
+
+        // Extraer branches únicos - usar números directamente
+        const branchNames: Record<number, string> = {
+          60: 'Padua',
+          61: 'Castelar',
+          62: 'Ituzaingó',
+        };
+
+        const uniqueBranchIds = new Set<number>();
+        data.forEach((agent: Agent) => {
+          if (agent.branch_id && branchNames[agent.branch_id]) {
+            uniqueBranchIds.add(agent.branch_id);
+          }
+        });
+
+        // Convertir a array ordenado por ID
+        setBranches(
+          Array.from(uniqueBranchIds)
+            .sort()
+            .map((id: number) => ({ 
+              id: String(id),  // guardar como string para el estado
+              name: branchNames[id] 
+            }))
+        );
+      } catch (err) {
+        setError((err as Error).message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAgents();
+  }, []);
+
+  // Filtrar agentes: si selectedBranch es 'all', mostrar todos
+  // Si no, convertir selectedBranch a número y comparar con branch_id
+  const filteredAgents = agents.filter(agent => {
+    if (selectedBranch === 'all') return true;
+    const selectedBranchId = parseInt(selectedBranch, 10);
+    return agent.branch_id === selectedBranchId;
+  });
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-gray-50">
+        <p className="text-gray-600">Cargando directorio...</p>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <Head>
+        <title>Directorio de Agentes - GALAS Inmobiliaria</title>
+        <meta
+          name="description"
+          content="Conocé a nuestros agentes inmobiliarios especialistas"
+        />
+        <meta property="og:title" content="Directorio de Agentes - GALAS" />
+        <meta
+          property="og:description"
+          content="Equipo de profesionales inmobiliarios"
+        />
+      </Head>
+
+      <div className="min-h-screen bg-white">
+        {/* Header */}
+        <div className="bg-white border-b border-gray-200 shadow-sm">
+          <div className="max-w-6xl mx-auto px-4 py-12">
+            <h1 className="text-4xl font-bold text-gray-900 mb-2">
+              Nuestros Agentes
+            </h1>
+            <p className="text-lg text-gray-600">
+              Equipo de profesionales inmobiliarios dedicados a tu éxito
+            </p>
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="max-w-6xl mx-auto px-4 py-12">
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-6">
+              Error: {error}
+            </div>
+          )}
+
+          {/* Filtros */}
+          {branches.length > 1 && (
+            <div className="mb-8">
+              <h2 className="text-sm font-medium text-gray-700 mb-3">
+                Filtrar por sucursal:
+              </h2>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() => setSelectedBranch('all')}
+                  className={`px-4 py-2 rounded-lg font-medium transition ${
+                    selectedBranch === 'all'
+                      ? 'bg-red-600 text-white'
+                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  }`}
+                >
+                  Todas las sucursales
+                </button>
+                {branches.map(branch => (
+                  <button
+                    key={branch.id}
+                    onClick={() => setSelectedBranch(branch.id)}
+                    className={`px-4 py-2 rounded-lg font-medium transition ${
+                      selectedBranch === branch.id
+                        ? 'bg-red-600 text-white'
+                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
+                  >
+                    {branch.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Agents Grid - Separar broker/team_leader al inicio */}
+          {filteredAgents.length === 0 ? (
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-12 text-center">
+              <p className="text-gray-600 text-lg">
+                No hay agentes disponibles en este momento
+              </p>
+            </div>
+          ) : (
+            <>
+              {/* Broker y Team Leader */}
+              {filteredAgents.some(a => a.team_role === 'owner' || a.team_role === 'team_leader') && (
+                <div className="mb-12">
+                  <div className="mb-6">
+                    <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                      👥 Liderazgo
+                    </h2>
+                    <p className="text-gray-600">Directivos y coordinadores del equipo</p>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    {filteredAgents
+                      .filter(a => a.team_role === 'owner' || a.team_role === 'team_leader')
+                      .map(agent => (
+                        <Link
+                          key={agent.id}
+                          href={`/agents/${agent.slug}`}
+                          className="group"
+                        >
+                          <div className="bg-white rounded-lg shadow-md hover:shadow-xl transition border border-red-200 overflow-hidden cursor-pointer h-full flex flex-col">
+                            {/* Foto */}
+                            <div className="relative h-48 bg-gradient-to-br from-red-100 to-red-50 overflow-hidden">
+                              {agent.photo_url ? (
+                                <Image
+                                  src={agent.photo_url}
+                                  alt={agent.name}
+                                  fill
+                                  className="object-contain object-center group-hover:scale-105 transition duration-300"
+                                  sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 25vw"
+                                />
+                              ) : (
+                                <div className="flex items-center justify-center h-full bg-gradient-to-br from-red-400 to-red-500 text-white text-5xl font-bold">
+                                  {agent.name[0].toUpperCase()}
+                                </div>
+                              )}
+                              {/* Badge */}
+                              <div className="absolute top-3 right-3 bg-red-600 text-white px-3 py-1 rounded-full text-xs font-bold">
+                                {agent.team_role === 'owner' ? '🏢 Broker' : '👔 Coordinador'}
+                              </div>
+                            </div>
+
+                            {/* Info */}
+                            <div className="p-4 flex-1 flex flex-col">
+                              <h3 className="text-lg font-bold text-gray-900 group-hover:text-red-600 transition">
+                                {agent.name}
+                              </h3>
+
+                              {agent.bio && (
+                                <p className="text-gray-600 text-xs mt-2 line-clamp-2">
+                                  {agent.bio}
+                                </p>
+                              )}
+
+                              {/* Contacto rápido */}
+                              <div className="mt-auto pt-3 border-t border-gray-200 flex items-center space-x-3">
+                                {agent.phone && (
+                                  <a
+                                    href={`tel:${agent.phone}`}
+                                    onClick={e => e.preventDefault()}
+                                    className="text-gray-600 hover:text-red-600 transition"
+                                    title="Llamar"
+                                  >
+                                    📱
+                                  </a>
+                                )}
+                                {agent.email_contact && (
+                                  <a
+                                    href={`mailto:${agent.email_contact}`}
+                                    onClick={e => e.preventDefault()}
+                                    className="text-gray-600 hover:text-red-600 transition"
+                                    title="Email"
+                                  >
+                                    ✉️
+                                  </a>
+                                )}
+                                {agent.whatsapp_link && (
+                                  <a
+                                    href={`https://wa.me/${agent.whatsapp_link}`}
+                                    onClick={e => e.preventDefault()}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-gray-600 hover:text-green-600 transition"
+                                    title="WhatsApp"
+                                  >
+                                    💬
+                                  </a>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </Link>
+                      ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Agentes */}
+              {filteredAgents.some(a => a.team_role === 'member') && (
+                <div>
+                  <div className="mb-6">
+                    <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                      🏠 Agentes Inmobiliarios
+                    </h2>
+                    <p className="text-gray-600">Nuestro equipo de profesionales</p>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                    {filteredAgents
+                      .filter(a => a.team_role === 'member')
+                      .map(agent => (
+                        <Link
+                          key={agent.id}
+                          href={`/agents/${agent.slug}`}
+                          className="group"
+                        >
+                          <div className="bg-white rounded-lg shadow-md hover:shadow-xl transition border border-gray-200 overflow-hidden cursor-pointer h-full flex flex-col">
+                            {/* Foto */}
+                            <div className="relative h-64 bg-gradient-to-br from-red-100 to-red-50 overflow-hidden">
+                              {agent.photo_url ? (
+                                <Image
+                                  src={agent.photo_url}
+                                  alt={agent.name}
+                                  fill
+                                  className="object-contain object-center group-hover:scale-105 transition duration-300"
+                                  sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                                />
+                              ) : (
+                                <div className="flex items-center justify-center h-full bg-gradient-to-br from-red-400 to-red-600 text-white text-6xl font-bold">
+                                  {agent.name[0].toUpperCase()}
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Info */}
+                            <div className="p-6 flex-1 flex flex-col">
+                              <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-red-600 transition">
+                                {agent.name}
+                              </h3>
+
+                              {agent.bio && (
+                                <p className="text-gray-600 text-sm mb-4 line-clamp-3">
+                                  {agent.bio}
+                                </p>
+                              )}
+
+                              {/* Contacto rápido */}
+                              <div className="mt-auto pt-4 border-t border-gray-200 flex items-center space-x-3">
+                                {agent.phone && (
+                                  <a
+                                    href={`tel:${agent.phone}`}
+                                    onClick={e => e.preventDefault()}
+                                    className="text-gray-600 hover:text-red-600 transition text-lg"
+                                    title="Llamar"
+                                  >
+                                    📱
+                                  </a>
+                                )}
+                                {agent.email_contact && (
+                                  <a
+                                    href={`mailto:${agent.email_contact}`}
+                                    onClick={e => e.preventDefault()}
+                                    className="text-gray-600 hover:text-red-600 transition text-lg"
+                                    title="Email"
+                                  >
+                                    ✉️
+                                  </a>
+                                )}
+                                {agent.whatsapp_link && (
+                                  <a
+                                    href={`https://wa.me/${agent.whatsapp_link}`}
+                                    onClick={e => e.preventDefault()}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-gray-600 hover:text-green-600 transition text-lg"
+                                    title="WhatsApp"
+                                  >
+                                    💬
+                                  </a>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </Link>
+                      ))}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+
+        {/* CTA */}
+        <div className="bg-red-700 text-white py-12 mt-16">
+          <div className="max-w-4xl mx-auto px-4 text-center">
+            <h2 className="text-3xl font-bold mb-4">¿Buscás una propiedad?</h2>
+            <p className="text-lg mb-6 text-red-100">
+              Contáctate con cualquiera de nuestros agentes para encontrar tu
+              próximo hogar
+            </p>
+            <a
+              href="https://propiedades.galas.com.ar"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-block bg-white text-red-600 px-8 py-3 rounded-lg font-bold hover:bg-red-50 transition"
+            >
+              Ver todas las propiedades
+            </a>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="bg-gray-900 text-white text-center py-8">
+          <p className="text-gray-400">
+            © 2026 GALAS Inmobiliaria. Todos los derechos reservados.
+          </p>
+        </div>
+      </div>
+    </>
+  );
+}
