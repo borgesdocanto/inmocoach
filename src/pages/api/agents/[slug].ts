@@ -114,7 +114,7 @@ export default async function handler(
     // Obtener datos del agente desde Tokko para nombre y foto fallback
     const { data: tokkoAgent } = await supabaseAdmin
       .from('tokko_agents')
-      .select('name, picture, email')
+      .select('name, picture, email, tokko_id')
       .eq('email', profile.email)
       .single();
 
@@ -138,22 +138,31 @@ export default async function handler(
       tokkoPhotos = await getTokkoPropertyPhotos(teamData.tokko_api_key, profile.team_id);
     }
 
-    // Obtener propiedades del agente desde tokko_properties
+    // Obtener propiedades del agente DIRECTO de Tokko API (más completo que Supabase sync)
     let properties: TokkoProperty[] = [];
     try {
-      // Buscar propiedades publicadas del agente por email
-      const { data: tokkoProps, error: propsError } = await supabaseAdmin
-        .from('tokko_properties')
-        .select('id, tokko_id, title, address, price, currency, photos_count, status, days_since_update, producer_email, thumbnail')
-        .eq('producer_email', profile.email)
-        .eq('status', 2)  // Solo publicadas
-        .order('days_since_update', { ascending: true });
+      if (teamData?.tokko_api_key) {
+        // Fetch directo de Tokko para obtener TODAS las propiedades (no solo las sincronizadas)
+        let allTokkoProps: any[] = [];
+        let nextUrl: string | null = 
+          `https://www.tokkobroker.com/api/v1/property/?key=${teamData.tokko_api_key}&format=json&limit=500&lang=es_ar`;
+        
+        while (nextUrl) {
+          const r = await fetch(nextUrl, { signal: AbortSignal.timeout(10000) });
+          if (!r.ok) throw new Error(`Tokko ${r.status}`);
+          const d: any = await r.json();
+          allTokkoProps = allTokkoProps.concat(d.objects || []);
+          nextUrl = d.meta?.next ? `https://www.tokkobroker.com${d.meta.next}` : null;
+        }
 
-      if (propsError) {
-        console.error('Error fetching properties:', propsError);
-      } else {
+        // Filtrar propiedades de este agente
+        const agentTokkoId = tokkoAgent?.tokko_id;
+        const agentProps = agentTokkoId
+          ? allTokkoProps.filter((p: any) => p.producer?.id === agentTokkoId)
+          : [];
+
         // Construir URLs correctas para propiedades
-        properties = (tokkoProps || []).map(prop => {
+        properties = (agentProps || []).map((prop: any) => {
           // Slugify: convertir "Casa en Venta en..." a "Casa-en-Venta-en-..."
           const slugify = (text: string) => {
             return text
@@ -165,17 +174,31 @@ export default async function handler(
               .replace(/^-|-$/g, '');
           };
           
-          const titleForSlug = prop.title || prop.address;
+          const titleForSlug = prop.publication_title || prop.address;
           const slug = slugify(titleForSlug);
           const propertyUrl = slug 
-            ? `https://propiedades.galas.com.ar/p/${prop.tokko_id}-${slug}`
-            : `https://propiedades.galas.com.ar/p/${prop.tokko_id}`;
+            ? `https://propiedades.galas.com.ar/p/${prop.id}-${slug}`
+            : `https://propiedades.galas.com.ar/p/${prop.id}`;
           
-          // Obtener foto desde Tokko (primera foto)
-          const photoUrl = tokkoPhotos[prop.tokko_id];
+          // Obtener foto desde Tokko (primera foto no blueprint)
+          const firstPhoto = (prop.photos || []).find((p: any) => !p.is_blueprint);
+          const photoUrl = firstPhoto?.url || firstPhoto?.thumb;
           
-          return { ...prop, propertyUrl, photoUrl };
-        });
+          return {
+            id: String(prop.id),
+            tokko_id: prop.id,
+            title: prop.publication_title,
+            address: prop.address,
+            price: prop.operations?.[0]?.prices?.[0]?.price || null,
+            currency: prop.operations?.[0]?.prices?.[0]?.currency || null,
+            photos_count: (prop.photos || []).filter((p: any) => !p.is_blueprint).length,
+            status: prop.status,
+            days_since_update: null,
+            producer_email: prop.producer?.email,
+            propertyUrl,
+            photoUrl
+          } as any;
+        }) as TokkoProperty[];
       }
     } catch (err) {
       console.error('Error in properties fetch:', err);
