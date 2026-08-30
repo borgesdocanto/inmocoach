@@ -82,19 +82,26 @@ export const getStaticProps: GetStaticProps<PageProps> = async ({ params }) => {
     let navigationHtml = '';
     let navigationStyles = '';
     try {
-      const gamasRes = await fetch('https://www.galas.com.ar/', {
-        headers: { 'User-Agent': 'Mozilla/5.0' }
+      const galasRes = await fetch('https://www.galas.com.ar/', {
+        headers: { 'User-Agent': 'Mozilla/5.0' },
+        signal: AbortSignal.timeout(5000)
       });
-      const html = await gamasRes.text();
+      if (!galasRes.ok) throw new Error(`HTTP ${galasRes.status}`);
+      const html = await galasRes.text();
       const $ = cheerio.load(html);
 
-      const navElement = $('nav').first();
+      let navElement = $('nav').first();
+      if (!navElement.html()) {
+        navElement = $('header nav').first();
+      }
       navigationHtml = navElement.html() || '';
 
       const styleElements = $('head style');
       navigationStyles = styleElements.map((_: number, el: any) => $(el).html()).get().join('\n');
-    } catch (err) {
-      console.error('Error fetching GALAS menu:', err);
+      
+      console.log(`[agent-profile] menú fetched: ${navigationHtml ? navigationHtml.length : 0} bytes`);
+    } catch (err: any) {
+      console.error('Error fetching GALAS menu:', err?.message || err);
     }
 
     return {

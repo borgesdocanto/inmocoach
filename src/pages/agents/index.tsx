@@ -61,21 +61,28 @@ export const getStaticProps: GetStaticProps<PageProps> = async () => {
     let navigationHtml = '';
     let navigationStyles = '';
     try {
-      const gamasRes = await fetch('https://www.galas.com.ar/', {
-        headers: { 'User-Agent': 'Mozilla/5.0' }
+      const galasRes = await fetch('https://www.galas.com.ar/', {
+        headers: { 'User-Agent': 'Mozilla/5.0' },
+        signal: AbortSignal.timeout(5000)
       });
-      const html = await gamasRes.text();
+      if (!galasRes.ok) throw new Error(`HTTP ${galasRes.status}`);
+      const html = await galasRes.text();
       const $ = cheerio.load(html);
 
-      // Extraer el nav (ajustar selector si es necesario)
-      const navElement = $('nav').first();
+      // Extraer el nav (intenta múltiples selectores)
+      let navElement = $('nav').first();
+      if (!navElement.html()) {
+        navElement = $('header nav').first(); // Fallback
+      }
       navigationHtml = navElement.html() || '';
 
       // Extraer estilos del <head> que se apliquen al nav
       const styleElements = $('head style');
       navigationStyles = styleElements.map((_: number, el: any) => $(el).html()).get().join('\n');
-    } catch (err) {
-      console.error('Error fetching GALAS menu:', err);
+      
+      console.log(`[agents] menú fetched: ${navigationHtml ? navigationHtml.length : 0} bytes`);
+    } catch (err: any) {
+      console.error('Error fetching GALAS menu:', err?.message || err);
       // Si falla, devolvemos empty - la página se muestra sin menú pero sin error
     }
 
