@@ -15,6 +15,23 @@ const nextConfig = {
       },
     ],
   },
+  async rewrites() {
+    return {
+      beforeFiles: [
+        // card.galas.com.ar → /agents
+        {
+          source: '/:path*',
+          destination: '/agents/:path*',
+          has: [
+            {
+              type: 'host',
+              value: 'card\\.galas\\.com\\.ar',
+            },
+          ],
+        },
+      ],
+    };
+  },
 }
 
 module.exports = nextConfig
