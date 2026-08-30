@@ -212,133 +212,70 @@ export default function AgentsDirectoryPage({
             </div>
           ) : (
             <>
-              {/* Broker y Team Leader */}
-              {filteredAgents.some(a => a.team_role === 'owner' || a.team_role === 'team_leader') && (
-                <div className="mb-12">
-                  <div className="mb-6">
-                    <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                      👥 Liderazgo
-                    </h2>
-                    <p className="text-gray-600">Directivos y coordinadores del equipo</p>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                    {filteredAgents
-                      .filter(a => a.team_role === 'owner' || a.team_role === 'team_leader')
-                      .map(agent => (
-                        <Link
-                          key={agent.id}
-                          href={`/agents/${agent.slug}`}
-                          className="group"
-                        >
-                          <div className="bg-white rounded-lg shadow-md hover:shadow-xl transition border border-red-200 overflow-hidden cursor-pointer h-full flex flex-col">
-                            {/* Foto */}
-                            <div className="relative h-48 bg-white overflow-hidden">
-                              {agent.photo_url ? (
-                                <Image
-                                  src={agent.photo_url}
-                                  alt={agent.name}
-                                  fill
-                                  className="object-contain object-center group-hover:scale-105 transition duration-300"
-                                  sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 25vw"
-                                />
-                              ) : (
-                                <div className="flex items-center justify-center h-full bg-white text-galas-red text-5xl font-bold">
-                                  {agent.name[0].toUpperCase()}
-                                </div>
-                              )}
-                              {/* Badge */}
-                              <div className="absolute top-3 right-3 bg-galas-red text-white px-3 py-1 rounded-full text-xs font-bold">
-                                {agent.team_role === 'owner' ? '🏢 Broker' : '👔 Coordinador'}
-                              </div>
-                            </div>
-
-                            {/* Info */}
-                            <div className="p-4 flex-1 flex flex-col">
-                              <h3 className="text-lg font-bold text-gray-900 group-hover:text-galas-red transition">
-                                {agent.name}
-                              </h3>
-
-                              {agent.bio && (
-                                <p className="text-gray-600 text-xs mt-2 line-clamp-2">
-                                  {agent.bio}
-                                </p>
-                              )}
-
-                              {/* Ver más información */}
-                              <div className="mt-auto pt-4 border-t border-gray-200">
-                                <button className="w-full bg-galas-red hover:bg-galas-dark text-white font-medium py-2 rounded transition">
-                                  Ver más información
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        </Link>
-                      ))}
-                  </div>
+              {/* Nuestro Equipo - Lista única sin distinciones */}
+              <div className="mb-12">
+                <div className="mb-8">
+                  <h2 className="text-3xl font-bold text-gray-900 mb-2">
+                    Nuestro Equipo
+                  </h2>
+                  <p className="text-gray-600">Profesionales inmobiliarios comprometidos con tu éxito</p>
                 </div>
-              )}
-
-              {/* Asesores */}
-              {filteredAgents.some(a => a.team_role === 'member') && (
-                <div>
-                  <div className="mb-6">
-                    <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                      🏠 Asesores Inmobiliarios
-                    </h2>
-                    <p className="text-gray-600">Nuestro equipo de asesores</p>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                    {filteredAgents
-                      .filter(a => a.team_role === 'member')
-                      .map(agent => (
-                        <Link
-                          key={agent.id}
-                          href={`/agents/${agent.slug}`}
-                          className="group"
-                        >
-                          <div className="bg-white rounded-lg shadow-md hover:shadow-xl transition border border-gray-200 overflow-hidden cursor-pointer h-full flex flex-col">
-                            {/* Foto */}
-                            <div className="relative h-64 bg-white overflow-hidden">
-                              {agent.photo_url ? (
-                                <Image
-                                  src={agent.photo_url}
-                                  alt={agent.name}
-                                  fill
-                                  className="object-contain object-center group-hover:scale-105 transition duration-300"
-                                  sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                                />
-                              ) : (
-                                <div className="flex items-center justify-center h-full bg-white text-galas-red text-6xl font-bold">
-                                  {agent.name[0].toUpperCase()}
-                                </div>
-                              )}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                  {filteredAgents.map(agent => (
+                    <Link
+                      key={agent.id}
+                      href={`/agents/${agent.slug}`}
+                      className="group"
+                    >
+                      <div className="bg-white rounded-lg shadow-md hover:shadow-xl transition border border-gray-200 overflow-hidden cursor-pointer h-full flex flex-col">
+                        {/* Foto */}
+                        <div className="relative h-48 bg-white overflow-hidden">
+                          {agent.photo_url ? (
+                            <Image
+                              src={agent.photo_url}
+                              alt={agent.name}
+                              fill
+                              className="object-contain object-center group-hover:scale-105 transition duration-300"
+                              sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                            />
+                          ) : (
+                            <div className="flex items-center justify-center h-full bg-white text-galas-red text-6xl font-bold">
+                              {agent.name[0].toUpperCase()}
                             </div>
-
-                            {/* Info */}
-                            <div className="p-6 flex-1 flex flex-col">
-                              <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-galas-red transition">
-                                {agent.name}
-                              </h3>
-
-                              {agent.bio && (
-                                <p className="text-gray-600 text-sm mb-4 line-clamp-3">
-                                  {agent.bio}
-                                </p>
-                              )}
-
-                              {/* Ver más información */}
-                              <div className="mt-auto pt-4 border-t border-gray-200">
-                                <button className="w-full bg-galas-red hover:bg-galas-dark text-white font-medium py-2 rounded transition">
-                                  Ver más información
-                                </button>
-                              </div>
+                          )}
+                          
+                          {/* Badge discreto solo para líderes */}
+                          {(agent.team_role === 'owner' || agent.team_role === 'team_leader') && (
+                            <div className="absolute top-3 right-3 bg-galas-red text-white px-2 py-1 rounded-full text-sm font-bold">
+                              ⭐
                             </div>
+                          )}
+                        </div>
+
+                        {/* Info */}
+                        <div className="p-4 flex-1 flex flex-col">
+                          <h3 className="text-lg font-bold text-gray-900 group-hover:text-galas-red transition">
+                            {agent.name}
+                          </h3>
+
+                          {agent.bio && (
+                            <p className="text-gray-600 text-xs mt-2 line-clamp-2">
+                              {agent.bio}
+                            </p>
+                          )}
+
+                          {/* Ver más información */}
+                          <div className="mt-auto pt-4 border-t border-gray-200">
+                            <button className="w-full bg-galas-red hover:bg-galas-dark text-white font-medium py-2 rounded transition">
+                              Ver más información
+                            </button>
                           </div>
-                        </Link>
-                      ))}
-                  </div>
+                        </div>
+                      </div>
+                    </Link>
+                  ))}
                 </div>
-              )}
+              </div>
             </>
           )}
         </div>
