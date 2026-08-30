@@ -223,13 +223,21 @@ export default function AgentsDirectoryPage({
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                   {filteredAgents
                     .sort((a, b) => {
-                      // Líderes (owners + team_leaders) primero
-                      const aIsLeader = a.team_role === 'owner' || a.team_role === 'team_leader';
-                      const bIsLeader = b.team_role === 'owner' || b.team_role === 'team_leader';
-                      if (aIsLeader !== bIsLeader) {
-                        return aIsLeader ? -1 : 1;
+                      // Orden específico: Leandro, Luciana, Guillermo, Santiago, resto alfabético
+                      const orderMap: Record<string, number> = {
+                        'leandro@galas.com.ar': 0,
+                        'luciana@galas.com.ar': 1,
+                        'guillermo@galas.com.ar': 2,
+                        'santiago@galas.com.ar': 3,
+                      };
+                      
+                      const aOrder = orderMap[a.email] ?? 4;
+                      const bOrder = orderMap[b.email] ?? 4;
+                      
+                      if (aOrder !== bOrder) {
+                        return aOrder - bOrder;
                       }
-                      // Si ambos son líderes o ambos no, ordenar alfabéticamente
+                      // Para el resto, orden alfabético
                       return a.name.localeCompare(b.name);
                     })
                     .map(agent => (
