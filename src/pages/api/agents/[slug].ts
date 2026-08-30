@@ -78,8 +78,9 @@ type TokkoProperty = {
   currency: string;
   photos_count: number;
   status: number;
-  days_since_update: number;
+  days_since_update: number | null;
   producer_email: string;
+  last_update?: string; // ISO date string
   thumbnail?: string | null;
   propertyUrl?: string;
   photoUrl?: string;
@@ -202,6 +203,12 @@ export default async function handler(
           const firstPhoto = (prop.photos || []).find((p: any) => !p.is_blueprint);
           const photoUrl = firstPhoto?.url || firstPhoto?.thumb;
           
+          // Calcular días desde actualización (usar last_update si existe, sino created_at)
+          const now = Date.now();
+          const updateDateStr = prop.last_update || prop.created_at || prop.created_date;
+          const updateDate = updateDateStr ? new Date(updateDateStr).getTime() : null;
+          const daysSinceUpdate = updateDate ? Math.floor((now - updateDate) / 86400000) : null;
+          
           return {
             id: String(prop.id),
             tokko_id: prop.id,
@@ -211,10 +218,11 @@ export default async function handler(
             currency: prop.operations?.[0]?.prices?.[0]?.currency || null,
             photos_count: (prop.photos || []).filter((p: any) => !p.is_blueprint).length,
             status: prop.status,
-            days_since_update: null,
+            days_since_update: daysSinceUpdate,
             producer_email: prop.producer?.email,
             propertyUrl,
-            photoUrl
+            photoUrl,
+            last_update: updateDateStr // Agregar fecha completa para mostrar
           } as any;
         }) as TokkoProperty[];
       }
