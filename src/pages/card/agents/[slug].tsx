@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/router';
 import Image from 'next/image';
 import Head from 'next/head';
+import { GetStaticProps, GetStaticPaths } from 'next';
+import * as cheerio from 'cheerio';
 
 type Agent = {
   id: string;
@@ -35,40 +35,91 @@ type PageData = {
   team_name?: string;
 };
 
-export default function AgentCardPage() {
-  const router = useRouter();
-  const { slug } = router.query;
-  const [data, setData] = useState<PageData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+type PageProps = {
+  data: PageData | null;
+  navigationHtml: string;
+  navigationStyles: string;
+  error?: string;
+};
 
-  useEffect(() => {
-    if (!slug) return;
+export const getStaticPaths: GetStaticPaths = async () => {
+  // Obtener todos los agentes visibles para generar slugs
+  try {
+    const res = await fetch('https://www.inmocoach.com.ar/api/agents');
+    const agents = await res.json();
+    
+    const paths = agents.map((agent: any) => ({
+      params: { slug: agent.slug },
+    }));
 
-    const fetchData = async () => {
-      try {
-        const res = await fetch(`/api/agents/${slug}`);
-        if (!res.ok) throw new Error('Agent not found');
-        const pageData = await res.json();
-        setData(pageData);
-      } catch (err) {
-        setError((err as Error).message);
-      } finally {
-        setLoading(false);
-      }
+    return {
+      paths,
+      fallback: 'blocking', // Generar páginas on-demand si no existen
     };
-
-    fetchData();
-  }, [slug]);
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-screen bg-gray-50">
-        <p className="text-gray-600">Cargando...</p>
-      </div>
-    );
+  } catch (err) {
+    console.error('Error in getStaticPaths:', err);
+    return {
+      paths: [],
+      fallback: 'blocking',
+    };
   }
+};
 
+export const getStaticProps: GetStaticProps<PageProps> = async ({ params }) => {
+  const { slug } = params as { slug: string };
+
+  try {
+    // 1. Fetch de datos del agente
+    const agentRes = await fetch(`https://www.inmocoach.com.ar/api/agents/${slug}`);
+    if (!agentRes.ok) {
+      return {
+        notFound: true,
+      };
+    }
+    const data: PageData = await agentRes.json();
+
+    // 2. Fetch del menú de galas.com.ar
+    let navigationHtml = '';
+    let navigationStyles = '';
+    try {
+      const gamasRes = await fetch('https://www.galas.com.ar/', {
+        headers: { 'User-Agent': 'Mozilla/5.0' }
+      });
+      const html = await gamasRes.text();
+      const $ = cheerio.load(html);
+
+      const navElement = $('nav').first();
+      navigationHtml = navElement.html() || '';
+
+      const styleElements = $('head style');
+      navigationStyles = styleElements.map((_: number, el: any) => $(el).html()).get().join('\n');
+    } catch (err) {
+      console.error('Error fetching GALAS menu:', err);
+    }
+
+    return {
+      props: {
+        data,
+        navigationHtml,
+        navigationStyles,
+      },
+      revalidate: 3600, // Revalidar cada 1 hora
+    };
+  } catch (err: any) {
+    console.error('getStaticProps error:', err);
+    return {
+      props: {
+        data: null,
+        navigationHtml: '',
+        navigationStyles: '',
+        error: err?.message || 'Error loading agent',
+      },
+      revalidate: 300,
+    };
+  }
+};
+
+export default function AgentCardPage({ data, navigationHtml, navigationStyles, error }: PageProps) {
   if (error || !data) {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-50">
@@ -100,9 +151,20 @@ export default function AgentCardPage() {
         <meta property="og:title" content={profile.email.split('@')[0]} />
         <meta property="og:description" content={profile.bio} />
         {profile.photo_url && <meta property="og:image" content={profile.photo_url} />}
+        {/* Inyectar estilos del menú de GALAS */}
+        {navigationStyles && (
+          <style dangerouslySetInnerHTML={{ __html: navigationStyles }} />
+        )}
       </Head>
 
       <div className="min-h-screen bg-white">
+        {/* Menú dinámico de GALAS (sincronizado cada hora) */}
+        {navigationHtml && (
+          <nav className="border-b border-gray-200">
+            <div dangerouslySetInnerHTML={{ __html: navigationHtml }} />
+          </nav>
+        )}
+
         {/* Header con foto */}
         <div className="bg-white border-b border-gray-200">
           <div className="max-w-4xl mx-auto px-4 py-12">

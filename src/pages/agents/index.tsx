@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Image from 'next/image';
 import Head from 'next/head';
-import { useRouter } from 'next/router';
 import Link from 'next/link';
+import { GetStaticProps } from 'next';
+import * as cheerio from 'cheerio';
 
 type Agent = {
   id: string;
@@ -21,72 +22,104 @@ type Agent = {
   team_role: 'owner' | 'team_leader' | 'member';
 };
 
-export default function AgentsDirectoryPage() {
-  const router = useRouter();
-  const [agents, setAgents] = useState<Agent[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [selectedBranch, setSelectedBranch] = useState('all');
-  const [branches, setBranches] = useState<{ id: string; name: string }[]>([]);
+type PageProps = {
+  agents: Agent[];
+  branches: { id: string; name: string }[];
+  navigationHtml: string;
+  navigationStyles: string;
+};
 
-  useEffect(() => {
-    const fetchAgents = async () => {
-      try {
-        // TODO: Obtener branches del usuario actual si está autenticado
-        // Por ahora mostramos todos los agentes
-        const res = await fetch('/api/agents');
-        if (!res.ok) throw new Error('Failed to fetch agents');
-        const data = await res.json();
-        setAgents(data);
+export const getStaticProps: GetStaticProps<PageProps> = async () => {
+  try {
+    // 1. Fetch de agentes desde la API interna
+    const agentsRes = await fetch('https://www.inmocoach.com.ar/api/agents');
+    if (!agentsRes.ok) throw new Error('Failed to fetch agents');
+    const agents: Agent[] = await agentsRes.json();
 
-        // Extraer branches únicos - usar números directamente
-        const branchNames: Record<number, string> = {
-          60: 'Padua',
-          61: 'Castelar',
-          62: 'Ituzaingó',
-        };
-
-        const uniqueBranchIds = new Set<number>();
-        data.forEach((agent: Agent) => {
-          if (agent.branch_id && branchNames[agent.branch_id]) {
-            uniqueBranchIds.add(agent.branch_id);
-          }
-        });
-
-        // Convertir a array ordenado por ID
-        setBranches(
-          Array.from(uniqueBranchIds)
-            .sort()
-            .map((id: number) => ({ 
-              id: String(id),  // guardar como string para el estado
-              name: branchNames[id] 
-            }))
-        );
-      } catch (err) {
-        setError((err as Error).message);
-      } finally {
-        setLoading(false);
-      }
+    // 2. Extraer branches únicos
+    const branchNames: Record<number, string> = {
+      60: 'Padua',
+      61: 'Castelar',
+      62: 'Ituzaingó',
     };
 
-    fetchAgents();
-  }, []);
+    const uniqueBranchIds = new Set<number>();
+    agents.forEach((agent: Agent) => {
+      if (agent.branch_id && branchNames[agent.branch_id]) {
+        uniqueBranchIds.add(agent.branch_id);
+      }
+    });
 
-  // Filtrar agentes: si selectedBranch es 'all', mostrar todos
-  // Si no, convertir selectedBranch a número y comparar con branch_id
+    const branches = Array.from(uniqueBranchIds)
+      .sort()
+      .map((id: number) => ({ 
+        id: String(id),
+        name: branchNames[id] 
+      }));
+
+    // 3. Fetch del menú de galas.com.ar
+    let navigationHtml = '';
+    let navigationStyles = '';
+    try {
+      const gamasRes = await fetch('https://www.galas.com.ar/', {
+        headers: { 'User-Agent': 'Mozilla/5.0' }
+      });
+      const html = await gamasRes.text();
+      const $ = cheerio.load(html);
+
+      // Extraer el nav (ajustar selector si es necesario)
+      const navElement = $('nav').first();
+      navigationHtml = navElement.html() || '';
+
+      // Extraer estilos del <head> que se apliquen al nav
+      const styleElements = $('head style');
+      navigationStyles = styleElements.map((_: number, el: any) => $(el).html()).get().join('\n');
+    } catch (err) {
+      console.error('Error fetching GALAS menu:', err);
+      // Si falla, devolvemos empty - la página se muestra sin menú pero sin error
+    }
+
+    return {
+      props: {
+        agents,
+        branches,
+        navigationHtml,
+        navigationStyles,
+      },
+      revalidate: 3600, // Revalidar cada 1 hora (3600 segundos)
+    };
+  } catch (err) {
+    console.error('getStaticProps error:', err);
+    return {
+      props: {
+        agents: [],
+        branches: [],
+        navigationHtml: '',
+        navigationStyles: '',
+      },
+      revalidate: 300, // Si falla, reintentar en 5 minutos
+    };
+  }
+};
+
+type PageState = {
+  selectedBranch: string;
+};
+
+export default function AgentsDirectoryPage({ 
+  agents, 
+  branches, 
+  navigationHtml,
+  navigationStyles
+}: PageProps) {
+  const [selectedBranch, setSelectedBranch] = useState<string>('all');
+
+  // Filtrar agentes
   const filteredAgents = agents.filter(agent => {
     if (selectedBranch === 'all') return true;
     const selectedBranchId = parseInt(selectedBranch, 10);
     return agent.branch_id === selectedBranchId;
   });
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-screen bg-gray-50">
-        <p className="text-gray-600">Cargando directorio...</p>
-      </div>
-    );
-  }
 
   return (
     <>
@@ -97,6 +130,10 @@ export default function AgentsDirectoryPage() {
           content="Conocé a nuestro equipo de asesores inmobiliarios"
         />
         <meta property="og:title" content="Directorio del Equipo - GALAS" />
+        {/* Inyectar estilos del menú de GALAS */}
+        {navigationStyles && (
+          <style dangerouslySetInnerHTML={{ __html: navigationStyles }} />
+        )}
         <meta
           property="og:description"
           content="Equipo de profesionales inmobiliarios"
@@ -104,6 +141,13 @@ export default function AgentsDirectoryPage() {
       </Head>
 
       <div className="min-h-screen bg-white">
+        {/* Menú dinámico de GALAS (sincronizado cada hora) */}
+        {navigationHtml && (
+          <nav className="border-b border-gray-200">
+            <div dangerouslySetInnerHTML={{ __html: navigationHtml }} />
+          </nav>
+        )}
+
         {/* Header */}
         <div className="bg-white border-b border-gray-200 shadow-sm">
           <div className="max-w-6xl mx-auto px-4 py-12">
@@ -118,12 +162,6 @@ export default function AgentsDirectoryPage() {
 
         {/* Content */}
         <div className="max-w-6xl mx-auto px-4 py-12">
-          {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-6">
-              Error: {error}
-            </div>
-          )}
-
           {/* Filtros */}
           {branches.length > 1 && (
             <div className="mb-8">
