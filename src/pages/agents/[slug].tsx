@@ -329,22 +329,7 @@ export default function AgentCardPage({ data, navigationHtml, navigationStyles, 
                         </p>
                       )}
 
-                      {prop.last_update ? (
-                        <p className="text-xs text-gray-500 mb-auto">
-                          Actualizado el {new Date(prop.last_update).toLocaleDateString('es-AR', { 
-                            day: 'numeric', 
-                            month: 'long', 
-                            year: 'numeric' 
-                          })}
-                          {prop.days_since_update !== null && prop.days_since_update < 30 && (
-                            <span className="ml-1">({prop.days_since_update}d)</span>
-                          )}
-                        </p>
-                      ) : prop.days_since_update !== undefined && prop.days_since_update !== null ? (
-                        <p className="text-xs text-gray-500 mb-auto">
-                          Actualizado hace {prop.days_since_update} días
-                        </p>
-                      ) : null}
+                      {/* Sin fecha de actualización */}
 
                       {/* CTA Button */}
                       <div className="mt-4 pt-4 border-t border-gray-200">
