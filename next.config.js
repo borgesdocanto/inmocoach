@@ -16,21 +16,30 @@ const nextConfig = {
     ],
   },
   async rewrites() {
-    return {
-      beforeFiles: [
-        // card.galas.com.ar → /agents
-        {
-          source: '/:path*',
-          destination: '/agents/:path*',
-          has: [
-            {
-              type: 'host',
-              value: 'card\\.galas\\.com\\.ar',
-            },
-          ],
-        },
-      ],
-    };
+    return [
+      // Rewrite solo las rutas que NO sean /api
+      {
+        source: '/:path((?!api).*)',
+        destination: '/agents/:path',
+        has: [
+          {
+            type: 'host',
+            value: 'card\\.galas\\.com\\.ar',
+          },
+        ],
+      },
+      // La raíz de card.galas.com.ar
+      {
+        source: '/',
+        destination: '/agents',
+        has: [
+          {
+            type: 'host',
+            value: 'card\\.galas\\.com\\.ar',
+          },
+        ],
+      },
+    ];
   },
 }
 
