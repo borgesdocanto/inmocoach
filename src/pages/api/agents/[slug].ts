@@ -90,7 +90,6 @@ type TokkoProperty = {
 type AgentCardResponse = {
   profile: AgentProfile;
   properties: TokkoProperty[];
-  team_name?: string;
   broker_website?: string;
 };
 
@@ -234,7 +233,6 @@ export default async function handler(
     return res.status(200).json({
       profile: enrichedProfile,
       properties,
-      team_name: teamData?.name,
     });
   } catch (error: any) {
     console.error('Unexpected error:', error);

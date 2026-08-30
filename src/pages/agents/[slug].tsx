@@ -32,7 +32,6 @@ type Property = {
 type PageData = {
   profile: Agent;
   properties: Property[];
-  team_name?: string;
 };
 
 type PageProps = {
@@ -141,7 +140,7 @@ export default function AgentCardPage({ data, navigationHtml, navigationStyles, 
     );
   }
 
-  const { profile, properties, team_name } = data;
+  const { profile, properties } = data;
 
   const whatsappLink = profile.whatsapp_link
     ? `https://wa.me/${profile.whatsapp_link}`
@@ -200,9 +199,6 @@ export default function AgentCardPage({ data, navigationHtml, navigationStyles, 
                 <h1 className="text-4xl font-bold text-gray-900 mb-2">
                   {profile.name}
                 </h1>
-                {team_name && (
-                  <p className="text-lg text-gray-600 mb-4">{team_name}</p>
-                )}
                 <p className="text-gray-700 mb-6 leading-relaxed max-w-2xl">
                   {profile.bio}
                 </p>
