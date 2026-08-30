@@ -3,6 +3,32 @@ import Head from 'next/head';
 import { GetStaticProps, GetStaticPaths } from 'next';
 import * as cheerio from 'cheerio';
 
+// Función para convertir URLs de video a iframe embebible
+function getVideoEmbedUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  
+  // YouTube - múltiples formatos
+  const youtubeMatch = url.match(
+    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/
+  );
+  if (youtubeMatch) {
+    return `https://www.youtube.com/embed/${youtubeMatch[1]}`;
+  }
+  
+  // Vimeo
+  const vimeoMatch = url.match(/(?:vimeo\.com\/)(\d+)/);
+  if (vimeoMatch) {
+    return `https://player.vimeo.com/video/${vimeoMatch[1]}`;
+  }
+  
+  // Si ya es un embed, devolverlo como está
+  if (url.includes('youtube.com/embed') || url.includes('player.vimeo.com')) {
+    return url;
+  }
+  
+  return null;
+}
+
 type Agent = {
   id: string;
   email: string;
@@ -17,6 +43,7 @@ type Agent = {
   whatsapp_link: string;
   team_id: string;
   role_title?: string | null;
+  presentation_video_url?: string | null;
 };
 
 type Property = {
@@ -268,6 +295,26 @@ export default function AgentCardPage({ data, navigationHtml, navigationStyles, 
             </div>
           </div>
         </div>
+
+        {/* Video de presentación */}
+        {profile.presentation_video_url && (
+          <div className="bg-gray-50 border-t border-gray-200">
+            <div className="max-w-4xl mx-auto px-4 py-12">
+              <h2 className="text-2xl font-bold text-gray-900 mb-6">
+                Presentación de {profile.name.split(' ')[0]}
+              </h2>
+              <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
+                <iframe
+                  className="absolute top-0 left-0 w-full h-full rounded-lg shadow-lg"
+                  src={getVideoEmbedUrl(profile.presentation_video_url) || ''}
+                  title={`Presentación de ${profile.name}`}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                />
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* CTA especial para Team Leaders - Unirse al equipo */}
         {profile.email === 'luciana@galas.com.ar' && (

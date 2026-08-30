@@ -68,6 +68,7 @@ type AgentProfile = {
   whatsapp_link: string;
   team_id: string;
   role_title?: string | null;
+  presentation_video_url?: string | null;
 };
 
 type TokkoProperty = {
