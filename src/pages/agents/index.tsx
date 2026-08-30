@@ -300,7 +300,7 @@ export default function AgentsDirectoryPage({
               próximo hogar
             </p>
             <a
-              href="https://propiedades.galas.com.ar"
+              href="https://propiedades.galas.com.ar/Propiedades"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-block bg-white text-galas-red px-8 py-3 rounded-lg font-bold hover:bg-galas-light transition"

@@ -425,7 +425,7 @@ export default function AgentCardPage({ data, navigationHtml, navigationStyles, 
               ¿Buscás más propiedades de nuestra inmobiliaria?
             </p>
             <a
-              href="https://propiedades.galas.com.ar"
+              href="https://propiedades.galas.com.ar/Propiedades"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-block bg-galas-dark hover:bg-galas-dark text-white px-8 py-3 rounded-lg font-medium text-lg"
