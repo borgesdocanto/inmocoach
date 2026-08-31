@@ -149,6 +149,29 @@ async function syncTeam(teamId: string, apiKey: string): Promise<{ properties: n
         }
       }
     }
+
+    // Sincronizar fotos desde tokko_agents → agent_profiles
+    try {
+      const { data: tokkoAgents } = await supabaseAdmin
+        .from("tokko_agents")
+        .select("email, picture")
+        .eq("team_id", teamId)
+        .not("picture", "is", null)
+        .not("email", "is", null);
+
+      if (tokkoAgents && tokkoAgents.length > 0) {
+        for (const agent of tokkoAgents) {
+          await supabaseAdmin
+            .from("agent_profiles")
+            .update({ photo_url: agent.picture })
+            .eq("team_id", teamId)
+            .eq("email", agent.email);
+        }
+        console.log(`[tokko-sync] ${tokkoAgents.length} fotos sincronizadas a agent_profiles`);
+      }
+    } catch (e: any) {
+      results.errors.push(`photo-sync: ${e.message}`);
+    }
   } catch (e: any) {
     results.errors.push(`users: ${e.message}`);
   }
