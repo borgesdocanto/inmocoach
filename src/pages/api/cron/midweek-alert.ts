@@ -10,7 +10,14 @@ export const config = { maxDuration: 60 };
 
 const resend = new Resend(process.env.RESEND_API_KEY!);
 
-async function generateMidweekAdvice(prompt: string): Promise<string> {
+type MidweekCopy = { subject: string; body: string };
+
+const FALLBACK_COPY: MidweekCopy = {
+  subject: "Tres llamados que te cambian la semana",
+  body: "Todavia hay tiempo esta semana.\n\nHoy llama a tres personas que hace rato no contactas y contales en que estas trabajando.\n\nCada charla que abris hoy es una opcion mas para elegir despues.",
+};
+
+async function generateMidweekAdvice(prompt: string): Promise<MidweekCopy> {
   try {
     const res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
@@ -21,15 +28,22 @@ async function generateMidweekAdvice(prompt: string): Promise<string> {
       },
       body: JSON.stringify({
         model: "claude-sonnet-4-5",
-        max_tokens: 400,
+        max_tokens: 500,
         messages: [{ role: "user", content: prompt }],
       }),
     });
     const data = await res.json();
-    return data.content?.map((b: any) => b.text || "").join("") ||
-      "Todavía hay tiempo esta semana. Agendá 3 reuniones para mañana y llegás al viernes con actividad real.";
+    const text = data.content?.map((b: any) => b.text || "").join("") || "";
+    if (!text) return FALLBACK_COPY;
+    try {
+      const parsed = JSON.parse(text.replace(/```json|```/g, "").trim());
+      if (parsed?.asunto && parsed?.mensaje) {
+        return { subject: String(parsed.asunto).trim(), body: String(parsed.mensaje).trim() };
+      }
+    } catch { /* la IA no devolvio JSON valido */ }
+    return { ...FALLBACK_COPY, body: text };
   } catch {
-    return "Todavía hay tiempo esta semana. Agendá 3 reuniones para mañana y llegás al viernes con actividad real.";
+    return FALLBACK_COPY;
   }
 }
 
@@ -159,7 +173,7 @@ export function buildHtml(params: {
               Inmo<span style="color:${RED};">Coach</span>
             </p>
             <p style="margin:6px 0 0;font-size:12px;color:#9ca3af;font-weight:500;letter-spacing:0.5px;">
-              Alerta de mitad de semana · Lunes–Miércoles
+              Miércoles
             </p>
           </td>
         </tr>
@@ -173,20 +187,13 @@ export function buildHtml(params: {
           </td>
         </tr>
 
-        <!-- Mensaje del coach — lo primero y lo principal -->
+        <!-- Nota del coach: texto plano, como te escribe un amigo -->
         <tr>
-          <td style="background:#ffffff;padding:14px 32px 24px;">
-            <table width="100%" cellpadding="0" cellspacing="0"
-              style="background:#111827;border-radius:14px;">
-              <tr>
-                <td style="padding:22px 24px;">
-                  ${adviceParts.map(p => `<p style="margin:0 0 14px;font-size:15px;line-height:1.75;color:#f9fafb;">${p.trim()}</p>`).join("")}
-                  <p style="margin:14px 0 0;font-size:12px;color:rgba(255,255,255,0.4);">
-                    Mas conversaciones hoy, mas opciones para elegir manana.
-                  </p>
-                </td>
-              </tr>
-            </table>
+          <td style="background:#ffffff;padding:10px 32px 22px;">
+            ${adviceParts.map(p => `<p style="margin:0 0 15px;font-size:15px;line-height:1.75;color:#374151;">${p.trim()}</p>`).join("")}
+            <p style="margin:18px 0 0;font-size:14px;color:#9ca3af;">
+              Un abrazo,<br>InmoCoach
+            </p>
           </td>
         </tr>
 
@@ -421,8 +428,8 @@ async function runMidweek(targetEmailArg: string | undefined): Promise<any> {
   if (!eligible.length) return { ok: true, sent: 0, reason: "Todos llegaron al mínimo" };
 
   // Generar advice por tenant (cache para no llamar IA N veces por el mismo prompt)
-  const adviceCache: Record<string, string> = {};
-  async function getAdviceForPrompt(prompt: string): Promise<string> {
+  const adviceCache: Record<string, MidweekCopy> = {};
+  async function getAdviceForPrompt(prompt: string): Promise<MidweekCopy> {
     if (!adviceCache[prompt]) {
       adviceCache[prompt] = await generateMidweekAdvice(prompt);
     }
@@ -435,12 +442,13 @@ async function runMidweek(targetEmailArg: string | undefined): Promise<any> {
   for (let i = 0; i < eligible.length; i++) {
     const user = eligible[i];
     const firstName = (user.name || "").split(" ")[0] || "Agente";
-    const advice = await getAdviceForPrompt(user.prompt);
+    const copy = await getAdviceForPrompt(user.prompt);
+    const advice = copy.body;
     try {
       const { error } = await resend.emails.send({
         from: "InmoCoach <coach@inmocoach.com.ar>",
         to: user.email,
-        subject: `A mitad de semana · ${user.greenCount} de ${user.minGreens} eventos verdes`,
+        subject: copy.subject,
         html: buildHtml({ firstName, greenCount: user.greenCount, minGreens: user.minGreens, weeklyGoal: user.weeklyGoal, advice, tokkoTotal: user.tokkoTotal, tokkoNeedAction: user.tokkoNeedAction, tokkoTop3: user.tokkoTop3 }),
       });
       if (error) { failed++; console.error(`❌ ${user.email}:`, error); }
