@@ -1,11 +1,12 @@
 import { NextApiRequest, NextApiResponse } from "next";
+import { waitUntil } from "@vercel/functions";
 import { Resend } from "resend";
 import { supabaseAdmin } from "../../../lib/supabase";
 import { getAppConfig } from "../../../lib/appConfig";
 import { DEFAULT_MIDWEEK_PROMPT } from "../admin/midweek-prompt";
 import { getAgentTokkoStats } from "../../../lib/tokkoPortfolio";
 
-export const config = { maxDuration: 120 };
+export const config = { maxDuration: 60 };
 
 const resend = new Resend(process.env.RESEND_API_KEY!);
 
@@ -278,6 +279,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
   if (!authorized) return res.status(401).json({ error: "No autorizado" });
 
+  const { targetEmail: reqTargetEmail } = req.body || {};
+
+  // Test manual (targetEmail) → sincrónico; cron normal → waitUntil
+  if (reqTargetEmail) {
+    const result = await runMidweek(reqTargetEmail);
+    return res.status(200).json(result);
+  }
+  waitUntil(runMidweek(undefined).then(r => console.log("📊 Midweek final:", r)));
+  return res.status(202).json({ ok: true, message: "Midweek iniciado" });
+}
+
+async function runMidweek(targetEmailArg: string | undefined): Promise<any> {
   // Config global como fallback — cada usuario usa la de su tenant
   const globalCfg = await getAppConfig(null);
 
@@ -297,7 +310,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     .eq("status", "active")
     .not("google_access_token", "is", null);
 
-  if (!users?.length) return res.status(200).json({ ok: true, sent: 0 });
+  if (!users?.length) return { ok: true, sent: 0 };
 
   const { FREEMIUM_DAYS } = await import("../../../lib/brand");
   const nowMs = Date.now();
@@ -310,8 +323,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return ends ? Date.now() <= new Date(ends).getTime() : diffDays <= FREEMIUM_DAYS;
   });
 
-  const { targetEmail } = req.body || {};
-  const filteredUsers = targetEmail ? validUsers.filter(u => u.email === targetEmail) : validUsers;
+  const filteredUsers = targetEmailArg ? validUsers.filter(u => u.email === targetEmailArg) : validUsers;
 
   // Filtrar los que no llegaron al mínimo lun–mié
   // ISOLATION: cada usuario usa config de su propio tenant
@@ -399,7 +411,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
   }
 
-  if (!eligible.length) return res.status(200).json({ ok: true, sent: 0, reason: "Todos llegaron al mínimo" });
+  if (!eligible.length) return { ok: true, sent: 0, reason: "Todos llegaron al mínimo" };
 
   // Generar advice por tenant (cache para no llamar IA N veces por el mismo prompt)
   const adviceCache: Record<string, string> = {};
@@ -434,5 +446,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   console.log(`📊 Midweek: ${sent} enviados, ${failed} errores, ${filteredUsers.length - eligible.length} ya llegaron al mínimo`);
-  return res.status(200).json({ ok: true, sent, failed, skipped: filteredUsers.length - eligible.length });
+  return { ok: true, sent, failed, skipped: filteredUsers.length - eligible.length };
 }

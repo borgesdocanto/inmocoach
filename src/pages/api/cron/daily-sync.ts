@@ -1,4 +1,5 @@
 import { NextApiRequest, NextApiResponse } from "next";
+import { waitUntil } from "@vercel/functions";
 import { supabaseAdmin } from "../../../lib/supabase";
 import { syncAndPersist, computeWeekStats } from "../../../lib/calendarSync";
 import { getGoals } from "../../../lib/appConfig";
@@ -12,7 +13,7 @@ import { startOfWeek, format } from "date-fns";
 
 const BATCH_SIZE = 5;
 
-export const config = { maxDuration: 300 }; // 5 minutos — Vercel Pro
+export const config = { maxDuration: 60 };
 
 function getMonday(): string {
   return format(startOfWeek(new Date(), { weekStartsOn: 1 }), "yyyy-MM-dd");
@@ -103,23 +104,41 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(200).json({ ok: true, message: "No hay usuarios", synced: 0 });
   }
 
-  console.log(`🔄 Daily sync: ${users.length} usuarios`);
+  // Auto-encadenado por lotes — cada invocación procesa CHAIN_BATCH usuarios (cabe en 60s Hobby)
+  const offset = parseInt((req.query.offset as string) || "0", 10) || 0;
+  const total = users.length;
+  const batch = users.slice(offset, offset + CHAIN_BATCH);
 
-  // CRÍTICO: sincronizar ANTES de responder — Vercel mata background work post-response
-  const results = { synced: 0, skipped: 0, error: 0 };
-  for (let i = 0; i < users.length; i += BATCH_SIZE) {
-    const batch = users.slice(i, i + BATCH_SIZE);
-    const batchResults = await Promise.allSettled(batch.map(u => syncUser(u)));
-    for (const r of batchResults) {
-      if (r.status === "fulfilled") results[r.value]++;
-      else results.error++;
-    }
-    if (i + BATCH_SIZE < users.length) await new Promise(r => setTimeout(r, 1000));
+  if (batch.length === 0) {
+    console.log(`✅ Daily sync terminado — ${total} usuarios`);
+    // Al terminar todos los lotes, disparar Systeme sync una vez
+    waitUntil(runSystemeSync());
+    return res.status(200).json({ ok: true, done: true, total });
   }
 
-  console.log(`✅ Daily sync completo:`, results);
+  console.log(`🔄 Daily sync lote ${offset}-${offset + batch.length} de ${total}`);
 
-  // Sync de Systeme al final, esperando hasta 120s (Vercel mata proceso al responder)
+  waitUntil((async () => {
+    await runDailySync(batch);
+    const nextOffset = offset + CHAIN_BATCH;
+    if (nextOffset < total) {
+      const base = process.env.NEXTAUTH_URL ?? "https://www.inmocoach.com.ar";
+      fetch(`${base}/api/cron/daily-sync?offset=${nextOffset}&secret=${cronSecret}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      }).catch(e => console.error("[daily-sync] chain error:", e?.message));
+    } else {
+      // Último lote → Systeme sync
+      await runSystemeSync();
+    }
+  })());
+
+  return res.status(202).json({ ok: true, offset, batch: batch.length, total });
+}
+
+const CHAIN_BATCH = 6; // usuarios por invocación
+
+async function runSystemeSync() {
   try {
     const SYSTEME_BASE = process.env.NEXTAUTH_URL ?? "https://www.inmocoach.com.ar";
     await fetch(`${SYSTEME_BASE}/api/systeme/run-all`, {
@@ -133,6 +152,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   } catch (err) {
     console.error("[daily-sync] Systeme sync error:", err);
   }
-
-  return res.status(200).json({ ok: true, total: users.length, results });
 }
+
+async function runDailySync(users: any[]) {
+  const results = { synced: 0, skipped: 0, error: 0 };
+  for (let i = 0; i < users.length; i += BATCH_SIZE) {
+    const batch = users.slice(i, i + BATCH_SIZE);
+    const batchResults = await Promise.allSettled(batch.map(u => syncUser(u)));
+    for (const r of batchResults) {
+      if (r.status === "fulfilled") results[r.value]++;
+      else results.error++;
+    }
+    if (i + BATCH_SIZE < users.length) await new Promise(r => setTimeout(r, 1000));
+  }
+  console.log(`✅ Daily sync lote completo:`, results);
+}
+

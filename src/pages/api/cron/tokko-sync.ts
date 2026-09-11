@@ -1,9 +1,10 @@
 // Sincroniza propiedades y agentes de Tokko por equipo
 // Cada equipo tiene su propia API key en teams.tokko_api_key
 import { NextApiRequest, NextApiResponse } from "next";
+import { waitUntil } from "@vercel/functions";
 import { supabaseAdmin } from "../../../lib/supabase";
 
-export const config = { maxDuration: 300 };
+export const config = { maxDuration: 60 };
 
 async function syncTeam(teamId: string, apiKey: string): Promise<{ properties: number; users: number; errors: string[] }> {
   const results = { properties: 0, users: 0, errors: [] as string[] };
@@ -179,18 +180,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   if (!teams?.length) return res.status(200).json({ ok: true, message: "No hay equipos con API key de Tokko" });
 
+  // waitUntil: responder ya y sincronizar en background (evita timeout 30s de cron-job.org)
+  waitUntil(runTokkoSync(teams));
+
+  return res.status(202).json({ ok: true, message: "Tokko sync iniciado", teams: teams.length });
+}
+
+async function runTokkoSync(teams: { id: string; name: string; tokko_api_key: string }[]) {
   const allResults: Record<string, any> = {};
   for (const team of teams) {
     console.log(`[tokko-sync] equipo: ${team.name}`);
-    allResults[team.name] = await syncTeam(team.id, team.tokko_api_key);
+    try {
+      allResults[team.name] = await syncTeam(team.id, team.tokko_api_key);
+    } catch (err: any) {
+      console.error(`[tokko-sync] error equipo ${team.name}:`, err?.message);
+    }
     await new Promise(r => setTimeout(r, 500));
   }
-
-  return res.status(200).json({
-    ok: true,
-    teams: teams.length,
-    properties: Object.values(allResults).reduce((s: number, r: any) => s + (r.properties || 0), 0),
-    users: Object.values(allResults).reduce((s: number, r: any) => s + (r.users || 0), 0),
-    details: allResults,
-  });
+  console.log(`[tokko-sync] completo:`, JSON.stringify(allResults));
 }

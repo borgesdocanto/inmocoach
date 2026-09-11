@@ -1,9 +1,10 @@
 import { NextApiRequest, NextApiResponse } from "next";
+import { waitUntil } from "@vercel/functions";
 import { Resend } from "resend";
 import { subDays, startOfWeek } from "date-fns";
 import { getGoals } from "../../../lib/appConfig";
 
-export const config = { maxDuration: 300 };
+export const config = { maxDuration: 60 };
 
 import { getAllActiveSubscriptions } from "../../../lib/subscription";
 import { fetchCalendarEvents, computeWeekStats, PROCESOS_GOAL, EFECTIVIDAD, proyectarOperaciones } from "../../../lib/calendarSync";
@@ -196,6 +197,8 @@ function getMonday(): string {
   return new Date(new Date().setDate(diff)).toISOString().slice(0, 10);
 }
 
+const CHAIN_BATCH = 4; // usuarios por invocación — cabe en 60s de Hobby (4 × ~8s Anthropic + margen)
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   // Auth: CRON_SECRET (Vercel) O token externo (GitHub Actions via app_config)
   const authHeader = req.headers.authorization ?? "";
@@ -212,14 +215,41 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!authorized) return res.status(401).json({ error: "No autorizado" });
 
   const { targetEmail } = req.body || {};
-  let subscriptions = await getAllActiveSubscriptions();
-  if (targetEmail) subscriptions = subscriptions.filter((s: any) => s.email === targetEmail);
 
+  // Test manual de un solo usuario → sincrónico
+  if (targetEmail) {
+    let subs = await getAllActiveSubscriptions();
+    subs = subs.filter((s: any) => s.email === targetEmail);
+    const results = await processBatch(subs);
+    return res.status(200).json({ ok: true, total: subs.length, ...results });
+  }
+
+  // Auto-encadenado por lotes — cada invocación procesa CHAIN_BATCH usuarios
+  const offset = parseInt((req.query.offset as string) || "0", 10) || 0;
+  const subscriptions = await getAllActiveSubscriptions();
   const total = subscriptions.length;
-  console.log(`📋 ${total} usuarios`);
+  const batch = subscriptions.slice(offset, offset + CHAIN_BATCH);
 
-  // Procesar primero, luego responder
-  const results = await processBatch(subscriptions);
-  console.log(`\n📊 Final: ${results.sent} enviados, ${results.failed} errores, ${results.skipped} sin token`);
-  res.status(200).json({ ok: true, total, ...results });
+  if (batch.length === 0) {
+    console.log(`✅ Weekly email terminado — ${total} usuarios procesados`);
+    return res.status(200).json({ ok: true, done: true, total });
+  }
+
+  console.log(`📨 Weekly email lote ${offset}-${offset + batch.length} de ${total}`);
+
+  // Procesar este lote en background y encadenar el siguiente
+  waitUntil((async () => {
+    await processBatch(batch);
+    const nextOffset = offset + CHAIN_BATCH;
+    if (nextOffset < total) {
+      // Auto-invocar para el próximo lote (fire-and-forget)
+      const base = process.env.NEXTAUTH_URL ?? "https://www.inmocoach.com.ar";
+      fetch(`${base}/api/cron/weekly-email?offset=${nextOffset}&secret=${cronSecret}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      }).catch(e => console.error("[weekly-email] chain error:", e?.message));
+    }
+  })());
+
+  return res.status(202).json({ ok: true, offset, batch: batch.length, total });
 }

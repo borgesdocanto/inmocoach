@@ -1,4 +1,5 @@
 import { NextApiRequest, NextApiResponse } from "next";
+import { waitUntil } from "@vercel/functions";
 import { getServerSession } from "next-auth";
 import { authOptions } from "../../../lib/auth";
 import { isSuperAdmin } from "../../../lib/adminGuard";
@@ -11,13 +12,15 @@ import { computeAndSaveStreak } from "../../../lib/streak";
 import { startOfWeek, format } from "date-fns";
 import { getGoals } from "../../../lib/appConfig";
 
+export const config = { maxDuration: 60 };
+
 // Cron: domingos a las 3am UTC — sync profundo 365 días para todos los usuarios activos
 // vercel.json: "0 3 * * 0"
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "GET" && req.method !== "POST") return res.status(405).end();
 
-  const isVercel = req.headers.authorization === `Bearer ${process.env.CRON_SECRET}`;
+  const isVercel = req.headers.authorization === `Bearer ${process.env.CRON_SECRET}` || req.headers["x-vercel-cron"] === "1";
   const isManual = req.headers["x-cron-secret"] === process.env.CRON_SECRET || req.query.secret === process.env.CRON_SECRET;
   // Token externo de GitHub Actions
   let isExternal = false;
@@ -35,18 +38,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(401).json({ error: "Unauthorized" });
   }
 
+  // waitUntil: responder ya y sincronizar en background (evita timeout 30s de cron-job.org)
+  waitUntil(runDeepSync());
+  return res.status(202).json({ ok: true, message: "Deep sync iniciado" });
+}
+
+async function runDeepSync() {
   const startTime = Date.now();
   const results = { synced: 0, skipped: 0, errors: 0, users: [] as string[] };
 
   try {
-    // Traer todos los usuarios activos con token de Google
     const { data: users } = await supabaseAdmin
       .from("subscriptions")
       .select("email, team_id, plan, created_at")
       .eq("status", "active")
       .not("google_access_token", "is", null);
 
-    if (!users?.length) return res.status(200).json({ ok: true, ...results });
+    if (!users?.length) { console.log("[deep-sync] no users"); return; }
 
     // Filtrar freemium expirados (plan free con más de FREEMIUM_DAYS desde creación)
     const nowMs = Date.now();
@@ -93,10 +101,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const duration = ((Date.now() - startTime) / 1000).toFixed(1);
     console.log(`Deep sync completado en ${duration}s:`, results);
-    return res.status(200).json({ ok: true, duration: `${duration}s`, ...results });
-
   } catch (err: any) {
     console.error("Deep sync fatal:", err);
-    return res.status(500).json({ error: err.message });
   }
 }
