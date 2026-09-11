@@ -180,10 +180,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   if (!teams?.length) return res.status(200).json({ ok: true, message: "No hay equipos con API key de Tokko" });
 
-  // waitUntil: responder ya y sincronizar en background (evita timeout 30s de cron-job.org)
-  waitUntil(runTokkoSync(teams));
+  // Procesar sincrónico — 3 equipos entran en 60s. cron-job.org puede marcar timeout
+  // a los 30s pero Vercel mantiene la función viva hasta completar (maxDuration 60s).
+  const allResults = await runTokkoSync(teams);
 
-  return res.status(202).json({ ok: true, message: "Tokko sync iniciado", teams: teams.length });
+  return res.status(200).json({ ok: true, teams: teams.length, results: allResults });
 }
 
 async function runTokkoSync(teams: { id: string; name: string; tokko_api_key: string }[]) {
@@ -198,4 +199,5 @@ async function runTokkoSync(teams: { id: string; name: string; tokko_api_key: st
     await new Promise(r => setTimeout(r, 500));
   }
   console.log(`[tokko-sync] completo:`, JSON.stringify(allResults));
+  return allResults;
 }
