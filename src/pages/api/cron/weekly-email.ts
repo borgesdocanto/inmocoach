@@ -244,10 +244,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (nextOffset < total) {
       // Auto-invocar para el próximo lote (fire-and-forget)
       const base = process.env.NEXTAUTH_URL ?? "https://www.inmocoach.com.ar";
-      fetch(`${base}/api/cron/weekly-email?offset=${nextOffset}&secret=${cronSecret}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-      }).catch(e => console.error("[weekly-email] chain error:", e?.message));
+      // await: sin esto Vercel mata la funcion antes de despachar la peticion.
+      // El hijo responde 202 al instante, asi que no bloquea.
+      try {
+        await fetch(`${base}/api/cron/weekly-email?offset=${nextOffset}&secret=${cronSecret}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+        });
+      } catch (e: any) {
+        console.error("[weekly-email] chain error:", e?.message);
+      }
     }
   })());
 

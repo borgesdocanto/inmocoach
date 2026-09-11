@@ -123,10 +123,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const nextOffset = offset + CHAIN_BATCH;
     if (nextOffset < total) {
       const base = process.env.NEXTAUTH_URL ?? "https://www.inmocoach.com.ar";
-      fetch(`${base}/api/cron/daily-sync?offset=${nextOffset}&secret=${cronSecret}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-      }).catch(e => console.error("[daily-sync] chain error:", e?.message));
+      // await: sin esto Vercel mata la funcion antes de despachar la peticion.
+      // El hijo responde 202 al instante, asi que no bloquea.
+      try {
+        await fetch(`${base}/api/cron/daily-sync?offset=${nextOffset}&secret=${cronSecret}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+        });
+      } catch (e: any) {
+        console.error("[daily-sync] chain error:", e?.message);
+      }
     } else {
       // Último lote → Systeme sync
       await runSystemeSync();
