@@ -144,6 +144,34 @@ async function processUser(sub: any): Promise<"sent" | "failed" | "skipped"> {
 
     const coachSections = await generateCoachAdvice(stats, sub.name || sub.email, streakData.current, weeklyGoal, sub.email, sub.teamId);
 
+    // Persistir el análisis para que /coach muestre lo mismo que el mail
+    try {
+      const prevMonday = startOfWeek(lastSunday, { weekStartsOn: 1 });
+      const periodStart = prevMonday.toISOString().slice(0, 10);
+      const periodEnd = lastSunday.toISOString().slice(0, 10);
+      const adviceText = [
+        coachSections.bien,
+        coachSections.oportunidades,
+        coachSections.acciones,
+      ].filter(Boolean).join("\n\n");
+
+      await supabaseAdmin.from("coach_reports").upsert({
+        user_email: sub.email,
+        period_key: `week:${periodStart}`,
+        period_label: stats.weekDates,
+        period_start: periodStart,
+        period_end: periodEnd,
+        is_closed: true,
+        advice: adviceText,
+        week_totals: stats,
+        green_total: stats.greenTotal,
+        updated_at: new Date().toISOString(),
+        seen_at: null,
+      }, { onConflict: "user_email,period_key" });
+    } catch (e: any) {
+      console.error(`[weekly-email] coach_reports upsert ${sub.email}:`, e?.message);
+    }
+
     const createdAt = new Date(subData?.created_at ?? Date.now());
     const daysUsed = (Date.now() - createdAt.getTime()) / (1000 * 60 * 60 * 24);
     const daysLeft = Math.max(0, Math.ceil(FREEMIUM_DAYS - daysUsed));
