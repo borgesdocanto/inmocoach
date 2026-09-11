@@ -51,7 +51,7 @@ function weeklyCongratsMessage(): { emoji: string; text: string } {
   return CONGRATS_MESSAGES[weekNum % CONGRATS_MESSAGES.length];
 }
 
-function buildHtml(params: {
+export function buildHtml(params: {
   firstName: string;
   greenCount: number;
   minGreens: number;
@@ -166,22 +166,45 @@ function buildHtml(params: {
 
         <!-- Saludo -->
         <tr>
-          <td style="background:#ffffff;padding:24px 32px 8px;">
+          <td style="background:#ffffff;padding:26px 32px 4px;">
             <p style="margin:0;font-family:Georgia,serif;font-size:20px;font-weight:900;color:#111827;">
               Hola, ${firstName}.
-            </p>
-            <p style="margin:6px 0 0;font-size:14px;color:#6b7280;">
-              Tu actividad comercial a mitad de semana.
             </p>
           </td>
         </tr>
 
-        <!-- KPIs -->
+        <!-- Mensaje del coach — lo primero y lo principal -->
         <tr>
-          <td style="background:#ffffff;padding:20px 32px;">
+          <td style="background:#ffffff;padding:14px 32px 24px;">
+            <table width="100%" cellpadding="0" cellspacing="0"
+              style="background:#111827;border-radius:14px;">
+              <tr>
+                <td style="padding:22px 24px;">
+                  ${adviceParts.map(p => `<p style="margin:0 0 14px;font-size:15px;line-height:1.75;color:#f9fafb;">${p.trim()}</p>`).join("")}
+                  <p style="margin:14px 0 0;font-size:12px;color:rgba(255,255,255,0.4);">
+                    Mas conversaciones hoy, mas opciones para elegir manana.
+                  </p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        ${tokkoSection}
+
+        <!-- Tus numeros — abajo, compacto -->
+        <tr>
+          <td style="background:#ffffff;padding:0 32px 8px;">
+            <p style="margin:0 0 10px;font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:0.08em;">
+              Tus numeros hasta hoy
+            </p>
+          </td>
+        </tr>
+        <tr>
+          <td style="background:#ffffff;padding:0 32px 16px;">
             <table width="100%" cellpadding="0" cellspacing="0">
               <tr>
-                ${kpi(greenCount, "Eventos verdes")}
+                ${kpi(greenCount, "Reuniones")}
                 ${kpi(minGreens, "Meta Lun–Mié")}
                 ${kpi(weeklyGoal, "Meta semanal")}
                 ${kpi(missing > 0 ? missing : "✓", missing > 0 ? "Faltan" : "Objetivo")}
@@ -194,48 +217,22 @@ function buildHtml(params: {
         <tr>
           <td style="background:#ffffff;padding:0 32px 24px;">
             <table width="100%" cellpadding="0" cellspacing="0"
-              style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:14px;padding:16px 20px;">
+              style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;padding:14px 18px;">
               <tr>
                 <td>
-                  <p style="margin:0 0 8px;font-size:12px;font-weight:700;color:#6b7280;">
-                    Progreso Lun–Mié: ${greenCount} de ${minGreens} eventos verdes
-                  </p>
                   <table width="100%" cellpadding="0" cellspacing="0">
                     <tr>
-                      <td style="background:#e5e7eb;border-radius:999px;height:10px;overflow:hidden;">
-                        <div style="width:${pct}%;height:10px;background:${barColor};border-radius:999px;"></div>
+                      <td style="background:#e5e7eb;border-radius:999px;height:8px;overflow:hidden;">
+                        <div style="width:${pct}%;height:8px;background:${barColor};border-radius:999px;"></div>
                       </td>
                     </tr>
                   </table>
-                  <p style="margin:6px 0 0;font-size:11px;font-weight:700;color:${barColor};">${pct}% · Quedan jue y vie</p>
+                  <p style="margin:8px 0 0;font-size:11px;font-weight:700;color:${barColor};">${pct}% de la meta de mitad de semana · quedan jueves y viernes</p>
                 </td>
               </tr>
             </table>
           </td>
         </tr>
-
-        <!-- Consejo del coach (generado por IA) -->
-        <tr>
-          <td style="background:#ffffff;padding:0 32px 24px;">
-            <table width="100%" cellpadding="0" cellspacing="0"
-              style="border:1px solid #fecaca;border-radius:14px;overflow:hidden;">
-              <tr>
-                <td style="background:#fff5f5;padding:12px 20px;border-bottom:1px solid #fecaca;">
-                  <p style="margin:0;font-size:11px;font-weight:700;color:${RED};text-transform:uppercase;letter-spacing:0.08em;">
-                    📊 InmoCoach — Análisis de mitad de semana
-                  </p>
-                </td>
-              </tr>
-              <tr>
-                <td style="padding:20px;">
-                  ${adviceParts.map(p => `<p style="margin:0 0 14px;font-size:14px;line-height:1.7;color:#374151;">${p.trim()}</p>`).join("")}
-                </td>
-              </tr>
-            </table>
-          </td>
-        </tr>
-
-        ${tokkoSection}
 
         <!-- CTA -->
         <tr>
