@@ -61,8 +61,13 @@ async function syncTeam(teamId: string, apiKey: string): Promise<{ properties: n
           synced_at: now.toISOString(),
         };
       });
-      await supabaseAdmin.from("tokko_properties").upsert(rows, { onConflict: "tokko_id,team_id" });
-      results.properties += rows.length;
+      const { error: upsertErr } = await supabaseAdmin.from("tokko_properties").upsert(rows, { onConflict: "tokko_id,team_id" });
+      if (upsertErr) {
+        console.error(`[tokko-sync] upsert error:`, upsertErr.message);
+        results.errors.push(`upsert: ${upsertErr.message}`);
+      } else {
+        results.properties += rows.length;
+      }
     }
 
     // Borrar propiedades que ya no existen en Tokko
@@ -176,9 +181,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   let query = supabaseAdmin.from("teams").select("id, name, tokko_api_key").not("tokko_api_key", "is", null);
   if (targetTeamId) query = query.eq("id", targetTeamId);
-  const { data: teams } = await query;
+  const { data: allTeams } = await query;
 
-  if (!teams?.length) return res.status(200).json({ ok: true, message: "No hay equipos con API key de Tokko" });
+  if (!allTeams?.length) return res.status(200).json({ ok: true, message: "No hay equipos con API key de Tokko" });
+
+  // Solo sincronizar equipos con al menos 1 agente con plan pago activo
+  const teams: typeof allTeams = [];
+  for (const t of allTeams) {
+    const { count } = await supabaseAdmin
+      .from("subscriptions")
+      .select("*", { count: "exact", head: true })
+      .eq("team_id", t.id)
+      .eq("status", "active")
+      .neq("plan", "free");
+    if ((count ?? 0) > 0) teams.push(t);
+    else console.log(`[tokko-sync] omitido equipo sin plan activo: ${t.name}`);
+  }
+
+  if (!teams.length) return res.status(200).json({ ok: true, message: "Ningún equipo con plan activo" });
 
   // Procesar sincrónico — 3 equipos entran en 60s. cron-job.org puede marcar timeout
   // a los 30s pero Vercel mantiene la función viva hasta completar (maxDuration 60s).
