@@ -160,7 +160,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   // Auth: CRON_SECRET (Vercel) O token externo (GitHub Actions via app_config)
   const authHeader = req.headers.authorization ?? "";
   const cronSecret = process.env.CRON_SECRET;
-  let authorized = authHeader === `Bearer ${cronSecret}` || req.headers["x-cron-secret"] === cronSecret || req.query.secret === cronSecret;
+  const isVercelCron = req.headers["x-vercel-cron"] === "1";
+  let authorized = isVercelCron || authHeader === `Bearer ${cronSecret}` || req.headers["x-cron-secret"] === cronSecret || req.query.secret === cronSecret;
   if (!authorized && authHeader.startsWith("Bearer ")) {
     const candidate = authHeader.slice(7);
     const { data: tokenRow } = await supabaseAdmin
