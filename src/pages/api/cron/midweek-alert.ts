@@ -335,6 +335,10 @@ async function runMidweek(targetEmailArg: string | undefined): Promise<any> {
     tokkoTop3?: { title: string; address: string; issues: string[]; editUrl: string }[];
   }[] = [];
 
+  // Cache por equipo: evita descargar las 200 propiedades de Tokko una vez por usuario
+  const teamPropsCache: Record<string, any[]> = {};
+  const teamKeyCache: Record<string, string | null> = {};
+
   for (const user of filteredUsers) {
     // Config del tenant del usuario (override > global)
     const tenantCfg = await getAppConfig(user.team_id);
@@ -362,14 +366,20 @@ async function runMidweek(targetEmailArg: string | undefined): Promise<any> {
           tokkoNeedAction = tokkoStats.incomplete + tokkoStats.stale;
           // Get top 3 most important to fix — solo datos del propio tenant
           if (user.team_id) {
-            const { data: team } = await supabaseAdmin.from("teams").select("tokko_api_key").eq("id", user.team_id).single();
-            if (team?.tokko_api_key) {
+            if (!(user.team_id in teamKeyCache)) {
+              const { data: team } = await supabaseAdmin.from("teams").select("tokko_api_key").eq("id", user.team_id).single();
+              teamKeyCache[user.team_id] = team?.tokko_api_key ?? null;
+            }
+            const apiKey = teamKeyCache[user.team_id];
+            if (apiKey) {
               const { data: tokkoAgent } = await supabaseAdmin.from("tokko_agents").select("tokko_id").eq("team_id", user.team_id).eq("email", user.email).maybeSingle();
-              const r = await fetch(`https://www.tokkobroker.com/api/v1/property/?key=${team.tokko_api_key}&format=json&lang=es_ar&limit=200`);
-              if (r.ok) {
-                const d = await r.json();
+              if (!teamPropsCache[user.team_id]) {
+                const r = await fetch(`https://www.tokkobroker.com/api/v1/property/?key=${apiKey}&format=json&lang=es_ar&limit=200`);
+                teamPropsCache[user.team_id] = r.ok ? ((await r.json()).objects || []) : [];
+              }
+              {
                 const now2 = Date.now();
-                const allProps: any[] = d.objects || [];
+                const allProps: any[] = teamPropsCache[user.team_id];
                 const agentProps = tokkoAgent?.tokko_id
                   ? allProps.filter((p: any) => p.producer?.id === tokkoAgent.tokko_id && (p.status === 2 || p.status === "2"))
                   : allProps.filter((p: any) => p.status === 2 || p.status === "2");
