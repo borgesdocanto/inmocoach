@@ -1,5 +1,6 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import { waitUntil } from "@vercel/functions";
+import { getValidAccessToken } from "../../../lib/googleToken";
 import { Resend } from "resend";
 import { supabaseAdmin } from "../../../lib/supabase";
 import { getAppConfig } from "../../../lib/appConfig";
@@ -359,6 +360,14 @@ async function runMidweek(targetEmailArg: string | undefined): Promise<any> {
       .lte("start_at", `${todayAR}T23:59:59Z`);
 
     if ((count ?? 0) < userMinGreens) {
+      // Calendario desconectado: los datos serian falsos (0 reuniones) y el aviso
+      // de reconexion ya sale el lunes. Lo salteamos.
+      const stillConnected = await getValidAccessToken(user.email);
+      if (!stillConnected) {
+        console.log(`🔌 ${user.email} desconectado — se saltea el midweek`);
+        continue;
+      }
+
       // Fetch Tokko data for this user
       let tokkoTotal: number | undefined;
       let tokkoNeedAction: number | undefined;

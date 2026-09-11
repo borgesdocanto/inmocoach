@@ -1,4 +1,5 @@
 import { NextApiRequest, NextApiResponse } from "next";
+import { buildReconnectEmailHtml } from "../../../lib/reconnectEmail";
 import { waitUntil } from "@vercel/functions";
 import { Resend } from "resend";
 import { subDays, startOfWeek } from "date-fns";
@@ -118,7 +119,24 @@ Respondé EXACTAMENTE en este formato JSON, sin texto antes ni después, sin mar
 async function processUser(sub: any): Promise<"sent" | "failed" | "skipped"> {
   try {
     const accessToken = await getValidAccessToken(sub.email);
-    if (!accessToken) { console.log(`⚠️  Sin token para ${sub.email}`); return "skipped"; }
+    if (!accessToken) {
+      // Plan pago activo pero calendario desconectado: en vez de un informe vacio,
+      // le pedimos que reconecte.
+      if (sub.plan && sub.plan !== "free") {
+        const firstName = (sub.name || sub.email).split(" ")[0];
+        const { error } = await resend.emails.send({
+          from: "InmoCoach <coach@inmocoach.com.ar>",
+          to: sub.email,
+          subject: "Se desconecto tu calendario",
+          html: buildReconnectEmailHtml(firstName),
+        });
+        if (error) { console.error(`❌ Reconexion ${sub.email}:`, error); return "failed"; }
+        console.log(`🔌 Mail de reconexion enviado a ${sub.email}`);
+        return "sent";
+      }
+      console.log(`⚠️  Sin token para ${sub.email}`);
+      return "skipped";
+    }
 
     const { data: subData } = await supabaseAdmin.from("subscriptions").select("created_at, plan").eq("email", sub.email).single();
     const events = await fetchCalendarEvents(accessToken, 90);
