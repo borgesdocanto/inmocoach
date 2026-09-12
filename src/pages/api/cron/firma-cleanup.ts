@@ -6,17 +6,17 @@ import { NextApiRequest, NextApiResponse } from "next";
 import { supabaseAdmin } from "../../../lib/supabase";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  // Auth: CRON_SECRET (Vercel) O token externo (GitHub Actions via app_config)
+  // Acepta GET o POST
+  // Auth: CRON_SECRET como Bearer, header x-cron-secret, o query param ?secret=
   const authHeader = req.headers.authorization ?? "";
   const cronSecret = process.env.CRON_SECRET;
-  let authorized = authHeader === `Bearer ${cronSecret}` || req.headers["x-cron-secret"] === cronSecret || req.query.secret === cronSecret;
-  if (!authorized && authHeader.startsWith("Bearer ")) {
-    const candidate = authHeader.slice(7);
-    const { data: tokenRow } = await supabaseAdmin
-      .from("app_config").select("value").eq("key", "systeme_cron_token")
-      .is("team_id", null).maybeSingle();
-    authorized = !!tokenRow?.value && tokenRow.value === candidate;
-  }
+
+  const authorized =
+    !cronSecret || // si no hay secret configurado, permitir (dev)
+    authHeader === `Bearer ${cronSecret}` ||
+    req.headers["x-cron-secret"] === cronSecret ||
+    req.query.secret === cronSecret;
+
   if (!authorized) return res.status(401).json({ error: "No autorizado" });
 
   const ahora = new Date().toISOString();
