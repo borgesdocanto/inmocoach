@@ -13,9 +13,26 @@ function sleep(ms: number) { return new Promise(r => setTimeout(r, ms)); }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   // Aceptar tanto Authorization header como x-cron-secret, igual que los otros crons
-  const isVercel = req.headers.authorization === `Bearer ${CRON_SECRET}`;
-  const isManual = req.headers["x-cron-secret"] === CRON_SECRET;
-  if (!isVercel && !isManual) {
+  const authHeader = req.headers.authorization ?? "";
+  let authorized =
+    authHeader === `Bearer ${CRON_SECRET}` ||
+    req.headers["x-cron-secret"] === CRON_SECRET ||
+    req.query.secret === CRON_SECRET;
+
+  if (!authorized) {
+    // Token de app_config: por header Bearer o por ?secret=
+    const candidate = authHeader.startsWith("Bearer ")
+      ? authHeader.slice(7)
+      : (typeof req.query.secret === "string" ? req.query.secret : "");
+    if (candidate) {
+      const { data: tokenRow } = await supabaseAdmin
+        .from("app_config").select("value").eq("key", "systeme_cron_token")
+        .is("team_id", null).maybeSingle();
+      authorized = !!tokenRow?.value && tokenRow.value === candidate;
+    }
+  }
+
+  if (!authorized) {
     return res.status(401).json({ error: "Unauthorized" });
   }
 

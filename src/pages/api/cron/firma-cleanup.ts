@@ -11,11 +11,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const authHeader = req.headers.authorization ?? "";
   const cronSecret = process.env.CRON_SECRET;
 
-  const authorized =
+  let authorized =
     !cronSecret || // si no hay secret configurado, permitir (dev)
     authHeader === `Bearer ${cronSecret}` ||
     req.headers["x-cron-secret"] === cronSecret ||
     req.query.secret === cronSecret;
+
+  if (!authorized) {
+    // Token de app_config: por header Bearer o por ?secret=
+    const candidate = authHeader.startsWith("Bearer ")
+      ? authHeader.slice(7)
+      : (typeof req.query.secret === "string" ? req.query.secret : "");
+    if (candidate) {
+      const { data: tokenRow } = await supabaseAdmin
+        .from("app_config").select("value").eq("key", "systeme_cron_token")
+        .is("team_id", null).maybeSingle();
+      authorized = !!tokenRow?.value && tokenRow.value === candidate;
+    }
+  }
 
   if (!authorized) return res.status(401).json({ error: "No autorizado" });
 
