@@ -5,6 +5,7 @@
 // El resultado se ve en sync_logs cuando termina.
 
 import { NextApiRequest, NextApiResponse } from "next";
+import { waitUntil } from "@vercel/functions";
 import { supabaseAdmin } from "../../../lib/supabase";
 import { runSync } from "../../../lib/systemeSync";
 import { Resend } from "resend";
@@ -45,9 +46,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
   if (!authorized) return res.status(401).json({ error: "Unauthorized" });
 
+  // Responder ya: cron-job.org corta a los 30s y esta corrida tarda ~2 minutos.
+  // Vercel sigue procesando en background.
+  const retryOfArg: string | null = typeof req.body?.retry_of === "string" ? req.body.retry_of : null;
+  const retryCountArg: number = typeof req.body?.retry_count === "number" ? req.body.retry_count : 0;
+  waitUntil(runAllSync(triggerSource, retryOfArg, retryCountArg));
+  return res.status(202).json({ ok: true, message: "Systeme sync iniciado", source: triggerSource });
+}
+
+async function runAllSync(
+  triggerSource: string,
+  retryOfArg: string | null,
+  retryCountArg: number
+) {
+
   // Metadata de retry (viene cuando este sync es reintento automático de otro previo)
-  const retryOf: string | null = typeof req.body?.retry_of === "string" ? req.body.retry_of : null;
-  const retryCount: number = typeof req.body?.retry_count === "number" ? req.body.retry_count : 0;
+  const retryOf = retryOfArg;
+  const retryCount = retryCountArg;
   if (retryOf) {
     console.log(`[run-all] este sync es RETRY #${retryCount} del sync_log ${retryOf.slice(0, 8)}`);
   }
@@ -76,8 +91,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     .eq("is_active", true)
     .eq("is_configured", true);
 
-  if (cfgErr) return res.status(500).json({ error: "DB error", detail: cfgErr.message });
-  if (!configs || configs.length === 0) return res.json({ ok: true, ran: 0 });
+  if (cfgErr) { console.error("[run-all] DB error:", cfgErr.message); return; }
+  if (!configs || configs.length === 0) { console.log("[run-all] sin configs activas"); return; }
 
   // Integraciones: solo GALAS
   const galas_configs = configs.filter(c => c.team_id === "bb61ed0d-96dd-4c45-ac9a-c72169bd0b93");
@@ -183,5 +198,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
   }
 
-  return res.json({ ok: true, ran: results.length, source: triggerSource, results });
+  console.log(`[run-all] fin (${triggerSource}): ${results.length} teams`, JSON.stringify(results));
 }
