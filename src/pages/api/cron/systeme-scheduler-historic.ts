@@ -1,7 +1,8 @@
 // GET /api/cron/systeme-scheduler-historic
-// Cron para CRON 2 (sync histórico) — corre domingos 22:00 UTC (sáb 19:00 ARG)
+// Cron para CRON 2 (sync histórico) — corre TODOS LOS DÍAS a las 23:00 UTC (20:00 ARG)
+// Cada corrida retrocede 7 días. En 52 corridas (52 días) cubre 1 año completo hacia atrás.
 // Itera todos los teams con sync activa, ejecuta CRON 2 (hacia atrás en el tiempo)
-// secuencialmente con 30 segundos de pausa entre cada uno.
+// secuencialmente con 5 segundos de pausa entre cada uno.
 import { NextApiRequest, NextApiResponse } from "next";
 import { supabaseAdmin } from "../../../lib/supabase";
 
@@ -83,3 +84,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 }
 
 // maxDuration no declarado — usa el default del plan
+// Duración esperada del sync histórico: ~52 días (1 año de contactos retrocediendo 7 días/día)
+// Visibilidad en dashboard: última corrida de CRON 2 y próxima ventana
