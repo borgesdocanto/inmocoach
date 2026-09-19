@@ -1,8 +1,0 @@
-{
-  "crons": [
-    {
-      "path": "/api/cron/systeme-scheduler-historic",
-      "schedule": "0 23 * * *"
-    }
-  ]
-}
