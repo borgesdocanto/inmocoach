@@ -358,32 +358,129 @@ export default function SystemePage() {
 
                 {/* Tags a sincronizar */}
                 <div style={{ marginBottom: 20 }}>
-                  <h3 style={{ fontSize: 13, fontWeight: 700, color: "#111827", margin: "0 0 12px" }}>Tags a sincronizar</h3>
+                  <h3 style={{ fontSize: 13, fontWeight: 700, color: "#111827", margin: "0 0 12px" }}>Tags a sincronizar (mín. {MIN_TAGS})</h3>
                   {tagsLoading ? (
                     <div style={{ display: "flex", alignItems: "center", gap: 6, color: "#9ca3af", fontSize: 13 }}>
-                      <Loader2 size={14} className="animate-spin" /> Cargando...
+                      <Loader2 size={14} className="animate-spin" /> Cargando tags...
                     </div>
-                  ) : selectedTags.size > 0 ? (
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                      {Array.from(selectedTags).map(tag => (
-                        <span
-                          key={tag}
-                          style={{
-                            fontSize: 12, fontWeight: 600, color: "#0369a1",
-                            background: "#dbeafe", padding: "4px 10px", borderRadius: 6,
-                          }}>
-                          {tag} <span style={{ marginLeft: 6, cursor: "pointer" }} onClick={() => {
-                            setSelectedTags(prev => {
-                              const next = new Set(prev);
-                              next.delete(tag);
-                              return next;
-                            });
-                          }}>×</span>
-                        </span>
-                      ))}
+                  ) : tagsError ? (
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span style={{ fontSize: 13, color: "#dc2626" }}>{tagsError}</span>
+                      <button onClick={loadTags} style={{ fontSize: 12, color: BRAND, background: "none", border: "none", cursor: "pointer" }}>
+                        Reintentar
+                      </button>
                     </div>
                   ) : (
-                    <p style={{ fontSize: 12, color: "#9ca3af" }}>No hay tags seleccionadas</p>
+                    <div>
+                      {/* Buscador */}
+                      <div style={{ position: "relative", marginBottom: 12 }}>
+                        <input
+                          value={tagSearch}
+                          onChange={e => setTagSearch(e.target.value)}
+                          placeholder="Buscar tags..."
+                          style={{
+                            width: "100%", padding: "8px 12px 8px 32px", borderRadius: 8,
+                            border: "1px solid #e5e7eb", fontSize: 13, outline: "none",
+                            boxSizing: "border-box",
+                          }}
+                        />
+                        <span style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "#9ca3af", fontSize: 12, fontWeight: 900 }}>⌕</span>
+                        {tagSearch && (
+                          <button onClick={() => setTagSearch("")} style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "#9ca3af", fontSize: 16 }}>×</button>
+                        )}
+                      </div>
+
+                      {/* Grupos expandibles */}
+                      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                        {tagGroups.map(({ group, tags }) => {
+                          const filtered = tagSearch
+                            ? tags.filter(t => t.toLowerCase().includes(tagSearch.toLowerCase()))
+                            : tags;
+                          if (filtered.length === 0) return null;
+                          const isExpanded = expandedGroups.has(group) || !!tagSearch;
+                          const selectedInGroup = filtered.filter(t => selectedTags.has(t)).length;
+
+                          return (
+                            <div key={group} style={{ borderRadius: 8, overflow: "hidden", border: "1px solid #e5e7eb" }}>
+                              {/* Header del grupo */}
+                              <button
+                                onClick={() => {
+                                  setExpandedGroups(prev => {
+                                    const next = new Set(prev);
+                                    if (next.has(group)) next.delete(group); else next.add(group);
+                                    return next;
+                                  });
+                                }}
+                                style={{
+                                  width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
+                                  padding: "10px 14px", background: isExpanded ? "#f0f9ff" : "#f9fafb",
+                                  border: "none", cursor: "pointer", textAlign: "left",
+                                  borderBottom: isExpanded ? "1px solid #e0f2fe" : "none",
+                                }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                  <span style={{ fontSize: 13, fontWeight: 700, color: isExpanded ? "#0369a1" : "#374151" }}>{group}</span>
+                                  <span style={{ fontSize: 11, color: "#9ca3af", background: "#f3f4f6", padding: "1px 7px", borderRadius: 10 }}>{filtered.length}</span>
+                                  {selectedInGroup > 0 && (
+                                    <span style={{ fontSize: 11, fontWeight: 700, color: "#0369a1", background: "#dbeafe", padding: "1px 8px", borderRadius: 10 }}>
+                                      ✓ {selectedInGroup}
+                                    </span>
+                                  )}
+                                </div>
+                                <span style={{ fontSize: 10, color: "#9ca3af", transform: isExpanded ? "rotate(180deg)" : "none", transition: "transform 0.2s", display: "inline-block" }}>▼</span>
+                              </button>
+
+                              {/* Tags del grupo */}
+                              {isExpanded && (
+                                <div style={{ padding: "12px 14px", display: "flex", flexWrap: "wrap", gap: 6, background: "white" }}>
+                                  {group === "Campos especiales Tokko" && (
+                                    <p style={{ width: "100%", fontSize: 12, color: "#6b7280", margin: "0 0 8px", background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 6, padding: "6px 10px" }}>
+                                      Estas tags se generan a partir de campos del contacto en Tokko, no son tags nativas. Solo se asignan a los contactos que cumplen la condición.
+                                    </p>
+                                  )}
+                                  {filtered.map(tag => {
+                                    const selected = selectedTags.has(tag);
+                                    const isSpecial = group === "Campos especiales Tokko";
+                                    const specialDesc: Record<string, string> = {
+                                      "is_owner": "Propietario — el contacto tiene o tuvo un inmueble asociado en Tokko (en venta, alquiler o ya operado)",
+                                    };
+                                    return (
+                                      <div key={tag} style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                                        <button
+                                          onClick={() => toggleTag(tag)}
+                                          style={{
+                                            padding: "5px 12px", borderRadius: 20, fontSize: 12, fontWeight: 600,
+                                            border: `1.5px solid ${selected ? BRAND : isSpecial ? "#fbbf24" : "#e5e7eb"}`,
+                                            background: selected ? "#e0f2fe" : isSpecial ? "#fffbeb" : "white",
+                                            color: selected ? "#0369a1" : isSpecial ? "#92400e" : "#6b7280",
+                                            cursor: "pointer",
+                                          }}>
+                                          {selected ? "✓ " : ""}{tag}
+                                        </button>
+                                        {isSpecial && specialDesc[tag] && (
+                                          <span style={{ fontSize: 10, color: "#9ca3af", paddingLeft: 4 }}>{specialDesc[tag]}</span>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                        {tagGroups.length === 0 && (
+                          <div style={{ padding: "20px 0", textAlign: "center", color: "#9ca3af", fontSize: 13 }}>
+                            No se encontraron tags en Tokko
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Contador */}
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 10 }}>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: selectedTags.size >= MIN_TAGS ? "#16a34a" : "#dc2626" }}>
+                          {selectedTags.size} seleccionada{selectedTags.size !== 1 ? "s" : ""} · mínimo {MIN_TAGS}
+                        </span>
+                      </div>
+                    </div>
                   )}
                 </div>
 
