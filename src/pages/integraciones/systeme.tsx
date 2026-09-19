@@ -61,6 +61,9 @@ export default function SystemePage() {
   const [keyVerifying, setKeyVerifying] = useState(false);
   const [keyValid, setKeyValid] = useState<boolean | null>(null);
   const [keyVerifyMsg, setKeyVerifyMsg] = useState("");
+  
+  // Config collapsible
+  const [configExpanded, setConfigExpanded] = useState(false);
 
   // Run manual
   const [running, setRunning] = useState(false);
@@ -129,8 +132,8 @@ export default function SystemePage() {
       const d = await r.json();
       if (d.groups) {
         setTagGroups(d.groups);
-        // Expandir el primer grupo por defecto
-        if (d.groups.length > 0) setExpandedGroups(new Set([d.groups[0].group]));
+        // Todos cerrados por defecto
+        setExpandedGroups(new Set());
       } else setTagsError(d.error || "No se pudieron cargar las tags");
     } catch { setTagsError("Error de conexión con Tokko"); }
     setTagsLoading(false);
@@ -306,8 +309,222 @@ export default function SystemePage() {
           </span>
         </div>
 
-        {/* Paso 1: API Key */}
-        <Section num={1} title="API key de Systeme.io">
+        {/* MODO CONFIGURADO: Dashboard limpio */}
+        {config?.isConfigured && (
+          <>
+            {/* Botones de acción */}
+            <div style={{ display: "flex", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
+              <button
+                onClick={handleRunNow}
+                disabled={running}
+                style={{
+                  padding: "10px 18px", borderRadius: 8, fontSize: 14, fontWeight: 700,
+                  background: "#111827", color: "white", border: "none", cursor: "pointer",
+                  display: "flex", alignItems: "center", gap: 6, opacity: running ? 0.6 : 1,
+                }}>
+                {running ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />}
+                {running ? "Sincronizando..." : "Sincronizar ahora"}
+              </button>
+              
+              <button
+                onClick={() => setConfigExpanded(!configExpanded)}
+                style={{
+                  padding: "10px 18px", borderRadius: 8, fontSize: 14, fontWeight: 700,
+                  background: "#f9fafb", color: "#374151", border: "1px solid #e5e7eb", 
+                  cursor: "pointer", display: "flex", alignItems: "center", gap: 6,
+                }}>
+                ⚙ Configuración
+              </button>
+            </div>
+
+            {/* Config collapsible */}
+            {configExpanded && (
+              <div style={{
+                background: "white", border: "1px solid #f3f4f6", borderRadius: 12,
+                padding: "20px", marginBottom: 20,
+              }}>
+                {/* API key */}
+                <div style={{ marginBottom: 20 }}>
+                  <h3 style={{ fontSize: 13, fontWeight: 700, color: "#111827", margin: "0 0 12px" }}>API key de Systeme.io</h3>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <span style={{ fontSize: 13, color: "#374151", fontFamily: "monospace", flex: 1 }}>{config.keyPreview}</span>
+                    <button
+                      onClick={() => setConfig(prev => prev ? { ...prev, hasKey: false, keyPreview: null } : prev)}
+                      style={{ fontSize: 12, color: BRAND, background: "none", border: "none", cursor: "pointer", textDecoration: "underline" }}>
+                      Cambiar
+                    </button>
+                  </div>
+                </div>
+
+                {/* Tags a sincronizar */}
+                <div style={{ marginBottom: 20 }}>
+                  <h3 style={{ fontSize: 13, fontWeight: 700, color: "#111827", margin: "0 0 12px" }}>Tags a sincronizar</h3>
+                  {tagsLoading ? (
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, color: "#9ca3af", fontSize: 13 }}>
+                      <Loader2 size={14} className="animate-spin" /> Cargando...
+                    </div>
+                  ) : selectedTags.size > 0 ? (
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                      {Array.from(selectedTags).map(tag => (
+                        <span
+                          key={tag}
+                          style={{
+                            fontSize: 12, fontWeight: 600, color: "#0369a1",
+                            background: "#dbeafe", padding: "4px 10px", borderRadius: 6,
+                          }}>
+                          {tag} <span style={{ marginLeft: 6, cursor: "pointer" }} onClick={() => {
+                            setSelectedTags(prev => {
+                              const next = new Set(prev);
+                              next.delete(tag);
+                              return next;
+                            });
+                          }}>×</span>
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p style={{ fontSize: 12, color: "#9ca3af" }}>No hay tags seleccionadas</p>
+                  )}
+                </div>
+
+                {/* Tags fijas */}
+                <div style={{ marginBottom: 20 }}>
+                  <h3 style={{ fontSize: 13, fontWeight: 700, color: "#111827", margin: "0 0 12px" }}>Tags fijas (se asignan siempre)</h3>
+                  {fixedTags.length > 0 ? (
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
+                      {fixedTags.map(tag => (
+                        <span
+                          key={tag}
+                          style={{
+                            fontSize: 12, fontWeight: 600, color: "#16a34a",
+                            background: "#dffce7", padding: "4px 10px", borderRadius: 6,
+                          }}>
+                          {tag} <span style={{ marginLeft: 6, cursor: "pointer" }} onClick={() => {
+                            setFixedTags(prev => prev.filter(t => t !== tag));
+                          }}>×</span>
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p style={{ fontSize: 12, color: "#9ca3af", marginBottom: 10 }}>No hay tags fijas</p>
+                  )}
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <input
+                      value={newFixedTag}
+                      onChange={e => setNewFixedTag(e.target.value)}
+                      placeholder="Agregar tag fija..."
+                      onKeyDown={e => {
+                        if (e.key === "Enter" && newFixedTag.trim()) {
+                          if (!fixedTags.includes(newFixedTag.trim())) {
+                            setFixedTags([...fixedTags, newFixedTag.trim()]);
+                          }
+                          setNewFixedTag("");
+                        }
+                      }}
+                      style={{
+                        flex: 1, padding: "8px 12px", borderRadius: 6,
+                        border: "1px solid #e5e7eb", fontSize: 13, outline: "none", boxSizing: "border-box",
+                      }}
+                    />
+                    <button
+                      onClick={() => {
+                        if (newFixedTag.trim() && !fixedTags.includes(newFixedTag.trim())) {
+                          setFixedTags([...fixedTags, newFixedTag.trim()]);
+                          setNewFixedTag("");
+                        }
+                      }}
+                      style={{
+                        padding: "8px 16px", borderRadius: 6, fontSize: 13, fontWeight: 600,
+                        background: BRAND, color: "white", border: "none", cursor: "pointer",
+                      }}>
+                      Agregar
+                    </button>
+                  </div>
+                </div>
+
+                {/* Guardar */}
+                <button
+                  onClick={handleSave}
+                  disabled={!canSave || saving}
+                  style={{
+                    width: "100%", padding: "11px 14px", borderRadius: 8, fontSize: 14, fontWeight: 700,
+                    background: canSave ? BRAND : "#e5e7eb",
+                    color: canSave ? "white" : "#9ca3af",
+                    border: "none", cursor: canSave ? "pointer" : "not-allowed",
+                    opacity: saving ? 0.7 : 1,
+                    display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                  }}>
+                  {saving ? <Loader2 size={14} className="animate-spin" /> : null}
+                  {saving ? "Guardando..." : "Guardar cambios"}
+                </button>
+              </div>
+            )}
+
+            {/* Sincronizar por rango */}
+            <div style={{
+              background: "#f9fafb", border: "1px solid #f3f4f6",
+              borderRadius: 12, padding: "16px 20px", marginBottom: 20,
+            }}>
+              <div style={{ marginBottom: 12 }}>
+                <p style={{ fontSize: 14, fontWeight: 700, color: "#374151", margin: 0 }}>Sincronizar por rango de fechas</p>
+                <p style={{ fontSize: 12, color: "#9ca3af", margin: "2px 0 0" }}>
+                  Útil para recuperar gaps históricos o forzar resincronización de un período específico
+                </p>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  <label style={{ fontSize: 11, color: "#6b7280", fontWeight: 600 }}>Desde</label>
+                  <input
+                    type="date"
+                    value={rangeFrom}
+                    onChange={e => setRangeFrom(e.target.value)}
+                    max={today}
+                    style={{
+                      padding: "7px 10px", borderRadius: 6, fontSize: 13,
+                      border: "1px solid #d1d5db", background: "white", outline: "none", boxSizing: "border-box",
+                    }}
+                  />
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  <label style={{ fontSize: 11, color: "#6b7280", fontWeight: 600 }}>Hasta (opcional)</label>
+                  <input
+                    type="date"
+                    value={rangeTo}
+                    onChange={e => setRangeTo(e.target.value)}
+                    max={today}
+                    style={{
+                      padding: "7px 10px", borderRadius: 6, fontSize: 13,
+                      border: "1px solid #d1d5db", background: "white", outline: "none", boxSizing: "border-box",
+                    }}
+                  />
+                </div>
+                <button
+                  onClick={handleRunRange}
+                  disabled={runningRange}
+                  style={{
+                    padding: "9px 18px", borderRadius: 6, fontSize: 13, fontWeight: 700,
+                    background: "#0ea5e9", color: "white", border: "none", cursor: "pointer",
+                    display: "flex", alignItems: "center", gap: 6, opacity: runningRange ? 0.6 : 1,
+                    marginTop: 17,
+                  }}>
+                  {runningRange ? <Loader2 size={13} className="animate-spin" /> : <Play size={13} />}
+                  {runningRange ? "Sincronizando..." : "Sincronizar rango"}
+                </button>
+              </div>
+              {rangeMsg && (
+                <p style={{ fontSize: 13, fontWeight: 600, marginTop: 10, color: rangeMsg.startsWith("✓") ? "#16a34a" : "#dc2626" }}>
+                  {rangeMsg}
+                </p>
+              )}
+            </div>
+          </>
+        )}
+
+        {/* MODO NO CONFIGURADO: Setup steps */}
+        {!config?.isConfigured && (
+          <>
+            {/* Paso 1: API Key */}
+            <Section num={1} title="API key de Systeme.io">
           {config?.hasKey ? (
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <span style={{ fontSize: 13, color: "#374151", fontFamily: "monospace" }}>{config.keyPreview}</span>
@@ -567,101 +784,10 @@ export default function SystemePage() {
             )}
           </div>
         </div>
-
-        {/* Corrida manual */}
-        {config?.isConfigured && (
-          <div style={{
-            background: "#f9fafb", border: "1px solid #f3f4f6",
-            borderRadius: 12, padding: "16px 20px", marginBottom: 28,
-          }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
-              <div>
-                <p style={{ fontSize: 14, fontWeight: 700, color: "#374151", margin: 0 }}>Ejecutar ahora</p>
-                <p style={{ fontSize: 12, color: "#9ca3af", margin: "2px 0 0" }}>
-                  Sincroniza los contactos modificados en los últimos 3 días sin esperar el cron
-                </p>
-              </div>
-              <button
-                onClick={handleRunNow}
-                disabled={running}
-                style={{
-                  padding: "9px 20px", borderRadius: 8, fontSize: 13, fontWeight: 700,
-                  background: "#111827", color: "white", border: "none", cursor: "pointer",
-                  display: "flex", alignItems: "center", gap: 6, opacity: running ? 0.6 : 1,
-                }}>
-                {running ? <Loader2 size={13} className="animate-spin" /> : <Play size={13} />}
-                {running ? "Sincronizando..." : "Sincronizar ahora"}
-              </button>
-            </div>
-            {runMsg && (
-              <p style={{ fontSize: 13, fontWeight: 600, marginTop: 10, color: runMsg.startsWith("✓") ? "#16a34a" : "#dc2626" }}>
-                {runMsg}
-              </p>
-            )}
-          </div>
+        </>
         )}
 
-        {/* Sincronizar por rango */}
-        {config?.isConfigured && (
-          <div style={{
-            background: "#f9fafb", border: "1px solid #f3f4f6",
-            borderRadius: 12, padding: "16px 20px", marginBottom: 28,
-          }}>
-            <div style={{ marginBottom: 12 }}>
-              <p style={{ fontSize: 14, fontWeight: 700, color: "#374151", margin: 0 }}>Sincronizar por rango de fechas</p>
-              <p style={{ fontSize: 12, color: "#9ca3af", margin: "2px 0 0" }}>
-                Útil para recuperar gaps históricos o forzar resincronización de un período específico
-              </p>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                <label style={{ fontSize: 11, color: "#6b7280", fontWeight: 600 }}>Desde</label>
-                <input
-                  type="date"
-                  value={rangeFrom}
-                  onChange={e => setRangeFrom(e.target.value)}
-                  max={today}
-                  style={{
-                    padding: "7px 10px", borderRadius: 7, fontSize: 13,
-                    border: "1px solid #d1d5db", background: "white",
-                  }}
-                />
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                <label style={{ fontSize: 11, color: "#6b7280", fontWeight: 600 }}>Hasta (opcional)</label>
-                <input
-                  type="date"
-                  value={rangeTo}
-                  onChange={e => setRangeTo(e.target.value)}
-                  max={today}
-                  style={{
-                    padding: "7px 10px", borderRadius: 7, fontSize: 13,
-                    border: "1px solid #d1d5db", background: "white",
-                  }}
-                />
-              </div>
-              <button
-                onClick={handleRunRange}
-                disabled={runningRange}
-                style={{
-                  padding: "9px 18px", borderRadius: 8, fontSize: 13, fontWeight: 700,
-                  background: "#0ea5e9", color: "white", border: "none", cursor: "pointer",
-                  display: "flex", alignItems: "center", gap: 6, opacity: runningRange ? 0.6 : 1,
-                  marginTop: 17,
-                }}>
-                {runningRange ? <Loader2 size={13} className="animate-spin" /> : <Play size={13} />}
-                {runningRange ? "Sincronizando..." : "Sincronizar rango"}
-              </button>
-            </div>
-            {rangeMsg && (
-              <p style={{ fontSize: 13, fontWeight: 600, marginTop: 10, color: rangeMsg.startsWith("✓") ? "#16a34a" : "#dc2626" }}>
-                {rangeMsg}
-              </p>
-            )}
-          </div>
-        )}
-
-        {/* Historial */}
+        {/* Historial (siempre visible) */}
         <div>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
             <h2 style={{ fontSize: 15, fontWeight: 800, color: "#111827", margin: 0 }}>Historial de sincronizaciones</h2>
