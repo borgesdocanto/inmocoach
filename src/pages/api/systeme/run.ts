@@ -148,7 +148,9 @@ async function runSyncInBackground(
       started_at: new Date().toISOString(), 
       status: "running", 
       trigger,
-      cron_mode: cronMode 
+      cron_mode: cronMode,
+      from_date: effectiveDateRange?.fromDate ?? null,
+      to_date: effectiveDateRange?.toDate ?? null
     })
     .select("id")
     .single();
@@ -187,6 +189,7 @@ async function runSyncInBackground(
         errors_count: result.errors,
         error_detail: result.errorDetail ?? null,
         status,
+        total_processed: result.created + result.updated + result.skipped,
       }).eq("id", logId);
     }
 

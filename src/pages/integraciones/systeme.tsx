@@ -20,6 +20,9 @@ interface SyncLog {
   status: "running" | "success" | "partial" | "error";
   trigger?: "cron" | "manual";
   cron_mode?: "recent" | "historic";
+  from_date?: string;
+  to_date?: string;
+  total_processed?: number;
 }
 
 interface Config {
@@ -80,7 +83,7 @@ export default function SystemePage() {
   const [runningHistoric, setRunningHistoric] = useState(false);
   const [historicMsg, setHistoricMsg] = useState("");
   const [oldestDate, setOldestDate] = useState<string | null>(null);
-  const [lastHistoricRun, setLastHistoricRun] = useState<{ date: string; created: number; updated: number; status: string; error?: string } | null>(null);
+  const [lastHistoricRun, setLastHistoricRun] = useState<{ date: string; created: number; updated: number; skipped: number; total: number; from_date?: string; to_date?: string; status: string; error?: string } | null>(null);
   const [isAuthorized, setIsAuthorized] = useState(false);
 
   useEffect(() => {
@@ -159,6 +162,10 @@ export default function SystemePage() {
             date: lastHistoric.started_at,
             created: lastHistoric.contacts_created,
             updated: lastHistoric.contacts_updated,
+            skipped: lastHistoric.contacts_skipped,
+            total: lastHistoric.total_processed ?? (lastHistoric.contacts_created + lastHistoric.contacts_updated + lastHistoric.contacts_skipped),
+            from_date: lastHistoric.from_date,
+            to_date: lastHistoric.to_date,
             status: lastHistoric.status,
             error: lastHistoric.error_detail
           });
@@ -969,7 +976,15 @@ export default function SystemePage() {
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 5, color: lastHistoricRun.status === "success" ? "#0c4a6e" : lastHistoricRun.status === "error" ? "#7f1d1d" : "#92400e", fontSize: 11 }}>
                 <div><strong>Cuándo:</strong> {new Date(lastHistoricRun.date).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</div>
-                <div><strong>Resultado:</strong> +{lastHistoricRun.created} nuevos, ↻ {lastHistoricRun.updated} actualizados</div>
+                {lastHistoricRun.from_date && lastHistoricRun.to_date && (
+                  <div><strong>Período sincronizado:</strong> {lastHistoricRun.from_date} → {lastHistoricRun.to_date}</div>
+                )}
+                {lastHistoricRun.total > 0 && (
+                  <div><strong>Resultado:</strong> {lastHistoricRun.total} contactos procesados (+{lastHistoricRun.created} nuevos, ↻ {lastHistoricRun.updated} actualizados, ↷ {lastHistoricRun.skipped} omitidos)</div>
+                )}
+                {lastHistoricRun.total === 0 && (
+                  <div><strong>Resultado:</strong> Sin contactos en este período (0 procesados)</div>
+                )}
                 <div><strong>Estado:</strong> <span style={{ fontWeight: 700, color: lastHistoricRun.status === "success" ? "#16a34a" : lastHistoricRun.status === "error" ? "#dc2626" : "#d97706" }}>
                   {lastHistoricRun.status === "success" ? "✓ Exitosa" : lastHistoricRun.status === "error" ? "✗ Error" : "⚠ Parcial"}
                 </span></div>
