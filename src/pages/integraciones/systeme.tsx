@@ -956,11 +956,15 @@ export default function SystemePage() {
             </button>
           </div>
 
-          {oldestDate && (
-            <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 12, padding: "8px 12px", background: "#f9fafb", borderRadius: 8 }}>
-              📅 Fecha más antigua sincronizada: <strong>{oldestDate}</strong> (CRON 2 retrocede desde aquí)
-            </div>
-          )}
+          {oldestDate && (() => {
+            const [year, month, day] = oldestDate.split('-');
+            const formatted = `${day}/${month}/${year}`;
+            return (
+              <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 12, padding: "8px 12px", background: "#f9fafb", borderRadius: 8 }}>
+                📅 Fecha más antigua sincronizada: <strong>{formatted}</strong> (CRON 2 retrocede desde aquí)
+              </div>
+            );
+          })()}
 
           {lastHistoricRun && (
             <div style={{ 
@@ -976,9 +980,13 @@ export default function SystemePage() {
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 5, color: lastHistoricRun.status === "success" ? "#0c4a6e" : lastHistoricRun.status === "error" ? "#7f1d1d" : "#92400e", fontSize: 11 }}>
                 <div><strong>Cuándo:</strong> {new Date(lastHistoricRun.date).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</div>
-                {lastHistoricRun.from_date && lastHistoricRun.to_date && (
-                  <div><strong>Período sincronizado:</strong> {lastHistoricRun.from_date} → {lastHistoricRun.to_date}</div>
-                )}
+                {lastHistoricRun.from_date && lastHistoricRun.to_date && (() => {
+                  const formatDate = (dateStr: string) => {
+                    const [year, month, day] = dateStr.split('-');
+                    return `${day}/${month}/${year}`;
+                  };
+                  return <div><strong>Período sincronizado:</strong> {formatDate(lastHistoricRun.from_date!)} → {formatDate(lastHistoricRun.to_date!)}</div>;
+                })()}
                 {lastHistoricRun.total > 0 && (
                   <div><strong>Resultado:</strong> {lastHistoricRun.total} contactos procesados (+{lastHistoricRun.created} nuevos, ↻ {lastHistoricRun.updated} actualizados, ↷ {lastHistoricRun.skipped} omitidos)</div>
                 )}
@@ -988,9 +996,11 @@ export default function SystemePage() {
                 <div><strong>Estado:</strong> <span style={{ fontWeight: 700, color: lastHistoricRun.status === "success" ? "#16a34a" : lastHistoricRun.status === "error" ? "#dc2626" : "#d97706" }}>
                   {lastHistoricRun.status === "success" ? "✓ Exitosa" : lastHistoricRun.status === "error" ? "✗ Error" : "⚠ Parcial"}
                 </span></div>
-                {oldestDate && (
-                  <div><strong>Próxima ventana:</strong> {new Date(new Date(oldestDate).getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0]}</div>
-                )}
+                {oldestDate && (() => {
+                  const nextDate = new Date(new Date(oldestDate).getTime() - 7 * 24 * 60 * 60 * 1000);
+                  const formatted = `${String(nextDate.getUTCDate()).padStart(2, '0')}/${String(nextDate.getUTCMonth() + 1).padStart(2, '0')}/${nextDate.getUTCFullYear()}`;
+                  return <div><strong>Próxima ventana:</strong> {formatted}</div>;
+                })()}
                 {lastHistoricRun.error && (
                   <pre style={{ fontSize: 10, color: "#dc2626", marginTop: 6, background: "#fef2f2", padding: "4px 8px", borderRadius: 4, whiteSpace: "pre-wrap", wordBreak: "break-all", margin: 0 }}>
                     {lastHistoricRun.error}
