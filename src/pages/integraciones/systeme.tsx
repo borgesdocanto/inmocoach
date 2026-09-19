@@ -75,6 +75,10 @@ export default function SystemePage() {
   const [rangeTo, setRangeTo] = useState(today);
   const [runningRange, setRunningRange] = useState(false);
   const [rangeMsg, setRangeMsg] = useState("");
+  // CRON 2: Sync histórico hacia atrás en el tiempo
+  const [runningHistoric, setRunningHistoric] = useState(false);
+  const [historicMsg, setHistoricMsg] = useState("");
+  const [oldestDate, setOldestDate] = useState<string | null>(null);
   const [isAuthorized, setIsAuthorized] = useState(false);
 
   useEffect(() => {
@@ -145,6 +149,7 @@ export default function SystemePage() {
       const r = await fetch("/api/systeme/logs");
       const d = await r.json();
       if (d.logs) setLogs(d.logs);
+      if (d.oldestSyncedDate) setOldestDate(d.oldestSyncedDate);
     } catch { /* ignorar */ }
     setLogsLoading(false);
   };
@@ -263,6 +268,25 @@ export default function SystemePage() {
     setRunningRange(false);
   };
 
+  const handleRunHistoric = async () => {
+    setRunningHistoric(true); setHistoricMsg("");
+    try {
+      const r = await fetch("/api/systeme/run", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cronMode: "historic" }),
+      });
+      const d = await r.json();
+      if (d.ok) {
+        setHistoricMsg(`✓ Sync histórico iniciado${oldestDate ? ` desde ${oldestDate}` : ""}... Consultá los logs para el resultado.`);
+        await loadLogs();
+      } else {
+        setHistoricMsg(`✗ ${d.error || "Error"}`);
+      }
+    } catch { setHistoricMsg("✗ Error de conexión"); }
+    setRunningHistoric(false);
+  };
+
   if (loading) {
     return (
       <AppLayout>
@@ -324,6 +348,18 @@ export default function SystemePage() {
                 }}>
                 {running ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />}
                 {running ? "Sincronizando..." : "Sincronizar ahora"}
+              </button>
+
+              <button
+                onClick={handleRunHistoric}
+                disabled={runningHistoric}
+                style={{
+                  padding: "10px 18px", borderRadius: 8, fontSize: 14, fontWeight: 700,
+                  background: "#7c3aed", color: "white", border: "none", cursor: "pointer",
+                  display: "flex", alignItems: "center", gap: 6, opacity: runningHistoric ? 0.6 : 1,
+                }}>
+                {runningHistoric ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />}
+                {runningHistoric ? "Sincronizando..." : "Sincronizar histórico"}
               </button>
               
               <button
@@ -613,6 +649,11 @@ export default function SystemePage() {
                   {rangeMsg}
                 </p>
               )}
+              {historicMsg && (
+                <p style={{ fontSize: 13, fontWeight: 600, marginTop: 10, color: historicMsg.startsWith("✓") ? "#16a34a" : "#dc2626" }}>
+                  {historicMsg}
+                </p>
+              )}
             </div>
           </>
         )}
@@ -892,6 +933,12 @@ export default function SystemePage() {
               <RefreshCw size={11} /> Actualizar
             </button>
           </div>
+
+          {oldestDate && (
+            <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 12, padding: "8px 12px", background: "#f9fafb", borderRadius: 8 }}>
+              📅 Fecha más antigua sincronizada: <strong>{oldestDate}</strong> (CRON 2 retrocede desde aquí)
+            </div>
+          )}
 
           {logsLoading ? (
             <div style={{ color: "#9ca3af", fontSize: 13, display: "flex", alignItems: "center", gap: 6 }}>

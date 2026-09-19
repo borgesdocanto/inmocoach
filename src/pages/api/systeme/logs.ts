@@ -27,13 +27,30 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(403).json({ error: "Feature no disponible" });
   }
 
-  const { data: logs, error } = await supabaseAdmin
-    .from("sync_logs")
-    .select("*")
-    .eq("team_id", sub.team_id)
-    .order("started_at", { ascending: false })
-    .limit(30);
+  const [
+    { data: logs, error: logsError },
+    { data: cacheData, error: cacheError }
+  ] = await Promise.all([
+    supabaseAdmin
+      .from("sync_logs")
+      .select("*")
+      .eq("team_id", sub.team_id)
+      .order("started_at", { ascending: false })
+      .limit(30),
+    // Obtener fecha más antigua sincronizada
+    supabaseAdmin
+      .from("systeme_contact_cache")
+      .select("tokko_deleted_at")
+      .eq("team_id", sub.team_id)
+      .order("tokko_deleted_at", { ascending: true })
+      .limit(1)
+  ]);
 
-  if (error) return res.status(500).json({ error: error.message });
-  return res.json({ logs: logs || [] });
+  if (logsError) return res.status(500).json({ error: logsError.message });
+  
+  const oldestDate = cacheData?.[0]?.tokko_deleted_at ?? null;
+  return res.json({ 
+    logs: logs || [],
+    oldestSyncedDate: oldestDate 
+  });
 }
