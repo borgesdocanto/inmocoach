@@ -19,6 +19,7 @@ interface SyncLog {
   error_detail?: string;
   status: "running" | "success" | "partial" | "error";
   trigger?: "cron" | "manual";
+  cron_mode?: "recent" | "historic";
 }
 
 interface Config {
@@ -79,6 +80,7 @@ export default function SystemePage() {
   const [runningHistoric, setRunningHistoric] = useState(false);
   const [historicMsg, setHistoricMsg] = useState("");
   const [oldestDate, setOldestDate] = useState<string | null>(null);
+  const [lastHistoricRun, setLastHistoricRun] = useState<{ date: string; created: number; updated: number; status: string; error?: string } | null>(null);
   const [isAuthorized, setIsAuthorized] = useState(false);
 
   useEffect(() => {
@@ -148,7 +150,20 @@ export default function SystemePage() {
     try {
       const r = await fetch("/api/systeme/logs");
       const d = await r.json();
-      if (d.logs) setLogs(d.logs);
+      if (d.logs) {
+        setLogs(d.logs);
+        // Extraer última ejecución de CRON 2 (historic)
+        const lastHistoric = d.logs.find((log: SyncLog) => log.cron_mode === "historic");
+        if (lastHistoric) {
+          setLastHistoricRun({
+            date: lastHistoric.started_at,
+            created: lastHistoric.contacts_created,
+            updated: lastHistoric.contacts_updated,
+            status: lastHistoric.status,
+            error: lastHistoric.error_detail
+          });
+        }
+      }
       if (d.oldestSyncedDate) setOldestDate(d.oldestSyncedDate);
     } catch { /* ignorar */ }
     setLogsLoading(false);
@@ -937,6 +952,36 @@ export default function SystemePage() {
           {oldestDate && (
             <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 12, padding: "8px 12px", background: "#f9fafb", borderRadius: 8 }}>
               📅 Fecha más antigua sincronizada: <strong>{oldestDate}</strong> (CRON 2 retrocede desde aquí)
+            </div>
+          )}
+
+          {lastHistoricRun && (
+            <div style={{ 
+              background: lastHistoricRun.status === "success" ? "#f0f9ff" : lastHistoricRun.status === "error" ? "#fef2f2" : "#fef3c7",
+              border: lastHistoricRun.status === "success" ? "1px solid #bfdbfe" : lastHistoricRun.status === "error" ? "1px solid #fecaca" : "1px solid #fde68a",
+              borderRadius: 10, 
+              padding: "12px 14px", 
+              marginBottom: 14, 
+              fontSize: 12
+            }}>
+              <div style={{ color: lastHistoricRun.status === "success" ? "#0c4a6e" : lastHistoricRun.status === "error" ? "#7f1d1d" : "#92400e", fontWeight: 700, marginBottom: 8 }}>
+                🔄 Última sincronización histórica (CRON 2)
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 5, color: lastHistoricRun.status === "success" ? "#0c4a6e" : lastHistoricRun.status === "error" ? "#7f1d1d" : "#92400e", fontSize: 11 }}>
+                <div><strong>Cuándo:</strong> {new Date(lastHistoricRun.date).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</div>
+                <div><strong>Resultado:</strong> +{lastHistoricRun.created} nuevos, ↻ {lastHistoricRun.updated} actualizados</div>
+                <div><strong>Estado:</strong> <span style={{ fontWeight: 700, color: lastHistoricRun.status === "success" ? "#16a34a" : lastHistoricRun.status === "error" ? "#dc2626" : "#d97706" }}>
+                  {lastHistoricRun.status === "success" ? "✓ Exitosa" : lastHistoricRun.status === "error" ? "✗ Error" : "⚠ Parcial"}
+                </span></div>
+                {oldestDate && (
+                  <div><strong>Próxima ventana:</strong> {new Date(new Date(oldestDate).getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0]}</div>
+                )}
+                {lastHistoricRun.error && (
+                  <pre style={{ fontSize: 10, color: "#dc2626", marginTop: 6, background: "#fef2f2", padding: "4px 8px", borderRadius: 4, whiteSpace: "pre-wrap", wordBreak: "break-all", margin: 0 }}>
+                    {lastHistoricRun.error}
+                  </pre>
+                )}
+              </div>
             </div>
           )}
 
