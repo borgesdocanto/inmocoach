@@ -393,16 +393,16 @@ export default function SystemePage() {
               </button>
 
               <button
-                onClick={lastHistoricRun.status === "running" ? handleCleanupStuck : handleRunHistoric}
+                onClick={lastHistoricRun && lastHistoricRun.status === "running" ? handleCleanupStuck : handleRunHistoric}
                 disabled={runningHistoric}
                 style={{
                   padding: "10px 18px", borderRadius: 8, fontSize: 14, fontWeight: 700,
-                  background: lastHistoricRun.status === "running" ? "#dc2626" : "#7c3aed", 
+                  background: lastHistoricRun && lastHistoricRun.status === "running" ? "#dc2626" : "#7c3aed", 
                   color: "white", border: "none", cursor: "pointer",
                   display: "flex", alignItems: "center", gap: 6, opacity: runningHistoric ? 0.6 : 1,
                 }}>
                 {runningHistoric ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />}
-                {runningHistoric ? "Procesando..." : lastHistoricRun.status === "running" ? "🔧 Limpiar & reintentar" : "Sincronizar histórico"}
+                {runningHistoric ? "Procesando..." : lastHistoricRun && lastHistoricRun.status === "running" ? "🔧 Limpiar & reintentar" : "Sincronizar histórico"}
               </button>
               
               <button
