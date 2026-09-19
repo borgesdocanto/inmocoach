@@ -997,7 +997,8 @@ export default function SystemePage() {
                   {lastHistoricRun.status === "success" ? "✓ Exitosa" : lastHistoricRun.status === "error" ? "✗ Error" : "⚠ Parcial"}
                 </span></div>
                 {oldestDate && (() => {
-                  const nextDate = new Date(new Date(oldestDate).getTime() - 7 * 24 * 60 * 60 * 1000);
+                  const [year, month, day] = oldestDate.split('-');
+                  const nextDate = new Date(new Date(`${oldestDate}T00:00:00Z`).getTime() - 7 * 24 * 60 * 60 * 1000);
                   const formatted = `${String(nextDate.getUTCDate()).padStart(2, '0')}/${String(nextDate.getUTCMonth() + 1).padStart(2, '0')}/${nextDate.getUTCFullYear()}`;
                   return <div><strong>Próxima ventana:</strong> {formatted}</div>;
                 })()}
