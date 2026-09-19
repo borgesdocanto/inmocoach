@@ -309,6 +309,26 @@ export default function SystemePage() {
     setRunningHistoric(false);
   };
 
+  const handleCleanupStuck = async () => {
+    setRunningHistoric(true);
+    try {
+      const r = await fetch("/api/systeme/cleanup-stuck", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      const d = await r.json();
+      if (r.ok) {
+        setHistoricMsg(`✓ ${d.message} (${d.cleaned} log/s marcado/s como error). Reintentando sincronización...`);
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        await loadLogs();
+        await handleRunHistoric();
+      } else {
+        setHistoricMsg(`✗ ${d.error || "Error al limpiar"}`);
+      }
+    } catch { setHistoricMsg("✗ Error de conexión"); }
+    setRunningHistoric(false);
+  };
+
   if (loading) {
     return (
       <AppLayout>
@@ -373,15 +393,16 @@ export default function SystemePage() {
               </button>
 
               <button
-                onClick={handleRunHistoric}
+                onClick={lastHistoricRun.status === "running" ? handleCleanupStuck : handleRunHistoric}
                 disabled={runningHistoric}
                 style={{
                   padding: "10px 18px", borderRadius: 8, fontSize: 14, fontWeight: 700,
-                  background: "#7c3aed", color: "white", border: "none", cursor: "pointer",
+                  background: lastHistoricRun.status === "running" ? "#dc2626" : "#7c3aed", 
+                  color: "white", border: "none", cursor: "pointer",
                   display: "flex", alignItems: "center", gap: 6, opacity: runningHistoric ? 0.6 : 1,
                 }}>
                 {runningHistoric ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />}
-                {runningHistoric ? "Sincronizando..." : "Sincronizar histórico"}
+                {runningHistoric ? "Procesando..." : lastHistoricRun.status === "running" ? "🔧 Limpiar & reintentar" : "Sincronizar histórico"}
               </button>
               
               <button
