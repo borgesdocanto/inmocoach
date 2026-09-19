@@ -258,12 +258,36 @@ async function loadContactsCacheFromSupabase(teamId: string): Promise<Map<string
 }
 
 // Persistir nuevos contactos creados en el cache de Supabase
-async function persistNewContactToCache(teamId: string, email: string, systemeId: number): Promise<void> {
+async function persistNewContactToCache(teamId: string, email: string, systemeId: number, tokkoDeletedAt?: string): Promise<void> {
   try {
+    const tokkoDeletedAtDate = tokkoDeletedAt ? tokkoDeletedAt.split('T')[0] : null;
     await supabaseAdmin
       .from("systeme_contact_cache")
-      .upsert({ team_id: teamId, email: email.toLowerCase(), systeme_id: systemeId }, { onConflict: "team_id,email" });
+      .upsert({ 
+        team_id: teamId, 
+        email: email.toLowerCase(), 
+        systeme_id: systemeId,
+        tokko_deleted_at: tokkoDeletedAtDate
+      }, { onConflict: "team_id,email" });
   } catch { /* no bloquear el sync por un fallo de cache */ }
+}
+
+// Obtener la fecha más antigua sincronizada para usar en CRON 2 (sync histórico)
+export async function getOldestSyncedDate(teamId: string): Promise<string | null> {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from("systeme_contact_cache")
+      .select("tokko_deleted_at")
+      .eq("team_id", teamId)
+      .order("tokko_deleted_at", { ascending: true })
+      .limit(1);
+    
+    if (error) throw error;
+    return data?.[0]?.tokko_deleted_at || null;
+  } catch (err) {
+    console.error(`[getOldestSyncedDate] Error: ${err instanceof Error ? err.message : "Error"}`);
+    return null;
+  }
 }
 
 const INVALID_EMAIL_MSGS = ["no es válida", "not a valid email", "invalid email", "carece de un"];
@@ -469,7 +493,7 @@ export async function runSync(params: {
         const created = await createContact(payload, systemeKey, contactsCache);
         if (created) {
           contactsCache.set(emailKey, created.id);
-          if (teamId) await persistNewContactToCache(teamId, emailKey, created.id);
+          if (teamId) await persistNewContactToCache(teamId, emailKey, created.id, contact.deleted_at);
           // Si Systeme lo encontró por email (isNew=false), actualizar campos
           if (!created.isNew) {
             await updateContact(created.id, payload, systemeKey);
@@ -591,9 +615,15 @@ export async function processSingleContact(params: {
   contactsCache.set(emailKey, created.id);
   if (teamId) {
     try {
+      const tokkoDeletedAtDate = contact.deleted_at ? contact.deleted_at.split('T')[0] : null;
       await supabaseAdmin
         .from("systeme_contact_cache")
-        .upsert({ team_id: teamId, email: emailKey, systeme_id: created.id }, { onConflict: "team_id,email" });
+        .upsert({ 
+          team_id: teamId, 
+          email: emailKey, 
+          systeme_id: created.id,
+          tokko_deleted_at: tokkoDeletedAtDate
+        }, { onConflict: "team_id,email" });
     } catch { /* no bloquear */ }
   }
 
