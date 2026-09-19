@@ -11,7 +11,7 @@ import { authOptions } from "../../../lib/auth";
 import { supabaseAdmin } from "../../../lib/supabase";
 import { isSuperAdmin } from "../../../lib/adminGuard";
 import { getEffectiveEmail } from "../../../lib/impersonation";
-import { runSync } from "../../../lib/systemeSync";
+import { runSync, getOldestSyncedDate } from "../../../lib/systemeSync";
 import { Resend } from "resend";
 
 export const config = { maxDuration: 300 }; // Vercel Hobby — pero waitUntil sigue con su propio timeout
@@ -71,18 +71,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     ? { fromDate, toDate: toDate && /^\d{4}-\d{2}-\d{2}$/.test(toDate) ? toDate : undefined }
     : undefined;
 
+  // CRON mode: "recent" (CRON 1 — últimos 3 días) o "historic" (CRON 2 — hacia atrás en el tiempo)
+  const cronMode: "recent" | "historic" = req.body?.cronMode ?? "recent";
+
   // Responder YA con 202 (Accepted) — el trabajo real corre en background
   // Sin esto, cron-job.org corta a los 30s y Vercel mata a los 300s
-  waitUntil(runSyncInBackground(teamId, trigger, dateRange));
+  waitUntil(runSyncInBackground(teamId, trigger, cronMode, dateRange));
   return res.status(202).json({ ok: true, message: "Sincronización iniciada" });
 }
 
 async function runSyncInBackground(
   teamId: string,
   trigger: "cron" | "manual",
+  cronMode: "recent" | "historic",
   dateRange?: { fromDate: string; toDate?: string }
 ) {
-  console.log(`[systeme/run] sync iniciado para team ${teamId.slice(0, 8)}`);
+  console.log(`[systeme/run] sync iniciado para team ${teamId.slice(0, 8)} — modo: ${cronMode}`);
 
   // Cargar config del team
   const { data: syncConfig } = await supabaseAdmin
@@ -120,23 +124,51 @@ async function runSyncInBackground(
     supabaseAdmin.from("sync_tags_fixed").select("tag_name").eq("team_id", teamId),
   ]);
 
+  // Calcular rango de fechas según CRON mode
+  let effectiveDateRange = dateRange;
+  if (cronMode === "historic" && !dateRange) {
+    const oldestDate = await getOldestSyncedDate(teamId);
+    if (oldestDate) {
+      // Retroceder 7 días desde la fecha más antigua
+      const sevenDaysEarlier = new Date(new Date(oldestDate).getTime() - 7 * 24 * 60 * 60 * 1000)
+        .toISOString()
+        .split("T")[0];
+      effectiveDateRange = { fromDate: sevenDaysEarlier, toDate: oldestDate };
+      console.log(`[systeme/run] CRON 2 — sync histórico: ${sevenDaysEarlier} a ${oldestDate}`);
+    } else {
+      console.log(`[systeme/run] CRON 2 — sin fecha más antigua (primera corrida)`);
+    }
+  }
+
   // Crear log con status 'running'
   const { data: log } = await supabaseAdmin
     .from("sync_logs")
-    .insert({ team_id: teamId, started_at: new Date().toISOString(), status: "running", trigger })
+    .insert({ 
+      team_id: teamId, 
+      started_at: new Date().toISOString(), 
+      status: "running", 
+      trigger,
+      cron_mode: cronMode 
+    })
     .select("id")
     .single();
 
   const logId = log?.id;
 
   try {
+    // CRON 2 (historic): NO usar whitelist, solo fixed tags (para evitar conflictos)
+    // CRON 1 (recent): usar ambos whitelist + fixed tags
+    const useWhitelist = cronMode === "recent"
+      ? (whitelist || []).map((r: { tag_name: string }) => r.tag_name)
+      : [];
+
     const result = await runSync({
       tokkoKey: team.tokko_api_key,
       systemeKey: syncConfig.systeme_api_key,
-      whitelistTags: (whitelist || []).map((r: { tag_name: string }) => r.tag_name),
+      whitelistTags: useWhitelist,
       fixedTags: (fixed || []).map((r: { tag_name: string }) => r.tag_name),
       teamId,
-      dateRange,
+      dateRange: effectiveDateRange,
     });
 
     const status = result.errors > 0 && result.created + result.updated === 0
