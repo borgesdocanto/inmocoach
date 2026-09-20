@@ -29,9 +29,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   let trigger: "cron" | "manual" = "manual";
 
   if (cronAuth) {
-    // Llamado desde el scheduler — teamId viene en el body
-    teamId = req.body?.teamId;
-    if (!teamId) return res.status(400).json({ error: "teamId requerido" });
+    // Llamado desde el scheduler — teamId viene en el body, o usa el default (GALAS)
+    teamId = req.body?.teamId || "bb61ed0d-96dd-4c45-ac9a-c72169bd0b93";
     trigger = "cron";
   } else {
     // Llamado manual desde la UI
