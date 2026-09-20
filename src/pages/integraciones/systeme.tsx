@@ -85,12 +85,35 @@ export default function SystemePage() {
   const [oldestDate, setOldestDate] = useState<string | null>(null);
   const [lastHistoricRun, setLastHistoricRun] = useState<{ date: string; created: number; updated: number; skipped: number; total: number; from_date?: string; to_date?: string; status: string; error?: string } | null>(null);
   const [isAuthorized, setIsAuthorized] = useState(false);
+  const [autoRefreshInterval, setAutoRefreshInterval] = useState<NodeJS.Timeout | null>(null);
+  const [runningLogStartTime, setRunningLogStartTime] = useState<Date | null>(null);
 
   useEffect(() => {
     if (status === "unauthenticated") router.replace("/login");
   }, [status, router]);
 
   // Verificar que sea GALAS owner/team_leader antes de cargar config
+  // Auto-refresh cada 5 segundos si hay un sync "running"
+  useEffect(() => {
+    const hasRunning = logs.some(log => log.status === "running");
+    
+    if (hasRunning) {
+      // Inicia el auto-refresh
+      if (!autoRefreshInterval) {
+        const interval = setInterval(() => {
+          loadLogs();
+        }, 5000);
+        setAutoRefreshInterval(interval);
+      }
+    } else {
+      // Detiene el auto-refresh
+      if (autoRefreshInterval) {
+        clearInterval(autoRefreshInterval);
+        setAutoRefreshInterval(null);
+      }
+    }
+  }, [logs.filter(l => l.status === "running").length]);
+
   useEffect(() => {
     if (status !== "authenticated") return;
     
@@ -155,6 +178,15 @@ export default function SystemePage() {
       const d = await r.json();
       if (d.logs) {
         setLogs(d.logs);
+        // Detectar si hay algún log en estado "running"
+        const runningLog = d.logs.find((log: SyncLog) => log.status === "running");
+        if (runningLog && !runningLogStartTime) {
+          // Inicia tracking de tiempo para este sync
+          setRunningLogStartTime(new Date(runningLog.started_at));
+        } else if (!runningLog && runningLogStartTime) {
+          // El sync terminó
+          setRunningLogStartTime(null);
+        }
         // Extraer última ejecución de CRON 2 (historic)
         const lastHistoric = d.logs.find((log: SyncLog) => log.cron_mode === "historic");
         if (lastHistoric) {
@@ -1044,38 +1076,59 @@ export default function SystemePage() {
             <div style={{ border: "1px solid #f3f4f6", borderRadius: 12, overflow: "hidden" }}>
               {logs.map((log, i) => {
                 const st = STATUS_LABEL[log.status] ?? { label: log.status, color: "#6b7280" };
+                const isRunning = log.status === "running";
                 const duration = log.finished_at
                   ? Math.round((new Date(log.finished_at).getTime() - new Date(log.started_at).getTime()) / 1000)
+                  : isRunning && runningLogStartTime
+                  ? Math.round((new Date().getTime() - new Date(log.started_at).getTime()) / 1000)
                   : null;
                 return (
                   <div key={log.id} style={{
                     padding: "12px 16px",
-                    background: i % 2 === 0 ? "white" : "#fafafa",
+                    background: isRunning ? "#f0f9ff" : i % 2 === 0 ? "white" : "#fafafa",
                     borderBottom: i < logs.length - 1 ? "1px solid #f3f4f6" : "none",
+                    borderLeft: isRunning ? `4px solid ${st.color}` : "none",
                   }}>
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 6 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                        <span style={{ fontSize: 11, fontWeight: 800, color: st.color, background: `${st.color}15`, padding: "2px 8px", borderRadius: 20 }}>
+                        <span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, fontWeight: 800, color: st.color, background: `${st.color}15`, padding: "2px 8px", borderRadius: 20 }}>
+                          {isRunning && <Loader2 size={10} className="animate-spin" />}
                           {st.label}
                         </span>
                         <span style={{ fontSize: 12, color: "#374151", fontWeight: 600 }}>
                           {new Date(log.started_at).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
                         </span>
                         <span style={{ fontSize: 10, color: log.trigger === "manual" ? "#7c3aed" : "#9ca3af", background: log.trigger === "manual" ? "#f3e8ff" : "#f3f4f6", padding: "1px 6px", borderRadius: 8, fontWeight: 600 }}>
-                          {log.trigger === "manual" ? "manual" : "auto"}
+                          {log.trigger === "manual" ? "manual" : log.cron_mode ? (log.cron_mode === "historic" ? "cron2" : "cron1") : "auto"}
                         </span>
                         {duration !== null && (
-                          <span style={{ fontSize: 11, color: "#9ca3af" }}>{duration}s</span>
+                          <span style={{ fontSize: 11, color: isRunning ? st.color : "#9ca3af", fontWeight: isRunning ? 700 : 400 }}>
+                            ⏱ {duration}s {isRunning && "en progreso"}
+                          </span>
                         )}
                       </div>
                       <div style={{ display: "flex", gap: 14, fontSize: 12 }}>
-                        <span style={{ color: "#16a34a", fontWeight: 700 }}>+{log.contacts_created} nuevos</span>
-                        <span style={{ color: "#0369a1", fontWeight: 700 }}>↻ {log.contacts_updated} actualizados</span>
-                        {log.errors_count > 0 && (
-                          <span style={{ color: "#dc2626", fontWeight: 700 }}>⚠ {log.errors_count} errores</span>
+                        {isRunning ? (
+                          <span style={{ color: "#0369a1", fontStyle: "italic" }}>Sincronizando... por favor espera</span>
+                        ) : (
+                          <>
+                            <span style={{ color: "#16a34a", fontWeight: 700 }}>+{log.contacts_created} nuevos</span>
+                            <span style={{ color: "#0369a1", fontWeight: 700 }}>↻ {log.contacts_updated} actualizados</span>
+                            {log.contacts_skipped > 0 && (
+                              <span style={{ color: "#9ca3af", fontWeight: 600 }}>⊘ {log.contacts_skipped} omitidos</span>
+                            )}
+                            {log.errors_count > 0 && (
+                              <span style={{ color: "#dc2626", fontWeight: 700 }}>⚠ {log.errors_count} errores</span>
+                            )}
+                          </>
                         )}
                       </div>
                     </div>
+                    {isRunning && (
+                      <div style={{ fontSize: 12, color: "#0369a1", marginTop: 8, padding: "8px 10px", background: "#e0f2fe", borderRadius: 6 }}>
+                        ✓ El sync está corriendo en background. El dashboard se actualiza automáticamente cada 5 segundos.
+                      </div>
+                    )}
                     {log.error_detail && (
                       <pre style={{ fontSize: 11, color: "#dc2626", marginTop: 6, background: "#fef2f2", padding: "6px 10px", borderRadius: 6, whiteSpace: "pre-wrap", wordBreak: "break-all" }}>
                         {log.error_detail}
