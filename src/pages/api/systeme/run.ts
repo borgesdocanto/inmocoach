@@ -74,17 +74,41 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   // CRON mode: "recent" (CRON 1 — últimos 3 días) o "historic" (CRON 2 — hacia atrás en el tiempo)
   const cronMode: "recent" | "historic" = req.body?.cronMode ?? "recent";
 
+  // Crear el log con status "running" AQUÍ, antes de responder
+  // Así cuando el usuario actualiza la página VE que está en progreso
+  const { data: newLog, error: logError } = await supabaseAdmin
+    .from("sync_logs")
+    .insert({
+      team_id: teamId,
+      started_at: new Date().toISOString(),
+      status: "running",
+      trigger,
+      cron_mode: cronMode,
+      contacts_created: 0,
+      contacts_updated: 0,
+      contacts_skipped: 0,
+      errors_count: 0,
+    })
+    .select()
+    .single();
+
+  if (logError || !newLog) {
+    console.error("[systeme/run] Error creando log:", logError);
+    return res.status(500).json({ error: "Error iniciando sync" });
+  }
+
   // Responder YA con 202 (Accepted) — el trabajo real corre en background
   // Sin esto, cron-job.org corta a los 30s y Vercel mata a los 300s
-  waitUntil(runSyncInBackground(teamId, trigger, cronMode, dateRange));
-  return res.status(202).json({ ok: true, message: "Sincronización iniciada" });
+  waitUntil(runSyncInBackground(teamId, trigger, cronMode, dateRange, newLog.id));
+  return res.status(202).json({ ok: true, message: "Sincronización iniciada", logId: newLog.id });
 }
 
 async function runSyncInBackground(
   teamId: string,
   trigger: "cron" | "manual",
   cronMode: "recent" | "historic",
-  dateRange?: { fromDate: string; toDate?: string }
+  dateRange?: { fromDate: string; toDate?: string },
+  existingLogId?: string
 ) {
   console.log(`[systeme/run] sync iniciado para team ${teamId.slice(0, 8)} — modo: ${cronMode}`);
 
@@ -140,22 +164,33 @@ async function runSyncInBackground(
     }
   }
 
-  // Crear log con status 'running'
-  const { data: log } = await supabaseAdmin
-    .from("sync_logs")
-    .insert({ 
-      team_id: teamId, 
-      started_at: new Date().toISOString(), 
-      status: "running", 
-      trigger,
-      cron_mode: cronMode,
-      from_date: effectiveDateRange?.fromDate ?? null,
-      to_date: effectiveDateRange?.toDate ?? null
-    })
-    .select("id")
-    .single();
-
-  const logId = log?.id;
+  // Usar el logId que ya fue creado, o crear uno nuevo si no viene (fallback)
+  let logId = existingLogId;
+  if (!logId) {
+    const { data: log } = await supabaseAdmin
+      .from("sync_logs")
+      .insert({ 
+        team_id: teamId, 
+        started_at: new Date().toISOString(), 
+        status: "running", 
+        trigger,
+        cron_mode: cronMode,
+        from_date: effectiveDateRange?.fromDate ?? null,
+        to_date: effectiveDateRange?.toDate ?? null
+      })
+      .select("id")
+      .single();
+    logId = log?.id;
+  } else {
+    // Actualizar el log ya creado con las fechas calculadas (en caso de historic)
+    await supabaseAdmin
+      .from("sync_logs")
+      .update({
+        from_date: effectiveDateRange?.fromDate ?? null,
+        to_date: effectiveDateRange?.toDate ?? null,
+      })
+      .eq("id", logId);
+  }
 
   try {
     // CRON 2 (historic): NO usar whitelist, solo fixed tags (para evitar conflictos)
