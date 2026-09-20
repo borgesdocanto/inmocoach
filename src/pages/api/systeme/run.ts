@@ -193,11 +193,10 @@ async function runSyncInBackground(
   }
 
   try {
-    // CRON 2 (historic): NO usar whitelist, solo fixed tags (para evitar conflictos)
-    // CRON 1 (recent): usar ambos whitelist + fixed tags
-    const useWhitelist = cronMode === "recent"
-      ? (whitelist || []).map((r: { tag_name: string }) => r.tag_name)
-      : [];
+    // Regla del producto: TODA sincro usa únicamente las tags seleccionadas
+    // en el dashboard. Si un contacto tiene otras tags en Tokko, no se traen.
+    // Aplica por igual a CRON 1 (recent), CRON 2 (historic) y sync manual.
+    const useWhitelist = (whitelist || []).map((r: { tag_name: string }) => r.tag_name);
 
     const result = await runSync({
       tokkoKey: team.tokko_api_key,
