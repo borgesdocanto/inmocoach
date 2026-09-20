@@ -23,7 +23,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (req.method !== "POST") return res.status(405).end();
 
   // Autenticación: cron secret (scheduler) O super admin O el propio broker
-  const cronAuth = req.headers.authorization === `Bearer ${CRON_SECRET}`;
+  // Acepta: Bearer header (cron-job.org) O query param ?secret= (VPS)
+  const cronAuth = req.headers.authorization === `Bearer ${CRON_SECRET}` || req.query.secret === CRON_SECRET;
   let teamId: string | undefined;
   let trigger: "cron" | "manual" = "manual";
 
