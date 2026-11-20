@@ -223,7 +223,8 @@ async function runSyncInBackground(
         errors_count: result.errors,
         error_detail: result.errorDetail ?? null,
         status,
-        total_processed: result.created + result.updated + result.skipped,
+        // OJO: sync_logs NO tiene columna total_processed. Incluirla hacía fallar todo el
+        // update (el log quedaba "running" hasta el auto-cierre). La UI suma created+updated+skipped.
       }).eq("id", logId);
     }
 

@@ -82,14 +82,40 @@ export async function fetchTokkoContactsToday(
   const contacts: TokkoContact[] = [];
   const seen = new Set<string>();
 
+  // Reintentos por página ante fallas transitorias de Tokko (502/503/504, 429, timeout, red).
+  // Por defecto NO reintenta (Vercel tiene solo 300s). El runner del VPS lo activa con
+  // TOKKO_PAGE_RETRIES (ej. 6) y espera creciente: 5s, 10s, 20s, 40s, 80s, 120s.
+  const pageRetries = Math.max(0, Number(process.env.TOKKO_PAGE_RETRIES ?? 0));
+  const retryBaseMs = Number(process.env.TOKKO_RETRY_BASE_MS ?? 5000);
+
+  async function fetchPage(url: string): Promise<{ objects?: TokkoContact[]; meta?: { next?: string } }> {
+    let lastErr = "";
+    for (let attempt = 0; attempt <= pageRetries; attempt++) {
+      if (attempt > 0) {
+        const wait = Math.min(retryBaseMs * 2 ** (attempt - 1), 120_000);
+        console.warn(`[Tokko] reintento ${attempt}/${pageRetries} en ${Math.round(wait / 1000)}s (${lastErr})`);
+        await sleep(wait);
+      }
+      try {
+        const r: Response = await fetch(url, { signal: AbortSignal.timeout(30000) });
+        if (r.ok) return await r.json();
+        lastErr = `Tokko error ${r.status}`;
+        // Solo 429 y 5xx son transitorios. Un 4xx (ej. 401 key inválida) no se reintenta.
+        if (r.status !== 429 && r.status < 500) throw new Error(lastErr);
+      } catch (err: unknown) {
+        lastErr = err instanceof Error ? err.message : "Error";
+        if (lastErr.startsWith("Tokko error 4") && !lastErr.startsWith("Tokko error 429")) throw err;
+      }
+    }
+    throw new Error(lastErr);
+  }
+
   async function paginate(startUrl: string) {
     let currentUrl: string | null = startUrl;
     while (currentUrl) {
       const fetchUrl: string = currentUrl;
-      const r: Response = await fetch(fetchUrl, { signal: AbortSignal.timeout(30000) });
-      if (!r.ok) throw new Error(`Tokko error ${r.status}`);
-      const data = await r.json();
-      for (const c of (data.objects ?? []) as TokkoContact[]) {
+      const data = await fetchPage(fetchUrl);
+      for (const c of (data.objects ?? [])) {
         if (c.email && !seen.has(c.email.toLowerCase())) {
           seen.add(c.email.toLowerCase());
           contacts.push(c);
@@ -290,7 +316,12 @@ export async function getOldestSyncedDate(teamId: string): Promise<string | null
   }
 }
 
-const INVALID_EMAIL_MSGS = ["no es válida", "not a valid email", "invalid email", "carece de un"];
+// Emails que Systeme rechaza y que NO podemos arreglar desde acá (inválido, buzón lleno,
+// casilla inexistente). Se cuentan como "salteados", no como errores: no requieren acción.
+const INVALID_EMAIL_MSGS = [
+  "no es válida", "not a valid email", "invalid email", "carece de un",
+  "buzón de esta dirección", "está lleno", "mailbox is full", "mailbox full",
+];
 
 async function createContact(
   payload: Record<string, unknown>,
@@ -347,8 +378,10 @@ export async function runSync(params: {
   const result: SyncResult = { created: 0, updated: 0, skipped: 0, errors: 0 };
   const errors: string[] = [];
   const phaseStart = Date.now();
+  // Tope duro del fetch a Tokko: 90s en Vercel (default); el VPS lo sube con TOKKO_FETCH_TIMEOUT_MS.
+  const tokkoTimeoutMs = Number(process.env.TOKKO_FETCH_TIMEOUT_MS ?? 90000);
 
-  // 1. Traer contactos de Tokko (con timeout duro de 90s)
+  // 1. Traer contactos de Tokko (con timeout duro, 90s por defecto)
   console.log(`[runSync] FASE 1: fetch Tokko contacts (rango: ${dateRange ? `${dateRange.fromDate}→${dateRange.toDate ?? "hoy"}` : "default 3 días"})`);
   let contacts: TokkoContact[] = [];
   if (overrideContacts) {
@@ -357,7 +390,7 @@ export async function runSync(params: {
     try {
       contacts = await Promise.race([
         fetchTokkoContactsToday(tokkoKey, dateRange),
-        new Promise<TokkoContact[]>((_, reject) => setTimeout(() => reject(new Error("Timeout fetch Tokko (90s)")), 90000)),
+        new Promise<TokkoContact[]>((_, reject) => setTimeout(() => reject(new Error(`Timeout fetch Tokko (${Math.round(tokkoTimeoutMs / 1000)}s)`)), tokkoTimeoutMs)),
       ]);
     } catch (err: unknown) {
       const elapsed = Math.round((Date.now() - phaseStart) / 1000);
