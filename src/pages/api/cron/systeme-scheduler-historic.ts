@@ -5,6 +5,7 @@
 // secuencialmente con 5 segundos de pausa entre cada uno.
 import { NextApiRequest, NextApiResponse } from "next";
 import { supabaseAdmin } from "../../../lib/supabase";
+import { syncDelegatedToVps, SYNC_DELEGATED_MESSAGE } from "../../../lib/syncDelegation";
 
 const CRON_SECRET = process.env.CRON_SECRET;
 const BASE_URL = process.env.NEXTAUTH_URL ?? "https://www.inmocoach.com.ar";
@@ -35,6 +36,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   if (!authorized) {
     return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  // El histórico corre en el VPS: este disparo automático se omite.
+  if (syncDelegatedToVps()) {
+    return res.json({ ok: true, skipped: true, message: SYNC_DELEGATED_MESSAGE });
   }
 
   // Traer todos los teams con sync activa y configurada

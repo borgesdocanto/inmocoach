@@ -12,6 +12,7 @@ import { supabaseAdmin } from "../../../lib/supabase";
 import { isSuperAdmin } from "../../../lib/adminGuard";
 import { getEffectiveEmail } from "../../../lib/impersonation";
 import { runSync, getOldestSyncedDate } from "../../../lib/systemeSync";
+import { syncDelegatedToVps, SYNC_DELEGATED_MESSAGE } from "../../../lib/syncDelegation";
 import { Resend } from "resend";
 
 export const config = { maxDuration: 300 }; // Vercel Hobby — pero waitUntil sigue con su propio timeout
@@ -29,6 +30,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   let trigger: "cron" | "manual" = "manual";
 
   if (cronAuth) {
+    // Disparo automático con el sync delegado al VPS: se omite (las corridas manuales NO).
+    if (syncDelegatedToVps()) {
+      return res.status(200).json({ ok: true, skipped: true, message: SYNC_DELEGATED_MESSAGE });
+    }
     // Llamado desde el scheduler — teamId viene en el body, o usa el default (GALAS)
     teamId = req.body?.teamId || "bb61ed0d-96dd-4c45-ac9a-c72169bd0b93";
     trigger = "cron";

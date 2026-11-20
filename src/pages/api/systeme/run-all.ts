@@ -8,6 +8,7 @@ import { NextApiRequest, NextApiResponse } from "next";
 import { waitUntil } from "@vercel/functions";
 import { supabaseAdmin } from "../../../lib/supabase";
 import { runSync } from "../../../lib/systemeSync";
+import { syncDelegatedToVps, SYNC_DELEGATED_MESSAGE } from "../../../lib/syncDelegation";
 import { Resend } from "resend";
 
 export const config = { maxDuration: 300 };
@@ -45,6 +46,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
   }
   if (!authorized) return res.status(401).json({ error: "Unauthorized" });
+
+  // El sync corre en el VPS: este disparo automático (cron-job.org, daily-sync,
+  // birthday-email, loyalty-emails) se omite. No crea logs ni toca Tokko/Systeme.
+  if (syncDelegatedToVps()) {
+    console.log(`[run-all] omitido (${triggerSource}): ${SYNC_DELEGATED_MESSAGE}`);
+    return res.status(200).json({ ok: true, skipped: true, message: SYNC_DELEGATED_MESSAGE });
+  }
 
   // Responder ya: cron-job.org corta a los 30s y esta corrida tarda ~2 minutos.
   // Vercel sigue procesando en background.
